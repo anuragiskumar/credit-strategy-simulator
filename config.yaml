@@ -1,0 +1,118 @@
+# All business parameters live here. No magic numbers in code.
+
+seed: 20240601
+n_rows: 1000000
+data_path: data/applications.parquet
+fixture_path: tests/fixtures/sample.parquet
+
+# ---------------------------------------------------------------- current strategy (7.1)
+# Applied in this order; the first failed rule is the decline reason.
+strategy:
+  rules:
+    - {id: R1_AGE,         mandatory: true,  params: {min_age: 21, max_age: 60}}
+    - {id: R2_FRAUD,       mandatory: true,  params: {}}
+    - {id: R3_THIN_FILE,   mandatory: false, params: {min_vintage: 6}}
+    - {id: R4_BUREAU_HIST, mandatory: false, params: {dpd_lt: 60, max_enquiries: 6}}
+    - {id: R5_SCORE,       mandatory: false, params: {cutoff: 700}}
+    - {id: R6_FOIR,        mandatory: false, params: {cap: 0.50}}
+
+# ---------------------------------------------------------------- synthetic generator (5.2)
+generator:
+  apr: 0.14                     # used to derive proposed_emi
+  app_date_start: "2024-01-01"
+  app_date_days: 366
+  age_outside_share: 0.05       # share outside 21-60; the rest is uniform over 21-60
+  age_min: 19
+  age_max: 65
+  score_mean: 720
+  score_sd: 60
+  score_min: 300
+  score_max: 900
+  no_hit_share: 0.06            # null bureau score
+  thin_file_share: 0.04         # score present, vintage < 6
+  no_hit_score_impute: 660      # only used inside the synthetic PD; never written to the data
+  employment_probs: {salaried: 0.60, self_employed: 0.30, other: 0.10}
+  income_median: 45000
+  income_sigma: 0.55
+  income_min: 10000
+  loan_median: 300000
+  loan_income_elasticity: 0.6
+  loan_sigma: 0.35
+  loan_min: 50000
+  loan_rounding: 5000
+  max_proposed_emi_to_income: 0.8
+  tenors: [12, 24, 36, 48, 60]
+  foir_target_median: 0.35
+  foir_target_sigma: 0.25
+  foir_max: 1.2
+  # max_dpd_12m: P(dpd > 0) = sigmoid(a0 + a1 * z), z = (score_mean - score) / score_sd
+  dpd_any: {a0: -2.2, a1: 0.9}
+  dpd_levels: [30, 60, 90]
+  dpd_level_probs: [0.60, 0.25, 0.15]
+  # enquiries_6m ~ Poisson(exp(e0 + e1 * z) * Gamma(k, 1/k))
+  enquiries: {e0: 0.2, e1: 0.3, gamma_shape: 2.0}
+  fraud_share: 0.02
+  # logit(p) = b0 + b1*(700-score)/20 + b2*foir + b3*dpd_indicator + b4*enquiries_6m + b_emp
+  pd:
+    score_pivot: 700
+    score_step: 20
+    b0: -4.1
+    b1: 0.22
+    b2: 2.5
+    b3: 0.6
+    b4: 0.08
+    employment: {salaried: -0.40, self_employed: 0.40, other: 0.60}
+  overrides:                    # 5.2.1
+    rate: 0.01
+    decline_to_approve_share: 0.70
+    eligible_failed_rules: [R5_SCORE, R6_FOIR]   # decline->approve only where nothing else failed
+    band_share: 0.85            # of decline->approve flips drawn from the marginal band
+    band_score: [650, 700]      # [lo, hi)
+    band_foir: [0.50, 0.60]     # [lo, hi]
+    favour_exponent: 1.0        # sampling weight = p ** -exponent inside the band
+
+# ---------------------------------------------------------------- calibration targets (5.3)
+calibration:
+  approval_rate: [0.38, 0.42]
+  observed_bad_rate: [0.025, 0.032]
+  true_bad_680_699: [0.04, 0.06]
+  true_bad_680_699_salaried_low_foir: [0.025, 0.035]
+  salaried_low_foir_cap: 0.35
+  rule_min_share: 0.01
+  reproduction_match_rate: [0.988, 0.992]
+  booked_650_699_min: 5000      # at 1,000,000 rows; scaled linearly with n_rows
+  score_band: [680, 700]
+  near_cutoff_band: [650, 700]
+
+# ---------------------------------------------------------------- waterfall heatmap (8)
+waterfall:
+  heatmap_score_edges: [0, 600, 640, 660, 680, 700, 720, 760, .inf]
+  heatmap_foir_edges: [0.0, 0.3, 0.4, 0.5, 0.6, 0.8, .inf]
+
+# ---------------------------------------------------------------- risk model (9) -- phase 2
+model:
+  random_state: 42
+  test_size: 0.30
+  min_level_obs: 100
+  min_support_obs: 200
+  support_bins: 10
+  min_auc: 0.60
+  inference_penalty: 1.25
+  sensitivity_penalties: [1.0, 1.25, 1.5, 2.0]
+  max_inferred_share: 0.50
+
+# ---------------------------------------------------------------- optimiser (10) -- phase 3
+constraints:
+  - {name: bad_rate, metric: blended_bad_rate, operator: "<=", threshold: 0.035, enabled: true}
+
+segmentation:
+  - {column: bureau_score, type: band, edges: [640, 660, 680, 700]}
+  - {column: foir, type: band, edges: [0.0, 0.35, 0.50, 0.60]}
+  - {column: employment_type, type: categorical}
+
+optimiser:
+  min_segment_size: 500
+  max_segments_added: 10
+  naive_cutoff_start: 700
+  naive_cutoff_stop: 300
+  naive_cutoff_step: 1

@@ -1,0 +1,52 @@
+The idea is to build a decisioning and simulation product that helps a lender answer a practical question:
+“Given my current credit strategy and risk appetite, where can I change the strategy to generate a better portfolio outcome?”
+
+For the first use case, I would start with Originations / Approval Optimisation.
+
+Today, lenders typically know their approval rate and decline reasons, but understanding which declined customers could have been safely approved involves considerable offline analysis. The product should make this an interactive strategy-design and simulation exercise. Assume a lender receives 1 million applications, approves 400,000 and declines 600,000. The product should first explain the decline population: score cutoff, affordability/FOIR, policy rules, thin file, bureau history, fraud/verification, etc.
+
+It should then allow the business to ask questions such as:
+
+“What happens if I move the bureau cutoff from 700 to 680?” or, more intelligently:
+“Instead of reducing the cutoff for everybody, which customers between 680–699 could I approve using additional characteristics without taking the bad rate beyond my risk appetite?”
+
+This is where optimisation starts.
+
+The engine should be able to search combinations of score bands, customer characteristics, policy rules, affordability, exposure, limits and potentially pricing to identify the best incremental approval population.
+
+The objective might be:
+Maximise approval rate
+subject to:
+Bad rate ≤ 3.5%
+Expected loss ≤ ₹X
+Fraud rate ≤ Y%
+Minimum profitability / risk-adjusted return ≥ Z
+Mandatory credit and regulatory policies cannot be breached
+
+The output should therefore not just say, “lower the cutoff.” It should say something like:
+
+Current approval rate: 40%
+Potential approval rate: 46.5%
+Incremental approvals: 65,000
+Expected bad rate: 3.45%
+Risk appetite: ≤3.5%
+
+It should then explain where those additional approvals are coming from and which rules or segments changed.
+
+One important consideration is reject inference. For booked customers we know subsequent performance; for declined customers we normally don’t. Therefore, the product must distinguish clearly between observed performance, model-predicted performance, and inferred performance for declines. We should not present inferred outcomes as observed facts.
+
+The simulation population therefore needs to include the full application population approvals and declines while performance modelling will initially rely primarily on booked customers with observed outcomes, supplemented over time with bureau performance, test-and-learn samples, and other reject-inference approaches.
+
+The product should also support Champion / Challenger. Once we identify a potentially better strategy, we should be able to put a controlled percentage through the challenger, observe actual performance and feed that back into the next optimisation cycle.
+
+The broader vision is that the same engine should subsequently work on the existing book as well. There the question changes from “who else should I approve?” to “what is the best action for each existing customer?”  increase/decrease limit, collections treatment, retention, cross-sell, pricing, restructuring, etc.
+
+So conceptually I see the common engine as:
+
+Population → Understand current strategy → Identify opportunity → Define objective → Define constraints → Generate alternatives → Simulate → Optimise → Explain recommendation → Champion/Challenger → Measure actual outcome → Learn
+
+The attached Experian material is useful as a conceptual reference, not something we should reproduce. Its assisted-design approach already separates the existing decision strategy, data and performance measures, target/predictor characteristics, and strategy analysis. For originations, it explicitly works on an Accept/Decline strategy and uses subsequent Good/Bad performance to assess the strategy. 
+
+For the first prototype, I would keep the scope narrow: take historical application data, reproduce the current approval/decline strategy, show the decline waterfall, allow us to change/select strategy parameters, simulate the effect on approvals and bad rate, and then identify a better strategy subject to a defined risk constraint.
+
+If we can make that work convincingly, we have the foundation for the larger portfolio optimisation product.
