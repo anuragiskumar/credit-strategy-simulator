@@ -171,3 +171,12 @@ def test_unknown_override_column_raises(strategy):
     ov = SegmentOverride({"nonexistent": (0, 1)}, ("R5_SCORE",))
     with pytest.raises(KeyError):
         evaluate_strategy(make_applicants([{}]), with_overrides(strategy, (ov,)))
+
+
+def test_unknown_rule_parameter_raises_instead_of_running_as_a_no_op(strategy):
+    with pytest.raises(KeyError, match="enquiries_lt"):
+        with_rule_params(strategy, {"R4_BUREAU_HIST": {"enquiries_lt": 12}})
+    with pytest.raises(KeyError, match="cuttoff"):
+        with_rule_params(strategy, {"R5_SCORE": {"cuttoff": 680}})
+    # the real parameter names still work
+    assert with_rule_params(strategy, {"R4_BUREAU_HIST": {"max_enquiries": 12}})

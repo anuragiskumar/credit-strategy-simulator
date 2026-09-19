@@ -41,14 +41,15 @@ class ScenarioResult:
     blended_bad_rate: float          # excludes not_modelled
     inferred_share: float
     waterfall: pd.DataFrame
-    swap_in_breakdown: pd.DataFrame  # includes a NOT_MODELLED row
+    swap_in_breakdown: pd.DataFrame  # includes a NOT_MODELLED row and a booked_in_cell column
     sensitivity: pd.DataFrame        # penalty -> blended_bad_rate
 
 
 @dataclass
 class OptimiserResult:
     headline: ScenarioResult
-    added_segments: pd.DataFrame     # conditions, count, inferred_bad_rate, cumulative_bad_rate
+    added_segments: pd.DataFrame     # conditions, count, inferred_bad_rate, cumulative_bad_rate,
+                                     # booked_in_cell, thin
     rejected_segments: pd.DataFrame  # conditions, count, inferred_bad_rate, reason
     naive_cutoff: float
     naive_result: ScenarioResult

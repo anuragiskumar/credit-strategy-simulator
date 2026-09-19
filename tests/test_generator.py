@@ -67,3 +67,10 @@ def test_loader_accepts_a_dataset_without_the_synthetic_outcome_column(sample, t
     sample.drop(columns=["true_bad"]).to_parquet(p)
     df = load_applications(p, cfg)
     assert len(df) == len(sample)
+
+
+def test_calibration_targets_are_met_at_one_million_rows(cfg):
+    """The targets in 5.3 are stated for the full 1M build; check them at that size, in memory."""
+    df = generate({**cfg, "n_rows": 1_000_000})
+    table = calibration_table(df, cfg)
+    assert table["pass"].all(), table.to_string()

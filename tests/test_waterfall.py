@@ -65,3 +65,23 @@ def test_heatmap_counts_every_written_decline(sample, strategy, cfg):
     assert "No score" in hm.index
     assert hm.loc["No score"].sum() == int(sample.loc[(ev["decision"] == "decline").to_numpy(),
                                                        "bureau_score"].isna().sum())
+
+
+def test_override_steps_come_from_the_flag_not_from_a_residual(sample, strategy):
+    """Corrupting a non-override row must raise; a residual step would have absorbed it."""
+    from src.rules import ReproductionError
+    df = sample.copy()
+    i = df.index[~df["manual_override"] & (df["hist_decision"] == "decline")][0]
+    df.loc[i, "hist_decision"] = "approve"
+    df["hist_decision"] = df["hist_decision"].astype("category")
+    with pytest.raises(ReproductionError, match="non-override rows disagree"):
+        build_waterfall(df, strategy)
+
+
+def test_flagged_override_that_agrees_with_the_strategy_raises(sample, strategy):
+    from src.rules import ReproductionError
+    df = sample.copy()
+    i = df.index[~df["manual_override"]][0]
+    df.loc[i, "manual_override"] = True
+    with pytest.raises(ReproductionError, match="agree with the written strategy"):
+        build_waterfall(df, strategy)

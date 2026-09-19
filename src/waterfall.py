@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from src.contracts import Strategy
-from src.rules import evaluate_strategy
+from src.rules import ReproductionError, evaluate_strategy
 from src.segments import band_series
 
 
@@ -39,10 +39,20 @@ def build_waterfall(df: pd.DataFrame, strategy: Strategy, evaluation: pd.DataFra
     if adjustment == "historical":
         engine_approve = (ev["decision"] == "approve").to_numpy()
         hist_approve = (df["hist_decision"] == "approve").to_numpy()
+        override = df["manual_override"].to_numpy(dtype=bool)
+        # The override steps come from the manual_override flag, not from engine-vs-history
+        # disagreement. Disagreement on a flagged row is expected; disagreement anywhere else means the
+        # engine is wrong, and a residual step would silently absorb it.
+        if ((engine_approve != hist_approve) & ~override).any():
+            raise ReproductionError(
+                f"{int(((engine_approve != hist_approve) & ~override).sum())} non-override rows disagree "
+                f"with history: the waterfall cannot be reconciled with manual overrides alone")
+        if ((engine_approve == hist_approve) & override).any():
+            raise ReproductionError("rows flagged manual_override agree with the written strategy")
         rows.append(("Manual override: decline → approve", "adjustment",
-                     int((~engine_approve & hist_approve).sum())))
+                     int((override & hist_approve).sum())))
         rows.append(("Manual override: approve → decline", "adjustment",
-                     -int((engine_approve & ~hist_approve).sum())))
+                     -int((override & ~hist_approve).sum())))
         rows.append(("Approved (actual)", "end", None))
         final_expected = int(hist_approve.sum())
     elif adjustment == "segment_overrides":

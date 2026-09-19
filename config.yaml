@@ -89,21 +89,32 @@ waterfall:
   heatmap_score_edges: [0, 600, 640, 660, 680, 700, 720, 760, .inf]
   heatmap_foir_edges: [0.0, 0.3, 0.4, 0.5, 0.6, 0.8, .inf]
 
-# ---------------------------------------------------------------- risk model (9) -- phase 2
+# ---------------------------------------------------------------- risk model (9)
 model:
   random_state: 42
   test_size: 0.30
-  min_level_obs: 100
-  min_support_obs: 200
+  features:                     # 9.1. Categorical features are one-hot encoded.
+    numeric: [bureau_score, foir, enquiries_6m]
+    categorical: [max_dpd_12m, employment_type]
+  l2_C: 1.0                     # inverse L2 strength; weak on purpose, coefficients stay explainable
+  min_level_obs: 100            # categorical level dropped below this many booked obs (9.1)
+  min_support_obs: 200          # numeric decile bin unsupported below this many booked obs (9.2)
   support_bins: 10
+  min_vintage_months: 6         # thin-file gate: shorter history is NOT_MODELLED. Fixed by the training
+                                # population, so it does NOT move when R3_THIN_FILE is relaxed.
+  min_cell_obs: 100             # segmentation cell with fewer booked obs is flagged THIN (9.2)
   min_auc: 0.60
   inference_penalty: 1.25
   sensitivity_penalties: [1.0, 1.25, 1.5, 2.0]
   max_inferred_share: 0.50
+  bias_warning_ratio: 0.15      # warn when model-basis and observed baselines differ by more than this (relative)
 
 # ---------------------------------------------------------------- optimiser (10) -- phase 3
 constraints:
   - {name: bad_rate, metric: blended_bad_rate, operator: "<=", threshold: 0.035, enabled: true}
+
+segment_overrides:
+  default_relaxes: [R5_SCORE, R6_FOIR]   # rules a segment override may bypass unless it says otherwise
 
 segmentation:
   - {column: bureau_score, type: band, edges: [640, 660, 680, 700]}

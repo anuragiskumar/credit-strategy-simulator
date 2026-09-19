@@ -198,6 +198,7 @@ Show all three on screen: observed baseline, model-basis baseline, scenario blen
   4. An override applies only if the applicant satisfies the override's own conditions **and** passes every base rule the override does not explicitly relax.
   5. Overrides are evaluated after base rules; order between overrides is irrelevant because they can only add approvals.
 - Mandatory rules can never be relaxed or overridden, by the UI or the optimiser.
+- Editing a rule parameter that the rule does not have must **raise**, listing the valid names. A scenario is driven by hand-written JSON through the 11.1 CLI; a typo that is silently accepted runs as a no-op and reports "0 swap-ins, nothing changed", which reads exactly like a real finding.
 - Vectorised pandas/numpy only. No row loops. Must evaluate 1M rows in under 2 seconds.
 
 ### 7.3 Reproduction check
@@ -212,6 +213,7 @@ If the second number is below 100%, the rule engine is wrong — fail loudly, do
 ## 8. Waterfall
 
 - Sequential waterfall: applications → removed by R1 → R2 → … → approved. Counts and % of total. Manual overrides are shown as a separate final adjustment step so the waterfall reconciles to the actual approved count.
+- **Derive that step from the `manual_override` flag, never as a residual.** A step computed as "whatever is left over" makes the reconciliation vacuous: a genuine rule-engine bug is relabelled as a manual override and the waterfall still balances, telling a confident wrong story. Disagreement between the engine and history on a row that is *not* flagged must raise. The same rule applies to the scenario waterfall in 10.1.
 - **Single-rule declines**: count of declines that failed exactly one rule, by rule. These are the near-miss opportunity.
 - A **score band × FOIR band** heatmap of declined volumes.
 
@@ -238,6 +240,7 @@ the **combination** of the two has almost no observations behind it. Both checks
 **Marginal support — decides whether a PD is produced**
 
 - Bin each numeric feature into deciles of the **full application** population. A bin is *supported* if it contains at least `min_support_obs` booked observations (config, default 200).
+- **Dense is not the same as observed.** A bin can hold thousands of booked rows and still span values no booked customer has. On discrete features the decile edges collapse: `enquiries_6m` produces four bins, the top one spanning 3–23 with ~47,000 booked observations behind it, while no booked customer exceeds 6. Support therefore also requires the value to lie **within the min–max of the booked rows the model was fitted on**. Without this clause, relaxing `max_enquiries` to 12 produces ~1,400 approvals priced by linear extrapolation seventeen units beyond any training data, every one of them scored, none flagged `NOT_MODELLED`.
 - A categorical level is supported if it survived the `min_level_obs` filter in 9.1.
 - An applicant is `NOT_MODELLED` if **any** of its feature values falls in an unsupported bin or level, or if it has no bureau score.
 - `RiskModel.predict_pd()` must return NaN — not a number — for `NOT_MODELLED` rows. Callers must handle them per Section 6.
@@ -253,6 +256,7 @@ the **combination** of the two has almost no observations behind it. Both checks
 
 - The Risk model page must display, per feature, the supported range or levels and the count of applications inside and outside it — **as counts, not merely a pass/fail flag.** Several bins sit within ~10% of the `min_support_obs` threshold, so a boolean alone conceals how close the classification is to flipping on a change of seed.
 - It must also display a joint-support table: booked observations per segmentation cell, with the cells the optimiser is most likely to reach highlighted.
+- Report separately the count of applications that sit in a *supported bin* but *outside the booked range*. That is the population the range clause is holding back, and it is invisible in a per-bin table. If the count is zero, the clause is inert and something upstream is wrong.
 
 The marginal check is what stops the What-if page cheerfully approving 90-DPD applicants at a 3%
 predicted bad rate. The joint check is what stops the optimiser recommending eighteen thousand
@@ -312,6 +316,8 @@ that contradicts the warning printed above it. Condition on FOIR as well.
 - Must be **deterministic**: identical input and config produce an identical segment list and headline.
 - Output:
   - headline: current approval rate, proposed approval rate, incremental approvals, expected blended bad rate, constraint, and the count of candidate segments **rejected** by the constraint
+  - the **share of incremental approvals drawn from THIN cells** (9.2), as a headline number beside the approval rate. Ascending-risk ordering selects preferentially for cells with little observed evidence, so this is not a footnote: it is the honest health warning for the whole recommendation.
+  - the **candidate funnel**: total declines → failed only R5/R6 → inside training support → in segments of at least `min_segment_size`. In the current data roughly a third of declines have no PD at all, so "we found ten segments" means nothing without the denominator it came from.
   - the list of added segments as human-readable rules, e.g. "Approve score 680–699 AND FOIR ≤ 35% AND salaried". Each shows its count, inferred bad rate, the cumulative portfolio bad rate after adding it, and its **joint-support count with a THIN flag** (Section 9.2)
   - the list of **rejected** segments with the reason, so the user can see where the appetite ran out
   - **Naive comparison** (10.2.3)
@@ -403,7 +409,7 @@ It must round-trip: export → import → re-simulate reproduces the same headli
 |---|---|---|
 | 1 | contracts, config, generator (incl. overrides), loader, rule engine, waterfall, sample fixture, tests | calibration targets in 5.3 met; reproduction excluding overrides = 100%; tests pass |
 | 2 | risk model, training support, provenance labelling, simulation engine, headless CLI, tests | AUC ≥ 0.60 and calibration printed; support ranges printed; simulation under 3 s; tests pass |
-| 3 | optimiser, naive comparison, swap-out analysis, sensitivity, strategy export, validation calcs, tests | optimiser respects the constraint and rejects ≥ 1 segment; targeted ≥ naive; export round-trips; tests pass |
+| 3 | optimiser, naive comparison, **near-cutoff anchor (9.4)**, swap-out analysis, sensitivity and breakeven penalty, strategy export, validation calcs, tests | optimiser respects the constraint and rejects ≥ 1 segment; targeted ≥ naive; anchor computed within cells with the naive version shown beside it; export round-trips; tests pass |
 | 4 | Streamlit UI (Section 12) | all pages work end-to-end on 1M rows |
 | 5 | README, cleanup, demo script | fresh-clone setup works in under 10 minutes |
 
@@ -451,6 +457,10 @@ Tests run against `tests/fixtures/sample.parquet` (~500 rows, committed) unless 
 - Naive comparison is costed on the same basis as the targeted strategy.
 - Strategy export round-trips to the same headline numbers.
 - The generator is deterministic for a given seed.
+- The committed fixture equals a fresh rebuild from the generator, so it cannot go stale behind a passing suite.
+- Editing a rule parameter that does not exist raises rather than running as a silent no-op.
+- The waterfall's override adjustment step is derived from `manual_override`; a non-override disagreement raises.
+- An applicant whose feature value sits in a supported bin but outside the booked range is `NOT_MODELLED`.
 - **`test_leakage.py`**: scan every file in `src/` except `generate_data.py` and `validation.py` for the string `true_bad` and fail on any occurrence.
 
 ## 14. Acceptance criteria

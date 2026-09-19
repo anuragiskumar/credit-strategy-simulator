@@ -73,6 +73,9 @@ def with_rule_params(strategy: Strategy, changes: dict[str, dict]) -> Strategy:
         if r.id in changes:
             if r.mandatory:
                 raise ValueError(f"{r.id} is mandatory and cannot be relaxed")
+            bad = set(changes[r.id]) - set(r.params)
+            if bad:   # a typo must not run as a silent no-op
+                raise KeyError(f"{r.id} has no parameter(s) {sorted(bad)}; valid: {sorted(r.params)}")
             r = Rule(r.id, {**r.params, **changes[r.id]}, r.mandatory, r.enabled)
         new_rules.append(r)
     return Strategy(rules=tuple(new_rules), overrides=strategy.overrides)
