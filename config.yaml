@@ -103,6 +103,7 @@ model:
   min_vintage_months: 6         # thin-file gate: shorter history is NOT_MODELLED. Fixed by the training
                                 # population, so it does NOT move when R3_THIN_FILE is relaxed.
   min_cell_obs: 100             # segmentation cell with fewer booked obs is flagged THIN (9.2)
+  min_anchor_obs: 200           # override-approved cells with fewer booked obs ignored for anchor (9.4)
   min_auc: 0.60
   inference_penalty: 1.25
   sensitivity_penalties: [1.0, 1.25, 1.5, 2.0]
@@ -124,6 +125,7 @@ segmentation:
 optimiser:
   min_segment_size: 500
   max_segments_added: 10
+  swap_out_decline_count: 3
   naive_cutoff_start: 700
   naive_cutoff_stop: 300
   naive_cutoff_step: 1

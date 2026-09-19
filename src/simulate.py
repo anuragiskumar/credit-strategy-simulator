@@ -31,9 +31,9 @@ import numpy as np
 import pandas as pd
 
 from src.config import load_config
-from src.contracts import ScenarioResult, SegmentOverride, Strategy
+from src.contracts import ScenarioResult, SegmentExclusion, SegmentOverride, Strategy
 from src.risk_model import INFERRED, NOT_MODELLED, OBSERVED, PREDICTED, RiskModel, train_model
-from src.rules import (evaluate_strategy, strategy_from_config, with_overrides, with_rule_enabled,
+from src.rules import (evaluate_strategy, strategy_from_config, with_exclusions, with_overrides, with_rule_enabled,
                        with_rule_params)
 from src.segments import cell_label, dimension_frame, dimensions_from_config
 from src.util import log, print_json
@@ -46,9 +46,16 @@ def _override_from_dict(o: dict, default_relaxes: list[str]) -> SegmentOverride:
     cond = {}
     for k, v in o["conditions"].items():
         is_range = (isinstance(v, (list, tuple)) and len(v) == 2
-                    and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in v))
-        cond[k] = tuple(v) if is_range else v
+                    and all(x is None or (isinstance(x, (int, float)) and not isinstance(x, bool)) for x in v)
+                    and (k in {"bureau_score", "foir"} or any(x is not None for x in v)))
+        cond[k] = (float("-inf") if v[0] is None else v[0],
+                   float("inf") if v[1] is None else v[1]) if is_range else v
     return SegmentOverride(conditions=cond, relaxes=tuple(o.get("relaxes", default_relaxes)))
+
+
+def _exclusion_from_dict(o: dict) -> SegmentExclusion:
+    conditions = _override_from_dict({"conditions": o["conditions"]}, []).conditions
+    return SegmentExclusion(conditions=conditions, reason=o["reason"])
 
 
 def scenario_from_dict(baseline: Strategy, spec: dict, config: dict) -> Strategy:
@@ -62,7 +69,7 @@ def scenario_from_dict(baseline: Strategy, spec: dict, config: dict) -> Strategy
 
     Mandatory rules cannot be edited or switched off; the helpers raise if asked to.
     """
-    unknown = set(spec) - {"rules", "enabled", "overrides", "inference_penalty"}
+    unknown = set(spec) - {"rules", "enabled", "overrides", "exclusions", "inference_penalty"}
     if unknown:
         raise KeyError(f"Unknown scenario keys: {sorted(unknown)}")
     s = baseline
@@ -73,6 +80,8 @@ def scenario_from_dict(baseline: Strategy, spec: dict, config: dict) -> Strategy
     if spec.get("overrides"):
         relaxes = config["segment_overrides"]["default_relaxes"]
         s = with_overrides(s, tuple(_override_from_dict(o, relaxes) for o in spec["overrides"]))
+    if "exclusions" in spec:
+        s = with_exclusions(s, tuple(_exclusion_from_dict(o) for o in spec["exclusions"]))
     return s
 
 

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 
-from src.contracts import Rule, SegmentOverride, Strategy
+from src.contracts import Rule, SegmentExclusion, SegmentOverride, Strategy
 
 
 # --------------------------------------------------------------------------- rules
@@ -78,7 +78,7 @@ def with_rule_params(strategy: Strategy, changes: dict[str, dict]) -> Strategy:
                 raise KeyError(f"{r.id} has no parameter(s) {sorted(bad)}; valid: {sorted(r.params)}")
             r = Rule(r.id, {**r.params, **changes[r.id]}, r.mandatory, r.enabled)
         new_rules.append(r)
-    return Strategy(rules=tuple(new_rules), overrides=strategy.overrides)
+    return Strategy(rules=tuple(new_rules), overrides=strategy.overrides, exclusions=strategy.exclusions)
 
 
 def with_rule_enabled(strategy: Strategy, enabled: dict[str, bool]) -> Strategy:
@@ -94,11 +94,15 @@ def with_rule_enabled(strategy: Strategy, enabled: dict[str, bool]) -> Strategy:
                 raise ValueError(f"{r.id} is mandatory and cannot be switched off")
             r = Rule(r.id, r.params, r.mandatory, bool(enabled[r.id]))
         new_rules.append(r)
-    return Strategy(rules=tuple(new_rules), overrides=strategy.overrides)
+    return Strategy(rules=tuple(new_rules), overrides=strategy.overrides, exclusions=strategy.exclusions)
 
 
 def with_overrides(strategy: Strategy, overrides: tuple[SegmentOverride, ...]) -> Strategy:
-    return Strategy(rules=strategy.rules, overrides=tuple(overrides))
+    return Strategy(rules=strategy.rules, overrides=tuple(overrides), exclusions=strategy.exclusions)
+
+
+def with_exclusions(strategy: Strategy, exclusions: tuple[SegmentExclusion, ...]) -> Strategy:
+    return Strategy(rules=strategy.rules, overrides=strategy.overrides, exclusions=tuple(exclusions))
 
 
 # --------------------------------------------------------------------------- overrides
@@ -159,6 +163,13 @@ def evaluate_strategy(df: pd.DataFrame, strategy: Strategy) -> pd.DataFrame:
     id_arr = np.array(ids, dtype=object)
     first_failed = np.where(base_decline, id_arr[first_idx], None)
 
+    excluded = np.zeros(n, dtype=bool)
+    exclusion_reason = np.full(n, None, dtype=object)
+    for exclusion in strategy.exclusions:
+        matches = override_condition_mask(df, exclusion.conditions) & ~base_decline & ~excluded
+        excluded |= matches
+        exclusion_reason[matches] = exclusion.reason
+
     by_override = np.zeros(n, dtype=bool)
     mandatory_ids = {r.id for r in strategy.rules if r.mandatory}
     for ov in strategy.overrides:
@@ -170,13 +181,19 @@ def evaluate_strategy(df: pd.DataFrame, strategy: Strategy) -> pd.DataFrame:
             raise ValueError(f"Override cannot relax mandatory rules: {sorted(relaxes & mandatory_ids)}")
         must_pass = [j for j, rid in enumerate(ids) if rid not in relaxes]
         others_fail = failed[:, must_pass].any(axis=1) if must_pass else np.zeros(n, dtype=bool)
-        by_override |= override_condition_mask(df, ov.conditions) & ~others_fail & base_decline
+        by_override |= override_condition_mask(df, ov.conditions) & ~others_fail & base_decline & ~excluded
 
-    approve = ~base_decline | by_override
+    approve = (~base_decline & ~excluded) | by_override
+    decline_reason = first_failed.copy()
+    decline_reason[excluded] = exclusion_reason[excluded]
+    decline_reason[by_override] = None
     out = {
         "decision": pd.Categorical(np.where(approve, "approve", "decline"),
                                    categories=["approve", "decline"]),
         "first_failed_rule": pd.Series(first_failed, index=df.index, dtype=object),
+        "decline_reason": pd.Series(decline_reason, index=df.index, dtype=object),
+        "exclusion_reason": pd.Series(exclusion_reason, index=df.index, dtype=object),
+        "excluded_by_segment": excluded,
     }
     for j, rid in enumerate(ids):
         out[f"failed_{rid}"] = failed[:, j]

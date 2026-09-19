@@ -475,6 +475,183 @@ def train_model(df: pd.DataFrame, cfg: dict | None = None) -> RiskModel:
     return model
 
 
+# --------------------------------------------------------------------------- near-cutoff anchor (9.4)
+def _wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    if n == 0:
+        return 0.0, 0.0
+    p = k / n
+    denom = 1.0 + (z ** 2) / n
+    center = (p + (z ** 2) / (2 * n)) / denom
+    spread = (z * np.sqrt((p * (1 - p) + (z ** 2) / (4 * n)) / n)) / denom
+    return max(0.0, float(center - spread)), min(1.0, float(center + spread))
+
+
+def near_cutoff_anchor(df: pd.DataFrame, model: RiskModel, config: dict | None = None) -> dict:
+    """Near-cutoff inference anchor (Section 9.4).
+
+    Compares observed performance of override-approved applicants with model PDs of declines
+    within the same segmentation cells (score band x FOIR band x employment_type).
+    Also computes the naive version (score band alone) to demonstrate the FOIR mix effect.
+    """
+    cfg = config or model.cfg
+    min_anchor_obs = cfg.get("model", {}).get("min_anchor_obs", 200)
+
+    booked = df["booked"].to_numpy(dtype=bool)
+    override = df["manual_override"].to_numpy(dtype=bool)
+    override_approved = booked & override
+    declined = ~booked
+
+    dims = dimensions_from_config(cfg)
+    dim_cols = [d.column for d in dims]
+    frame, _ = dimension_frame(df, dims, getattr(model, "_cell_levels", None))
+    frame["_cell_label"] = cell_label(frame[dim_cols])
+
+    pds = model.predict_pd(df).to_numpy()
+    bad_flags = df["bad_flag"].fillna(0).to_numpy(dtype=float)
+
+    # 1. Cell-matched analysis
+    df_ov = frame[override_approved].copy()
+    ov_counts = df_ov["_cell_label"].value_counts()
+    eligible_cells = set(ov_counts[ov_counts >= min_anchor_obs].index)
+
+    cell_rows = []
+    total_ov_count = 0
+    total_ov_bads = 0.0
+    total_dec_count = 0
+    sum_weighted_model_pd = 0.0
+
+    for clabel in sorted(eligible_cells):
+        m_ov = override_approved & (frame["_cell_label"] == clabel).to_numpy()
+        m_dec = declined & (frame["_cell_label"] == clabel).to_numpy() & ~np.isnan(pds)
+
+        n_ov = int(m_ov.sum())
+        bads_ov = float(bad_flags[m_ov].sum())
+        rate_ov = bads_ov / n_ov if n_ov else float("nan")
+        ci_lo, ci_hi = _wilson_ci(int(bads_ov), n_ov)
+
+        n_dec = int(m_dec.sum())
+        mean_pd_dec = float(pds[m_dec].mean()) if n_dec else float("nan")
+        imp_penalty = rate_ov / mean_pd_dec if (mean_pd_dec and np.isfinite(mean_pd_dec)) else float("nan")
+
+        first_row = frame[frame["_cell_label"] == clabel].iloc[0]
+        row_dict = {col: str(first_row[col]) for col in dim_cols}
+        row_dict.update({
+            "cell": clabel,
+            "override_count": n_ov,
+            "override_bads": bads_ov,
+            "observed_bad_rate": rate_ov,
+            "ci_lower": ci_lo,
+            "ci_upper": ci_hi,
+            "declines_count": n_dec,
+            "mean_model_pd": mean_pd_dec,
+            "implied_penalty": imp_penalty,
+        })
+        cell_rows.append(row_dict)
+
+        total_ov_count += n_ov
+        total_ov_bads += bads_ov
+        total_dec_count += n_dec
+        if np.isfinite(mean_pd_dec):
+            sum_weighted_model_pd += n_ov * mean_pd_dec
+
+    cells_df = pd.DataFrame(cell_rows)
+
+    vw_obs_rate = total_ov_bads / total_ov_count if total_ov_count else float("nan")
+    vw_model_pd = sum_weighted_model_pd / total_ov_count if total_ov_count else float("nan")
+    vw_penalty = vw_obs_rate / vw_model_pd if (vw_model_pd and np.isfinite(vw_model_pd)) else float("nan")
+
+    volume_weighted = {
+        "override_count": total_ov_count,
+        "override_bads": total_ov_bads,
+        "observed_bad_rate": vw_obs_rate,
+        "declines_count": total_dec_count,
+        "mean_model_pd": vw_model_pd,
+        "implied_penalty": vw_penalty,
+    }
+
+    # 2. Naive version (score band alone)
+    naive_rows = []
+    total_naive_ov_count = 0
+    total_naive_ov_bads = 0.0
+    total_naive_dec_count = 0
+    sum_naive_weighted_pd = 0.0
+
+    if "bureau_score" in frame.columns:
+        score_bands = frame["bureau_score"].dropna().unique()
+        for sb in sorted(score_bands, key=lambda x: str(x)):
+            m_sb_ov = override_approved & (frame["bureau_score"] == sb).to_numpy()
+            n_sb_ov = int(m_sb_ov.sum())
+            if n_sb_ov < min_anchor_obs:
+                continue
+            bads_sb_ov = float(bad_flags[m_sb_ov].sum())
+            rate_sb_ov = bads_sb_ov / n_sb_ov if n_sb_ov else float("nan")
+            ci_lo, ci_hi = _wilson_ci(int(bads_sb_ov), n_sb_ov)
+
+            m_sb_dec = declined & (frame["bureau_score"] == sb).to_numpy() & ~np.isnan(pds)
+            n_sb_dec = int(m_sb_dec.sum())
+            mean_sb_pd = float(pds[m_sb_dec].mean()) if n_sb_dec else float("nan")
+            imp_sb_penalty = rate_sb_ov / mean_sb_pd if (mean_sb_pd and np.isfinite(mean_sb_pd)) else float("nan")
+
+            naive_rows.append({
+                "score_band": str(sb),
+                "override_count": n_sb_ov,
+                "override_bads": bads_sb_ov,
+                "observed_bad_rate": rate_sb_ov,
+                "ci_lower": ci_lo,
+                "ci_upper": ci_hi,
+                "declines_count": n_sb_dec,
+                "mean_model_pd": mean_sb_pd,
+                "implied_penalty": imp_sb_penalty,
+            })
+            total_naive_ov_count += n_sb_ov
+            total_naive_ov_bads += bads_sb_ov
+            total_naive_dec_count += n_sb_dec
+            if np.isfinite(mean_sb_pd):
+                sum_naive_weighted_pd += n_sb_ov * mean_sb_pd
+
+    naive_df = pd.DataFrame(naive_rows)
+    naive_vw_obs = total_naive_ov_bads / total_naive_ov_count if total_naive_ov_count else float("nan")
+    naive_vw_pd = sum_naive_weighted_pd / total_naive_ov_count if total_naive_ov_count else float("nan")
+    naive_vw_penalty = naive_vw_obs / naive_vw_pd if (naive_vw_pd and np.isfinite(naive_vw_pd)) else float("nan")
+
+    naive_total = {
+        "override_count": total_naive_ov_count,
+        "override_bads": total_naive_ov_bads,
+        "observed_bad_rate": naive_vw_obs,
+        "declines_count": total_naive_dec_count,
+        "mean_model_pd": naive_vw_pd,
+        "implied_penalty": naive_vw_penalty,
+    }
+
+    # 3. Direction validation
+    cell_gap = vw_obs_rate - vw_model_pd if (np.isfinite(vw_obs_rate) and np.isfinite(vw_model_pd)) else 0.0
+    naive_gap = naive_vw_obs - naive_vw_pd if (np.isfinite(naive_vw_obs) and np.isfinite(naive_vw_pd)) else 0.0
+    direction_conflict = bool((cell_gap * naive_gap < 0) or ((vw_penalty - 1.0) * (naive_vw_penalty - 1.0) < 0))
+
+    warnings = [
+        "Override approvals were human-selected and are therefore favourably biased within their cell: "
+        "the observed rate is a lower bound on that cell's true rate, so the implied penalty is a lower "
+        "bound on the penalty you should use (not a direct selection estimate)."
+    ]
+    if direction_conflict:
+        warnings.append(
+            f"FOIR mix effect detected: measured across the whole score band, the naive implied penalty is {naive_vw_penalty:.3f} "
+            f"({'penalty > 1' if naive_vw_penalty > 1 else 'penalty < 1'}), "
+            f"while within matched cells the volume-weighted implied penalty is {vw_penalty:.3f} "
+            f"({'penalty > 1' if vw_penalty > 1 else 'penalty < 1'}). "
+            f"The two comparisons disagree in direction; always condition on FOIR as well."
+        )
+
+    return {
+        "cells": cells_df,
+        "volume_weighted": volume_weighted,
+        "naive": naive_df,
+        "naive_total": naive_total,
+        "direction_conflict": direction_conflict,
+        "warnings": warnings,
+    }
+
+
 # --------------------------------------------------------------------------- CLI
 def _pct(x: float) -> str:
     return f"{100 * x:.2f}%"
@@ -518,6 +695,19 @@ def main(argv: list[str] | None = None) -> int:
     log("\nProvenance of every application: " + ", ".join(f"{k} {v:,}" for k, v in prov_counts.items()))
     log(f"NOT_MODELLED = {nm_declines / n_declined:.1%} of the {n_declined:,} declined applications: "
         f"a ceiling on what any inferred approval can reach.")
+
+    # Near-cutoff inference anchor (Section 9.4)
+    anchor = near_cutoff_anchor(df, model, cfg)
+    log("\nNear-cutoff inference anchor (Section 9.4):")
+    if not anchor["cells"].empty:
+        log(anchor["cells"][["cell", "override_count", "observed_bad_rate", "declines_count", "mean_model_pd", "implied_penalty"]].to_string(index=False, float_format=lambda v: f"{v:.4f}"))
+    vw = anchor["volume_weighted"]
+    log(f"\nVolume-weighted matched cells: observed {vw['observed_bad_rate']:.2%}, declines mean PD {vw['mean_model_pd']:.2%}, implied penalty {vw['implied_penalty']:.3f}")
+    nt = anchor["naive_total"]
+    log(f"Naive (score band alone):      observed {nt['observed_bad_rate']:.2%}, declines mean PD {nt['mean_model_pd']:.2%}, implied penalty {nt['implied_penalty']:.3f}")
+    for w in anchor["warnings"]:
+        log(f"WARNING: {w}")
+
     model.assert_quality()
 
     print_json({
@@ -536,6 +726,14 @@ def main(argv: list[str] | None = None) -> int:
         "support_summary": summary,
         "application_provenance": prov_counts,
         "not_modelled_share_of_declines": nm_declines / n_declined,
+        "near_cutoff_anchor": {
+            "volume_weighted": anchor["volume_weighted"],
+            "naive_total": anchor["naive_total"],
+            "direction_conflict": anchor["direction_conflict"],
+            "warnings": anchor["warnings"],
+            "cells": anchor["cells"].to_dict(orient="records"),
+            "naive": anchor["naive"].to_dict(orient="records"),
+        },
     })
     return 0
 

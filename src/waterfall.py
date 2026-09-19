@@ -33,6 +33,9 @@ def build_waterfall(df: pd.DataFrame, strategy: Strategy, evaluation: pd.DataFra
         label = f"Removed by {rule.id}" + ("" if rule.enabled else " (off)")
         rows.append((label, "rule", -removed))
 
+    excluded = int(ev["excluded_by_segment"].sum())
+    if excluded:
+        rows.append(("Removed by segment exclusions", "rule", -excluded))
     base_approved = n + sum(d for _, k, d in rows if k == "rule")
     rows.append(("Approved by written strategy", "subtotal", None))
 

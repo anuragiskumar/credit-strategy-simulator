@@ -4,12 +4,27 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.contracts import SegmentOverride, Strategy
+from src.contracts import SegmentExclusion, SegmentOverride, Strategy
 from src.rules import (ReproductionError, assert_reproduction, evaluate_strategy, reproduction_report,
-                       with_overrides, with_rule_enabled, with_rule_params)
+                       with_exclusions, with_overrides, with_rule_enabled, with_rule_params)
 from tests.conftest import make_applicants
 
 RELAXABLE = ("R3_THIN_FILE", "R4_BUREAU_HIST", "R5_SCORE", "R6_FOIR")
+
+
+def test_exclusion_declines_base_approvals_and_cannot_be_relaxed(strategy):
+    df = make_applicants([
+        {"bureau_score": 750.0, "foir": 0.4},
+        {"bureau_score": 690.0, "foir": 0.4},
+        {"bureau_score": 750.0, "foir": 0.2},
+    ])
+    exclusion = SegmentExclusion({"foir": (0.35, 0.5)}, "High risk cell")
+    override = SegmentOverride({"foir": (0.35, 0.5)}, ("R5_SCORE",))
+    scenario = with_overrides(with_exclusions(strategy, (exclusion,)), (override,))
+    ev = evaluate_strategy(df, scenario)
+    assert ev["decision"].tolist() == ["decline", "approve", "approve"]
+    assert ev["decline_reason"].tolist() == ["High risk cell", None, None]
+    assert ev["excluded_by_segment"].tolist() == [True, False, False]
 
 
 # ------------------------------------------------------------------ rule boundaries (hand-built)

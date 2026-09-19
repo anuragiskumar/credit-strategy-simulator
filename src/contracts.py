@@ -23,9 +23,16 @@ class SegmentOverride:
 
 
 @dataclass(frozen=True)
+class SegmentExclusion:
+    conditions: dict
+    reason: str
+
+
+@dataclass(frozen=True)
 class Strategy:
     rules: tuple             # tuple[Rule, ...] in evaluation order
     overrides: tuple = ()    # tuple[SegmentOverride, ...]
+    exclusions: tuple[SegmentExclusion, ...] = ()
 
 
 @dataclass
@@ -45,6 +52,14 @@ class ScenarioResult:
     sensitivity: pd.DataFrame        # penalty -> blended_bad_rate
 
 
+@dataclass(frozen=True)
+class CandidateFunnel:
+    total_declines: int
+    failed_only_relaxable: int
+    inside_support: int
+    in_viable_segments: int
+
+
 @dataclass
 class OptimiserResult:
     headline: ScenarioResult
@@ -55,3 +70,7 @@ class OptimiserResult:
     naive_result: ScenarioResult
     breakeven_penalty: float
     strategy: Strategy
+    thin_share: float = 0.0
+    thin_share_of_total: float = 0.0
+    binding_constraint: str = "none"
+    candidate_funnel: Optional[CandidateFunnel] = None
