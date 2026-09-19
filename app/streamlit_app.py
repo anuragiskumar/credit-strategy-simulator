@@ -44,7 +44,7 @@ pg = st.navigation(pages)
 # Global sidebar branding & context
 with st.sidebar:
     st.markdown("### 🏦 Originations Simulator")
-    st.caption("Demo-grade prototype for credit strategy evaluation & optimisation.")
+    st.caption("Credit strategy evaluation, simulation and optimisation.")
     st.divider()
 
 pg.run()

@@ -1,13 +1,46 @@
+import os
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
-from src.config import load_config
+from src.config import DATA_PATH_ENV, load_config
 from src.loader import load_applications
 from src.rules import strategy_from_config
 
 FIXTURE = Path(__file__).parent / "fixtures" / "sample.parquet"
+
+APP_DATASET_ROWS = 200_000
+"""Rows in the dataset the Streamlit pages render against during tests.
+
+Section 13 forbids the suite from requiring the 1M-row build, and `data/` is gitignored, so on a
+fresh clone it does not exist at all. The 500-row fixture is too small to train the PD model or
+give the optimiser a viable segment, so the pages get their own generated dataset instead: large
+enough to exercise every code path, small enough that building it costs a fraction of a second.
+"""
+
+
+@pytest.fixture(scope="session", autouse=True)
+def app_dataset(tmp_path_factory) -> Path:
+    """Repoint `data_path` at a generated dataset for the whole session.
+
+    Autouse and session-scoped so it is in place before any page renders. Without it the UI tests
+    silently depend on whatever happens to be sitting in `data/` — which passes on the machine
+    that generated it and fails on every other one.
+    """
+    from src.generate_data import generate
+
+    cfg = load_config()
+    df = generate({**cfg, "n_rows": APP_DATASET_ROWS})
+    path = tmp_path_factory.mktemp("appdata") / "applications.parquet"
+    df.to_parquet(path, index=False)
+    previous = os.environ.get(DATA_PATH_ENV)
+    os.environ[DATA_PATH_ENV] = str(path)
+    yield path
+    if previous is None:
+        os.environ.pop(DATA_PATH_ENV, None)
+    else:
+        os.environ[DATA_PATH_ENV] = previous
 
 
 @pytest.fixture(scope="session")

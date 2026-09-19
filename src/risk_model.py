@@ -101,6 +101,7 @@ class RiskModel:
             raise ValueError("booked rows must all carry a bad_flag")
 
         # 2. Categorical levels: drop any level with fewer than min_level_obs booked observations.
+        booked_in = booked
         self._fit_levels(booked, pop, m["min_level_obs"])
         booked = booked[self._levels_ok(booked)]
 
@@ -114,6 +115,17 @@ class RiskModel:
         self._summarise_support(booked, pop, m)
 
         # 4. Coefficients: holdout fit for the metrics, final fit on everything supported.
+        # Say why the training set is empty before sklearn says "n_samples=0". Pointing the app at a
+        # small extract is a normal mistake (ORIGSIM_DATA_PATH, --data, a trimmed client sample), and
+        # the support filters above are what emptied it, not the split.
+        if len(train) == 0:
+            raise ModelQualityError(
+                f"no booked rows survive the training-support filters: {len(booked_in):,} booked rows in, "
+                f"{len(booked):,} after dropping categorical levels below min_level_obs="
+                f"{m['min_level_obs']}, 0 after dropping numeric bins below min_support_obs="
+                f"{m['min_support_obs']}. The dataset is too small to fit a PD model — generate a "
+                f"larger one, or lower those thresholds in config.yaml."
+            )
         y = train["bad_flag"].to_numpy(dtype=int)
         X = self._design(train)
         tr, te = train_test_split(np.arange(len(train)), test_size=m["test_size"],

@@ -232,3 +232,23 @@ def test_real_model_scores_nobody_above_six_enquiries(model, synthetic):
     assert r["booked_max"] == 6
     high = synthetic[synthetic["enquiries_6m"] > 6]
     assert len(high) > 0 and model.predict_pd(high).isna().all()
+
+
+def test_empty_training_set_raises_a_useful_error(sample, cfg):
+    """A dataset too small to fit the model must say so, not surface sklearn's `n_samples=0`.
+
+    Pointing the app at a small extract is an ordinary mistake — ORIGSIM_DATA_PATH, `--data`, or a
+    trimmed client sample. The support filters are what empty the training set, so the error has to
+    name them and their thresholds; sklearn's split error names none of it.
+    """
+    import pytest
+
+    from src.risk_model import ModelQualityError, train_model
+
+    with pytest.raises(ModelQualityError) as exc:
+        train_model(sample, cfg)
+
+    message = str(exc.value)
+    assert "min_support_obs" in message
+    assert "min_level_obs" in message
+    assert "config.yaml" in message
