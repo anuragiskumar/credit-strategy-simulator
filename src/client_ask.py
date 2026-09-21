@@ -120,6 +120,21 @@ def build_provider(kind: str, **kw) -> client_llm.Provider | None:
     raise ValueError(f"unknown provider {kind!r}")
 
 
+def load_baseline(df: pd.DataFrame, inv, cfg: dict, *, product: str | None = None,
+                  app_from: str | None = None, app_to: str | None = None,
+                  performance_months: int | None = None) -> S.Baseline:
+    """The baseline for a product and window, exactly as the engine and the fixture build it.
+
+    With nothing given, the configured default context, so a question asked here gets the answer
+    the screens show.
+    """
+    from src import client_context as C
+    given = {k: v for k, v in [("app_from", app_from), ("app_to", app_to),
+                               ("performance_months", performance_months)] if v is not None}
+    window = C.AnalysisWindow.from_dict(given) if given else None
+    return C.ContextCache(df, inv, cfg).baseline(window, product)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Ask the engine a question in plain English.")
     ap.add_argument("question", nargs="*", help="omit to list the questions it answers")
@@ -131,6 +146,11 @@ def main(argv=None) -> int:
     ap.add_argument("--narrate", action="store_true",
                     help="let the provider phrase the answer (numbers are still verified)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--product", help="product to analyse (default: config `product`)")
+    ap.add_argument("--from", dest="app_from", help="first application date, YYYY-MM-DD")
+    ap.add_argument("--to", dest="app_to", help="last application date, YYYY-MM-DD")
+    ap.add_argument("--performance-months", type=int,
+                    help="months a booked loan must have run to count (default: the bad definition)")
     args = ap.parse_args(argv)
 
     if not args.question:
@@ -140,7 +160,9 @@ def main(argv=None) -> int:
     cfg = load_client_config()
     inv = build_inventory(cfg["replay"]["rules_folder"])
     df = pd.read_parquet(resolve_path(cfg["data_path"]))
-    base = S.build_baseline(df, inv, cfg)
+    base = load_baseline(df, inv, cfg, product=args.product, app_from=args.app_from,
+                         app_to=args.app_to, performance_months=args.performance_months)
+    cfg = base.cfg
 
     provider = build_provider(args.provider, base_url=args.base_url, model=args.model)
     narrator = provider if args.narrate and args.provider not in ("keyword", "none") else None
@@ -150,6 +172,9 @@ def main(argv=None) -> int:
         json.dump(out, sys.stdout, indent=2, default=str)
         print()
     else:
+        w = base.window_dict()
+        print(f"context {cfg['product']}, {w['label']} ({w['applicants']:,} applications; "
+              f"risk from {w['mature_loans']:,} loans observed for {w['performance_months']} months)")
         print(f"call    {out['call']['intent']}  {out['call']['params']}")
         print(f"answer  {out['answer']}")
         print(f"        [narrated by {out['narrated_by']}]", file=sys.stderr)

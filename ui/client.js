@@ -13,7 +13,13 @@
 (function () {
   'use strict';
 
-  var F = window.__CLIENT__;
+  /* The fixture carries one payload per precomputed context (product × period). F is the one on
+   * screen; changing the product or the period swaps it (see setContext). */
+  var ROOT = window.__CLIENT__;
+  var F = ROOT;
+  var MENU = ROOT.context_menu || null;
+  var CTX = { product: F.meta.product, preset: F.meta.preset || null, window: F.meta.window || null,
+              loading: false, error: null, seq: 0, open: false };
   var S = { page: 'portfolio', slice: 'employer_segment', goal: 0, spec: false,
             fview: 'funnel', fdrill: null, fdrillAll: false };
 
@@ -77,7 +83,8 @@
       tile('Approval rate ' + pv('OBSERVED'), pct(h.approval_rate),
            n0(h.booked) + ' booked of ' + n0(m.applicants), 'on-obs', N('k_approval')) +
       tile('Booked bad rate ' + pv('OBSERVED'), pct(h.booked_bad_rate, 2),
-           'observed on the book only', 'on-obs', N('k_bad')) +
+           m.window ? n0(m.window.mature_loans) + ' booked loans old enough to judge' : 'observed on the book only',
+           'on-obs', N('k_bad')) +
       tile('Exposure ' + pv('OBSERVED'), 'SAR ' + sar(h.exposure), 'after every finance cap', '', N('k_exposure')) +
       tile('Median offer gap ' + pv('OBSERVED'), 'SAR ' + sar(h.median_offer_gap),
            'requested minus offered', '', N('k_gap')) +
@@ -117,7 +124,7 @@
         : ''), N('slice'));
 
     return '<div class="pagehead"><h2' + N('pf_head') + '>Portfolio</h2>' +
-      '<p>What the current strategy books, and what that book is made of.</p></div>' +
+      '<p>What the current strategy books, and what that book is made of.</p>' + periodLine() + '</div>' +
       tiles + funnelPanel + portfolioPanel + sourcePanel();
   }
 
@@ -523,7 +530,7 @@
 
     return '<div class="pagehead"><h2' + N('dr_head') + '>Decline drivers</h2>' +
       '<p>Which rule declines the most applicants — and how many it declines on its own, ' +
-      'with no other rule catching them.</p></div>' + lead +
+      'with no other rule catching them.</p>' + periodLine() + '</div>' + lead +
       panel('Ranked by applicants declined alone',
         pv('OBSERVED', 'COUNTS') + ' ' + pv('INFERRED', 'RISK'),
         table('<th' + N('th_rule') + '>Rule</th><th class="num"' + N('th_declines') + '>Declines</th>' +
@@ -572,7 +579,7 @@
     live: null,          // null while checking, then true (engine) or false (fixture only)
     health: null, rules: null,
     view: 'target',      // 'target' | 'try' | 'rules'
-    steps: [], out: null, pending: false, error: null,
+    steps: [], out: null, pending: false, error: null, notice: null,
     q: '', filter: 'all', showAll: false, editing: null,
     open: {},            // which disclosures are open, so a re-render keeps them open
     refocus: null,       // selector to focus again after a re-render (a slider, a switch)
@@ -595,18 +602,20 @@
   }
 
   /** Decide once which mode the simulator is in. Polls while the engine is still loading. */
-  function connectEngine(tries) {
+  function connectEngine(tries, custom) {
     if (location.protocol === 'file:') { engineUnavailable(); return; }
-    api('/api/health').then(function (h) {
+    api('/api/health' + ctxQuery()).then(function (h) {
       if (h.ready) {
         SIM.health = h;
         if (SIM.goal.ceiling === null) SIM.goal.ceiling = +(h.bad_rate_ceiling * 100).toFixed(1);
-        return api('/api/rules').then(function (j) {
+        return api('/api/rules' + ctxQuery()).then(function (j) {
           SIM.rules = j.rules; SIM.live = true; SIM.steps = []; SIM.out = null;
           refreshSim();
+          renderCtx();
+          if (custom) setContext(custom);
         });
       }
-      if (h.loading && (tries || 0) < 60) { setTimeout(function () { connectEngine((tries || 0) + 1); }, 1500); return; }
+      if (h.loading && (tries || 0) < 60) { setTimeout(function () { connectEngine((tries || 0) + 1, custom); }, 1500); return; }
       engineUnavailable();
     }).catch(engineUnavailable);
   }
@@ -662,8 +671,8 @@
   }
 
   /** Replace the scenario, replay it, and keep the old one if the engine refuses. */
-  function propose(steps) {
-    SIM.error = null;
+  function propose(steps, after) {
+    SIM.error = null; SIM.notice = null;
     if (!steps.length) { SIM.steps = []; SIM.out = null; refreshSim(); return; }
     if (!SIM.live) {
       var last = steps[steps.length - 1];
@@ -675,11 +684,18 @@
       return;
     }
     SIM.pending = true; refreshSim();
-    api('/api/simulate', { changes: steps }).then(function (out) {
-      SIM.steps = steps; SIM.out = out;
+    var seq = CTX.seq, ok = false;
+    api('/api/simulate', ctxBody({ changes: steps })).then(function (out) {
+      if (seq !== CTX.seq) return;           // the period changed while this was running
+      SIM.steps = steps; SIM.out = out; ok = true;
     }).catch(function (e) {
-      SIM.error = e.message;
-    }).then(function () { SIM.pending = false; refreshSim(); });
+      if (seq === CTX.seq) SIM.error = e.message;
+    }).then(function () {
+      if (seq !== CTX.seq) return;
+      SIM.pending = false;
+      if (after) after(ok);
+      refreshSim();
+    });
   }
 
   function switchRule(rid, on) {
@@ -1136,10 +1152,12 @@
   function runGoal() {
     var g = SIM.goal;
     g.pending = true; g.error = null; refreshSim();
-    api('/api/goal-seek', { target: g.target === null ? null : g.target / 100,
-                             ceiling: g.ceiling === null ? null : g.ceiling / 100, frozen: g.frozen }).then(function (out) {
-      g.out = out;
-    }).catch(function (e) { g.error = e.message; })
+    var seq = CTX.seq;
+    api('/api/goal-seek', ctxBody({ target: g.target === null ? null : g.target / 100,
+                                     ceiling: g.ceiling === null ? null : g.ceiling / 100,
+                                     frozen: g.frozen })).then(function (out) {
+      if (seq === CTX.seq) g.out = out;
+    }).catch(function (e) { if (seq === CTX.seq) g.error = e.message; })
       .then(function () { g.pending = false; refreshSim(); });
   }
 
@@ -1304,8 +1322,10 @@
       '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() +
         (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') + outcomeDetails() + '</div>';
     return '<div class="pagehead simhead"><div><h2' + N('sim_head') + '>Simulator</h2>' +
-      '<p>Change today\'s rules and see who moves, or name a target and let the engine find the way.</p></div>' +
+      '<p>Change today\'s rules and see who moves, or name a target and let the engine find the way.</p>' +
+      periodLine() + '</div>' +
       tabs + '</div>' + modeNote() +
+      (SIM.notice ? caveat('warn', SIM.notice.tag, SIM.notice.html, N('sim_context')) : '') +
       (SIM.error && SIM.view === 'target' ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') +
       scenario + body;
   }
@@ -1575,13 +1595,295 @@
     document.getElementById('canvaswrap').appendChild(section);
   }
 
+  /* ------------------------------------------------------- product and period
+   * Two windows decide every figure: the applications replayed (the period chosen here) and the
+   * booked loans old enough to judge (the performance window, under Advanced). The period line on
+   * each screen says both, so a figure is never read without knowing what it covers.
+   *
+   * Offline, only the precomputed contexts exist (context_menu in the fixture). With the engine
+   * running, any period can be asked for, and the screens are refetched from /api/view. */
+  var PRODUCT_NAMES = { TWQR: 'Tawarruq personal finance', IJMB: 'Ijara' };
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var STORE = 'cso.context';
+
+  function ctxWindow(w) {
+    w = w || CTX.window;
+    return w ? { app_from: w.app_from, app_to: w.app_to, performance_months: w.performance_months } : null;
+  }
+  function ctxQuery(next) {
+    var product = next ? next.product : CTX.product, w = ctxWindow(next ? next.window : null);
+    var q = ['product=' + encodeURIComponent(product)];
+    if (w) Object.keys(w).forEach(function (k) { if (w[k] !== null && w[k] !== undefined) q.push(k + '=' + encodeURIComponent(w[k])); });
+    return '?' + q.join('&');
+  }
+  function ctxBody(body) {
+    body.product = CTX.product;
+    var w = ctxWindow();
+    if (w) body.window = w;
+    return body;
+  }
+  function productPresets(product) {
+    var p = MENU && MENU.products[product];
+    return p ? p.presets : [];
+  }
+  function presetById(product, id) { return productPresets(product).filter(function (p) { return p.id === id; })[0]; }
+  function presetName() {
+    var p = CTX.preset && presetById(CTX.product, CTX.preset);
+    return p ? p.name : 'Custom period';
+  }
+  /** The phone's top bar has room for one chip: product and period in a few characters. */
+  function presetShort() {
+    var m = /^last_(\d+)m$/.exec(CTX.preset || '');
+    return m ? m[1] + ' mo' : CTX.preset === 'all' ? 'All' : 'Custom';
+  }
+  function monthYear(iso) {
+    if (!iso) return '—';
+    var d = String(iso).split('-');
+    return MONTHS[+d[1] - 1] + ' ' + d[0];
+  }
+  function defaultMonths() { return MENU ? MENU.outcome.within_months : (CTX.window ? CTX.window.performance_months : 12); }
+
+  function periodLine() {
+    var w = F.meta.window;
+    if (!w) return '';
+    return '<p class="periodline"' + N('period_line') + '><b>' + esc(presetName()) + '</b> ' + esc(w.label) +
+      ' · ' + n0(w.applicants) + ' applications replayed · bad rate from ' + n0(w.mature_loans) +
+      ' loans booked ' + monthYear(w.mature_booked_from) + ' – ' + monthYear(w.mature_booked_to) +
+      ', each observed for ' + w.performance_months + ' months' +
+      (MENU && w.performance_months !== MENU.outcome.within_months
+        ? '. <b class="warnword">Not comparable with the declared ' + MENU.outcome.within_months +
+          '-month bad definition</b>: a shorter window counts fewer loans as bad'
+        : '') + '</p>';
+  }
+
+  function renderChrome() {
+    var pc = document.getElementById('productchip'), wc = document.getElementById('periodchip');
+    var many = MENU && Object.keys(MENU.products).length > 1;
+    pc.innerHTML = '<span class="fig">' + esc(CTX.product) + '</span>' + (many ? '<span class="caret" aria-hidden="true">▾</span>' : '');
+    pc.classList.toggle('is-static', !MENU);
+    if (wc) {
+      wc.hidden = !F.meta.window;
+      wc.innerHTML = (CTX.loading ? '<span class="spin" aria-hidden="true"></span>' : '') +
+        '<span class="ctxname">' + esc(presetName()) + '</span>' +
+        '<span class="ctxshort">' + esc(CTX.product + ' · ' + presetShort()) + '</span>' +
+        '<span class="ctxdates hide-sm">' + esc(F.meta.window ? F.meta.window.label : '') + '</span>' +
+        (MENU ? '<span class="caret" aria-hidden="true">▾</span>' : '');
+      wc.classList.toggle('is-static', !MENU);
+      wc.setAttribute('aria-expanded', CTX.open ? 'true' : 'false');
+    }
+    pc.setAttribute('aria-expanded', CTX.open ? 'true' : 'false');
+    document.getElementById('ruleschip').textContent = F.meta.rules_replayed + ' rules replayed';
+    document.getElementById('demostriptext').textContent =
+      F.meta.applicants.toLocaleString('en-US') + ' generated applicants · ' +
+      (F.meta.window ? F.meta.window.label + ' · ' : '') +
+      F.meta.rules_replayed + ' real rules replayed · figures are illustrative, ' +
+      'the rules and the method are real';
+  }
+
+  function menuHtml() {
+    var d = CTX.draft, live = SIM.live === true;
+    var products = Object.keys(MENU.products);
+    var html = '';
+    if (products.length > 1) {
+      html += '<h5>Product</h5>' + products.map(function (p) {
+        return '<label><input type="radio" name="ctxp" value="' + esc(p) + '"' + (d.product === p ? ' checked' : '') + '> ' +
+          '<b>' + esc(p) + '</b><span>' + esc(PRODUCT_NAMES[p] || '') + '</span></label>';
+      }).join('');
+    }
+    var range = MENU.products[d.product].data_range;
+    html += '<h5>Applications replayed</h5>' + productPresets(d.product).map(function (p) {
+      return '<label><input type="radio" name="ctxw" value="' + esc(p.id) + '"' + (d.preset === p.id ? ' checked' : '') + '> ' +
+        '<b>' + esc(p.name) + '</b><span>' + esc(p.label) + '</span></label>';
+    }).join('') +
+      '<label' + (live ? '' : ' class="is-off"') + '><input type="radio" name="ctxw" value="custom"' +
+        (d.preset === 'custom' ? ' checked' : '') + (live ? '' : ' disabled') + '> <b>Custom period</b></label>' +
+      '<div class="ctxcustom"' + (d.preset === 'custom' ? '' : ' hidden') + '>' +
+        '<label>From <input type="date" id="ctxfrom" min="' + range.app_from + '" max="' + range.app_to + '" value="' + esc(d.from || '') + '"></label>' +
+        '<label>To <input type="date" id="ctxto" min="' + range.app_from + '" max="' + range.app_to + '" value="' + esc(d.to || '') + '"></label>' +
+      '</div>' +
+      (live ? '' : '<p>A custom period needs the engine running (<code>python -m ui.serve</code>). ' +
+        'The periods above were worked out in advance.</p>') +
+      '<details class="ctxadv"' + (d.months !== defaultMonths() ? ' open' : '') + '><summary>Advanced: performance window</summary>' +
+        '<label>Judge a loan over <input type="number" id="ctxmonths" min="1" max="24" value="' + d.months + '"' +
+          (live ? '' : ' disabled') + '> months</label>' +
+        '<p>A booked loan counts towards the bad rate only once it has been on book this long, and is bad if it ' +
+        'reached ' + MENU.outcome.dpd + '+ days past due within it. Newer loans are not yet observable, so they never ' +
+        'count as good. The extract is dated ' + esc(MENU.outcome.as_of) + '.</p></details>' +
+      (CTX.error ? '<p class="ctxerr" role="alert">' + esc(CTX.error) + '</p>' : '') +
+      '<div class="ctxactions"><button type="button" class="chip" data-ctx="cancel">Cancel</button>' +
+        '<button type="button" class="chip is-primary" data-ctx="apply"' + (CTX.loading ? ' disabled' : '') + '>' +
+        (CTX.loading ? 'Loading…' : 'Apply') + '</button></div>';
+    return html;
+  }
+
+  function renderCtx() {
+    renderChrome();
+    var menu = document.getElementById('ctxmenu');
+    if (!menu || !MENU) return;
+    menu.hidden = !CTX.open;
+    if (!CTX.open) return;
+    menu.innerHTML = menuHtml();
+    menu.querySelectorAll('input[name="ctxp"]').forEach(function (r) {
+      r.addEventListener('change', function () {
+        CTX.draft.product = r.value;
+        if (CTX.draft.preset !== 'custom' && !presetById(r.value, CTX.draft.preset)) CTX.draft.preset = productPresets(r.value)[0].id;
+        CTX.error = null; renderCtx();
+      });
+    });
+    menu.querySelectorAll('input[name="ctxw"]').forEach(function (r) {
+      r.addEventListener('change', function () { CTX.draft.preset = r.value; CTX.error = null; renderCtx(); });
+    });
+    [['ctxfrom', 'from'], ['ctxto', 'to'], ['ctxmonths', 'months']].forEach(function (pair) {
+      var el = document.getElementById(pair[0]);
+      if (el) el.addEventListener('change', function () {
+        CTX.draft[pair[1]] = pair[1] === 'months' ? +el.value : el.value;
+      });
+    });
+    menu.querySelector('[data-ctx="cancel"]').addEventListener('click', function () { closeMenu(); });
+    menu.querySelector('[data-ctx="apply"]').addEventListener('click', applyDraft);
+  }
+
+  function openMenu() {
+    if (!MENU) return;
+    var w = CTX.window || {};
+    CTX.draft = { product: CTX.product, preset: CTX.preset || 'custom', from: w.app_from, to: w.app_to,
+                  months: w.performance_months || defaultMonths() };
+    CTX.open = true; CTX.error = null;
+    renderCtx();
+    var first = document.querySelector('#ctxmenu input:checked') || document.querySelector('#ctxmenu input');
+    if (first) first.focus();
+  }
+  function closeMenu() { CTX.open = false; CTX.error = null; renderCtx(); }
+
+  /** Turn the menu's choices into a context and load it. */
+  function applyDraft() {
+    var d = CTX.draft, w;
+    if (d.preset === 'custom') {
+      if (!d.from || !d.to) { CTX.error = 'Choose both a start and an end date.'; renderCtx(); return; }
+      w = { app_from: d.from, app_to: d.to, performance_months: d.months };
+    } else {
+      var p = presetById(d.product, d.preset);
+      w = { app_from: p.app_from, app_to: p.app_to, performance_months: d.months };
+    }
+    // A preset with a different performance window is no longer that preset.
+    var preset = d.preset !== 'custom' && d.months === defaultMonths() ? d.preset : null;
+    setContext({ product: d.product, preset: preset, window: w });
+  }
+
+  function fixturePayload(next) {
+    if (!next.preset) return null;
+    var id = next.product + ':' + next.preset;
+    return id === ROOT.meta.context ? ROOT : (ROOT.contexts || {})[id] || null;
+  }
+
+  function setContext(next) {
+    var fixture = fixturePayload(next);
+    if (SIM.live !== true) {
+      if (!fixture) {
+        CTX.error = SIM.live === null ? 'Still connecting to the engine. Try again in a moment.'
+          : 'That period was not worked out in advance, and it needs the engine running.';
+        renderCtx(); return;
+      }
+      applyPayload(fixture, next);
+      return;
+    }
+    CTX.loading = true; CTX.error = null; CTX.seq++;
+    var seq = CTX.seq;
+    renderCtx();
+    api('/api/view' + ctxQuery(next)).then(function (view) {
+      if (seq !== CTX.seq) return;
+      applyPayload(view, next);
+    }).catch(function (e) {
+      if (seq !== CTX.seq) return;
+      CTX.loading = false; CTX.error = e.message; CTX.open = true;
+      renderCtx();
+    });
+  }
+
+  function applyPayload(payload, next) {
+    var sameProduct = payload.meta.product === CTX.product;
+    F = payload; FM = null; S.goal = 0;
+    CTX.product = payload.meta.product;
+    CTX.preset = next.preset || null;
+    CTX.window = payload.meta.window;
+    CTX.loading = false; CTX.open = false; CTX.error = null;
+    CTX.seq++;
+    try { localStorage.setItem(STORE, JSON.stringify({ product: CTX.product, preset: CTX.preset, window: ctxWindow() })); } catch (e) { /* per-viewer convenience only */ }
+    renderCtx();
+    simOnContext(sameProduct);
+    go(S.page, true);
+  }
+
+  /** The Simulator after a change of context: re-run the scenario on a new period, clear it on a new product. */
+  function simOnContext(sameProduct) {
+    var had = SIM.steps.slice(), label = F.meta.window ? F.meta.window.label : 'the new period';
+    var g = SIM.goal;
+    g.out = null; g.error = null; g.pending = false;
+    if (F.goal_targets && F.goal_targets.length) g.target = Math.round(F.goal_targets[0] * 100);
+    if (!sameProduct) g.frozen = [];
+    SIM.error = null; SIM.editing = null; SIM.steps = []; SIM.out = null; SIM.pending = false; SIM.notice = null;
+    if (SIM.live !== true) {
+      SIM.rules = F.rule_catalogue || [];
+      if (had.length) SIM.notice = { tag: 'SCENARIO CLEARED', html: 'Your change was cleared: its worked-out result belongs to the previous ' + (sameProduct ? 'period.' : 'product.') };
+      return;
+    }
+    var seq = CTX.seq;
+    api('/api/health' + ctxQuery()).then(function (h) {
+      if (seq !== CTX.seq) return null;
+      SIM.health = h;
+      return api('/api/rules' + ctxQuery());
+    }).then(function (j) {
+      if (!j || seq !== CTX.seq) return;
+      SIM.rules = j.rules;
+      if (!had.length) { refreshSim(); return; }
+      if (!sameProduct) {
+        SIM.notice = { tag: 'SCENARIO CLEARED', html: 'Your changes were cleared: ' + esc(CTX.product) + ' has its own rules.' };
+        refreshSim(); return;
+      }
+      propose(had, function (ok) {
+        SIM.notice = ok
+          ? { tag: 'PERIOD CHANGED', html: 'Your ' + (had.length === 1 ? 'change was' : had.length + ' changes were') +
+              ' re-run on ' + esc(label) + '. Every figure below is for the new period.' }
+          : { tag: 'SCENARIO CLEARED', html: 'Your changes could not be re-run on ' + esc(label) + ': ' + esc(SIM.error || 'the engine refused them') + '.' };
+        if (!ok) { SIM.error = null; SIM.steps = []; SIM.out = null; }
+      });
+    }).catch(function (e) { if (seq === CTX.seq) { SIM.error = e.message; refreshSim(); } });
+  }
+
+  /** The last context this viewer chose, if it still exists. A preset is restored at once; a custom period waits for the engine. */
+  function restoreContext() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { saved = null; }
+    if (!saved || !MENU || !MENU.products[saved.product]) return null;
+    var fixture = fixturePayload(saved);
+    if (fixture) {
+      if (fixture !== F) {
+        F = fixture; FM = null;
+        CTX.product = saved.product; CTX.preset = saved.preset; CTX.window = fixture.meta.window;
+        if (F.goal_targets && F.goal_targets.length) SIM.goal.target = Math.round(F.goal_targets[0] * 100);
+      }
+      return null;
+    }
+    return saved.window ? saved : null;          // custom: load once the engine answers
+  }
+
+  function wireContext() {
+    var pc = document.getElementById('productchip'), wc = document.getElementById('periodchip');
+    [pc, wc].forEach(function (b) {
+      if (b) b.addEventListener('click', function (e) { e.stopPropagation(); if (CTX.open) closeMenu(); else openMenu(); });
+    });
+    document.getElementById('ctxmenu').addEventListener('click', function (e) { e.stopPropagation(); });
+    document.addEventListener('click', function () { if (CTX.open) closeMenu(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && CTX.open) { closeMenu(); (wc || pc).focus(); }
+    });
+  }
+
   /* ------------------------------------------------------------------ boot */
-  document.getElementById('ruleschip').textContent = F.meta.rules_replayed + ' rules replayed';
-  document.getElementById('productchip').innerHTML = '<span class="fig">' + esc(F.meta.product) + '</span>';
-  document.getElementById('demostriptext').textContent =
-    F.meta.applicants.toLocaleString('en-US') + ' generated applicants · ' +
-    F.meta.rules_replayed + ' real rules replayed · figures are illustrative, ' +
-    'the rules and the method are real';
+  var pendingCustom = restoreContext();
+  if (F.goal_targets && F.goal_targets.length && !pendingCustom) SIM.goal.target = Math.round(F.goal_targets[0] * 100);
+  renderChrome();
+  wireContext();
   document.getElementById('specbtn').addEventListener('click', function () {
     S.spec = !S.spec;
     applySpec();
@@ -1612,6 +1914,6 @@
   window.Session.onChange(function () { renderNav(); applySpec(); });
   function fromHash() { var h = location.hash.slice(1); return RENDER[h] ? h : 'portfolio'; }
   window.addEventListener('hashchange', function () { if (fromHash() !== S.page) go(fromHash()); });
-  connectEngine(0);
+  connectEngine(0, pendingCustom);
   go(fromHash());
 })();

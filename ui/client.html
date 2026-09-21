@@ -16,7 +16,11 @@
       <span class="az">Azentio<em>.ai</em></span><span class="sep" aria-hidden="true">|</span><b>Credit Strategy Optimiser</b>
     </div>
     <div class="topdiv hide-sm"></div>
-    <button class="chip is-static" id="productchip" data-note="product"><span class="fig">TWQR</span></button>
+    <div class="ctxwrap">
+      <button class="chip" id="productchip" data-note="product" aria-haspopup="dialog" aria-expanded="false" aria-controls="ctxmenu" aria-label="Product"><span class="fig">TWQR</span></button>
+      <button class="chip" id="periodchip" data-note="period" aria-haspopup="dialog" aria-expanded="false" aria-controls="ctxmenu" aria-label="Period analysed" hidden></button>
+      <div class="ctxmenu" id="ctxmenu" role="dialog" aria-label="Product and period" hidden></div>
+    </div>
     <button class="chip is-static hide-sm" id="ruleschip" data-note="rules">— rules replayed</button>
     <div class="spacer"></div>
     <button class="iconbtn" id="specbtn" aria-label="Spec notes" aria-pressed="false" title="Spec notes: number each item and explain it below">

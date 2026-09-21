@@ -96,6 +96,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     return self._json(200, {"ready": False, "loading": ENGINE["loading"],
                                             "error": ENGINE["error"]})
                 return self._json(200, eng.health(self._window_query(), self._product_query()))
+            if path == "/api/view":
+                eng = self._engine()
+                return eng and self._json(200, eng.view(self._window_query(),
+                                                        self._product_query()))
             if path == "/api/rules":
                 eng = self._engine()
                 return eng and self._json(200, {"rules": eng.rules(self._window_query(),

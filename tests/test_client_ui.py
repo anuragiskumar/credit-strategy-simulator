@@ -224,6 +224,11 @@ def test_clean_keeps_numbers_as_numbers():
     assert isinstance(client_export.clean(7), int)
 
 
+IDENTIFIERS = {"policy_code", "reason_code", "rule_id"}
+"""Codes that happen to be digits (IJMB's bureau rules carry codes like "4476"). An identifier is
+text: shipping it as a number would drop a leading zero and invite arithmetic on it."""
+
+
 @pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not built")
 def test_no_figure_is_shipped_as_a_string():
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -232,7 +237,8 @@ def test_no_figure_is_shipped_as_a_string():
     def walk(node, path=""):
         if isinstance(node, dict):
             for k, v in node.items():
-                walk(v, f"{path}/{k}")
+                if k not in IDENTIFIERS:
+                    walk(v, f"{path}/{k}")
         elif isinstance(node, list):
             for i, v in enumerate(node):
                 walk(v, f"{path}[{i}]")
@@ -331,3 +337,18 @@ def test_the_funnel_panel_uses_a_true_minus_sign():
     assert re.search(r"−'\s*\+\s*n0\(s\.lost\)", js)
     assert "'−' + s.lost.toLocaleString" in model
     assert "'-' + n0(" not in js
+
+
+def test_every_engine_call_from_the_page_carries_the_product_and_period():
+    """A call without the context would answer for the default period while the screen shows another."""
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    calls = re.findall(r"api\('(/api/[a-z-]+)'([^)]*)", js)
+    assert calls, "no engine calls found"
+    for path, rest in calls:
+        assert "ctxQuery(" in rest or "ctxBody(" in rest, f"{path} is sent without the context"
+
+
+def test_the_period_and_product_controls_are_in_the_top_bar():
+    html = (UI / "client.html").read_text(encoding="utf-8")
+    for el in ('id="productchip"', 'id="periodchip"', 'id="ctxmenu"'):
+        assert el in html, el

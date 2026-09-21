@@ -21,8 +21,27 @@ window.__NOTES__ = function (F) {
     /* ------------------------------------------------------------ every screen */
     product: {
       t: 'Product: ' + m.product,
-      d: 'The lending product being analysed. TWQR is Tawarruq personal finance. Only the decision ' +
-         'rules that apply to this product are replayed; rules belonging to other products are left out.'
+      d: 'The lending product being analysed: TWQR is Tawarruq personal finance, IJMB is Ijara. Each ' +
+         'product\'s applicants are replayed against that product\'s own rules only. Choosing another ' +
+         'product changes every figure on every screen, and clears any scenario in the Simulator.'
+    },
+    period: {
+      t: 'Period: ' + (m.window ? m.window.label : 'all applications'),
+      d: 'Which applications are replayed against the rules. It sets the funnel, the approval rate, the ' +
+         'decline drivers and every scenario. It does not set the bad rate: recent loans have not had time ' +
+         'to go bad, so the bad rate always comes from loans old enough to judge (see the period line).'
+    },
+    period_line: {
+      t: 'What these figures cover',
+      d: 'Counts and rates come from the applications in the period. The bad rate and the risk model come ' +
+         'from booked loans that have run the whole performance window' +
+         (m.window ? ' (' + m.window.performance_months + ' months)' : '') + ' by the extract date, wherever ' +
+         'they sit in time. Loans booked more recently are not yet observable and are never counted as good.'
+    },
+    sim_context: {
+      t: 'Scenario after a change of period or product',
+      d: 'A new period re-runs your changes on the new applications, so the figures stay comparable with ' +
+         'today in that period. A new product clears them, because its rules are different.'
     },
     rules: {
       t: count(m.rules_replayed) + ' rules replayed',

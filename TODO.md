@@ -54,16 +54,16 @@ haven't had time to go bad.
       reason in words (`ApiError`), the same way it rejects a locked rule.
 
 ### A4. UI — P1
-- [ ] A global period control in the top bar, next to the product chip. Presets: last 6 months,
+- [x] A global period control in the top bar, next to the product chip. Presets: last 6 months,
       last 12 months, custom. The performance window goes under an advanced setting.
-- [ ] Print the chosen period on every screen and in the demo strip.
-- [ ] When the period changes, reset the Simulator scenario, or re-run it with a warning.
-- [ ] Fixture mode: precompute two or three windows so the offline demo can still show the control.
+- [x] Print the chosen period on every screen and in the demo strip.
+- [x] When the period changes, reset the Simulator scenario, or re-run it with a warning.
+- [x] Fixture mode: precompute two or three windows so the offline demo can still show the control.
 
 ### A5. Tests — P0
 - [x] Window boundaries (inclusive/exclusive, empty window).
 - [x] Immature loans are excluded from the bad rate and from PD training.
-- [ ] The same window gives the same figures through the CLI, the API and the fixture export.
+- [x] The same window gives the same figures through the CLI, the API and the fixture export.
 
 ---
 
@@ -72,8 +72,8 @@ haven't had time to go bad.
 ### B1. Product selector — P1
 The brief covers TWQR and IJMB, and `compile_rules(product=…)` already supports both. But the
 product chip is static and `product: TWQR` is fixed in `config_client.yaml`.
-- [ ] Make product a request parameter, the same way the window is (the baseline is per product and window).
-- [ ] Make the product chip a selector.
+- [x] Make product a request parameter, the same way the window is (the baseline is per product and window).
+- [x] Make the product chip a selector.
 
 ### B2. Trend over time / vintage — P1
 The brief lists vintage and roll-rate analysis as step 2. None of it is built.

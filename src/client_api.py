@@ -274,6 +274,23 @@ def goal_search_space(cfg: dict) -> dict:
             "beam_width": int(opt["beam_width"]), "max_depth": int(opt["max_depth"])}
 
 
+def cutoffs_for(base: S.Baseline, inv) -> list[dict]:
+    """The score-cutoff sliders this product can use: only a cutoff its own rules test.
+
+    The sliders were written for TWQR. IJMB tests different numbers, and a slider the engine
+    would then refuse is a button that only ever says no.
+    """
+    out = []
+    for c in CUTOFFS:
+        try:
+            S.field_lever(inv, c["field"], c["from"], min(c["values"]),
+                          product=base.cfg["product"], locked=locked_rules(base.cfg))
+        except ValueError:
+            continue
+        out.append(c)
+    return out
+
+
 def window_presets(cache, product: str | None = None) -> list[dict]:
     """The windows the period control offers, resolved against this product's dates."""
     from src import client_context as C
@@ -340,7 +357,7 @@ class Engine:
                    "bad_rate_ceiling": _num(base.cfg["optimise"]["max_bad_rate"]),
                    "max_changes": MAX_CHANGES,
                    "goal_search": goal_search_space(base.cfg),
-                   "cutoffs": CUTOFFS,
+                   "cutoffs": cutoffs_for(base, self.inv),
                    "window": base.window_dict(),
                    "default_window": self.base.window_dict()}
             if self.cache is not None:
@@ -356,6 +373,21 @@ class Engine:
                                   "within_months": bd["within_months"]}
                 out["window_presets"] = window_presets(self.cache, p)
             return out
+
+    def view(self, window=None, product=None) -> dict:
+        """Everything the three screens show for one context, as the offline fixture carries it.
+
+        The quick view: no precomputed scenarios, because with an engine running the Simulator
+        asks for its own. Kept per context, like the rule list.
+        """
+        from src.client_view import build_view
+        with self._lock:
+            base = self.baseline(window, product)
+            key = ("view", base.cfg["product"],
+                   base.window.key if base.window is not None else None)
+            if key not in self._rules:
+                self._rules[key] = build_view(base, self.inv, quick=True)
+            return self._rules[key]
 
     def rules(self, window=None, product=None) -> list[dict]:
         with self._lock:

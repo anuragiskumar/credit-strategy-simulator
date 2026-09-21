@@ -39,7 +39,7 @@ class ProductError(ContextError):
     """The requested product is not one the data or the rules carry."""
 
 
-DESCRIPTIVE = {"id", "name", "label", "applicants", "mature_loans", "mature_booked_from",
+DESCRIPTIVE = {"id", "name", "label", "context", "applicants", "mature_loans", "mature_booked_from",
                "mature_booked_to"}
 """Fields the engine adds when it reports a window. A screen may send a window back exactly as
 it received one (a preset, or the window a result ran on), so these are accepted and ignored."""
