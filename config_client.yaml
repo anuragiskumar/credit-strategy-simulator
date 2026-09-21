@@ -421,6 +421,26 @@ scenarios:
 policy:
   path: data/policy_changes.json
 
+# The Simulator's chat (src/client_assistant.py): a person says what they want, the model picks
+# the changes, the engine replays them. The model never supplies a figure. With no key, or with
+# `keyword`, the chat still answers a target, a score cutoff or a rule ID, with no model at all.
+# Only the rule list leaves the building (IDs, names, thresholds), never an applicant.
+assistant:
+  provider: gemini               # gemini | http (OpenAI-compatible: vLLM, Ollama, on-prem) | keyword
+  model: gemini-3.6-flash         # pinned: Google retires versions (2.5 is closed to new keys)
+  base_url: null                 # http only, e.g. http://llm.bank.local:8000/v1
+  api_key_env: GEMINI_API_KEY    # the environment variable holding the key; never the key itself
+  # Tried in order while the model above is overloaded (HTTP 503/429) or times out.
+  fallback_models: [gemini-3.8-flash, gemini-3.1-flash-lite]
+  timeout_s: 20                  # per model: a person is waiting, so a slow model is skipped
+  # How long Gemini reasons before answering (minimal | low | medium | high). Choosing rules from a
+  # list needs little: at the default a target with rules to leave alone took 16s; at low, 3s.
+  thinking_level: low
+  repairs: 1                     # a plan the engine refuses goes back to the model this many times
+  history_turns: 8               # earlier turns sent with each message, so follow-ups work
+  narrate: false                 # true: the model words the answer, every figure still checked
+  log_path: data/assistant_log.jsonl   # every request, plan and outcome, with who and when
+
 # How a rule's fields read in a sentence ("Declines when SIMAH score is 650 or below").
 # A field not listed reads as its name in the rule files.
 field_labels:

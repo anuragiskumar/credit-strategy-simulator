@@ -1068,7 +1068,7 @@
   var SIM = {
     live: null,          // null while checking, then true (engine) or false (fixture only)
     health: null, rules: null,
-    view: 'target',      // 'target' | 'try' | 'rules' | 'saved'
+    view: 'ask',         // 'ask' | 'target' | 'try' | 'rules' | 'saved'. Ask falls back to target where it cannot run
     steps: [], out: null, pending: false, error: null, notice: null,
     q: '', filter: 'alone', picked: null,   // All rules: search, filter, the rule open in the detail
     shut: {}, more: {},  // stage groups closed, and stage groups showing every rule
@@ -1077,7 +1077,9 @@
     saving: false, savePending: false, saveErr: null, draftName: '', savedAs: null, pendingOpen: null,
     open: {},            // which disclosures are open, so a re-render keeps them open
     refocus: null,       // selector to focus again after a re-render (a slider, a switch)
-    goal: { target: 25, ceiling: null, frozen: [], out: null, pending: false, error: null }
+    goal: { target: 25, ceiling: null, frozen: [], out: null, pending: false, error: null },
+    // Ask: the conversation, held only here, and the steps of the request in flight.
+    chat: { turns: [], draft: '', pending: false, error: null, reveal: false, steps: [], started: 0, clock: null }
   };
   var RULE_PAGE = 25;
   var TOP_RULES = 8;
@@ -2326,6 +2328,231 @@
     });
   }
 
+  /* ======================================== Ask: the chat (src/client_assistant.py)
+   * A person says what they want to achieve. The model picks the changes; the engine replays them
+   * and every figure here is the engine's. A proposal is shown, not applied: "Use this scenario"
+   * loads it into Try a change, exactly as a goal-seek option does. The conversation is held here
+   * and sent with each message, so the server keeps no chat state. */
+  var ASK_EXAMPLES = [
+    'Reach 28% approval without the bad rate going over 10.5%',
+    'Lower the SIMAH cutoff to 580',
+    'Ease the minimum salary for civilians to 3,000'
+  ];
+
+  /** Ask needs the person to be allowed it and the engine behind it; the precomputed file cannot answer. */
+  function canAsk() { return window.Session.can('assistant.use') && SIM.live !== false; }
+
+  /** What the model is asked to build on: the last scenario it proposed, else the one on screen. */
+  function askBasis() {
+    for (var i = SIM.chat.turns.length - 1; i >= 0; i--) {
+      var t = SIM.chat.turns[i];
+      if (t.a && t.a.action === 'scenario') return t.a.changes;
+    }
+    return SIM.steps;
+  }
+
+  /** POST and read the engine's reply line by line: each step as it starts, then the answer.
+   * An engine that does not stream answers in one piece, and that is read the same way. */
+  function apiStream(path, body, onStep) {
+    return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) {
+        var type = r.headers.get('Content-Type') || '';
+        if (!r.ok || type.indexOf('ndjson') < 0 || !r.body || !r.body.getReader) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (!r.ok) throw new Error(j.error || ('the engine answered ' + r.status));
+            return j;
+          });
+        }
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', answer = null, err = null;
+        function pump() {
+          return reader.read().then(function (x) {
+            if (!x.done) buf += dec.decode(x.value, { stream: true });
+            var lines = buf.split('\n');
+            buf = x.done ? '' : lines.pop();
+            lines.forEach(function (line) {
+              if (!line.trim()) return;
+              var row = JSON.parse(line);
+              if (row.stage === 'done') answer = row.answer;
+              else if (row.stage === 'error') err = row.error;
+              else onStep(row);
+            });
+            if (!x.done) return pump();
+            if (err) throw new Error(err);
+            if (!answer) throw new Error('the engine stopped before answering');
+            return answer;
+          });
+        }
+        return pump();
+      });
+  }
+
+  /** The steps so far: done ones ticked, the current one moving, with the time since the request. */
+  function askProgress() {
+    var c = SIM.chat, last = c.steps.length - 1;
+    return '<ol class="askprog">' + c.steps.map(function (st, i) {
+      return i < last
+        ? '<li class="is-done"><span class="askmark" aria-hidden="true">✓</span>' + esc(st.text) + '</li>'
+        : '<li class="is-now"><span class="askdots" aria-hidden="true"><i></i><i></i><i></i></span>' + esc(st.text) +
+          ' <span class="askclock">' + askSeconds() + '</span></li>';
+    }).join('') + '</ol>';
+  }
+  function askSeconds() { return Math.max(0, Math.round((Date.now() - SIM.chat.started) / 1000)) + 's'; }
+
+  /** Redraw only the waiting bubble: a full re-render per step would move the page under the reader. */
+  function paintAskProgress() {
+    var el = document.querySelector('.askmsg.is-busy');
+    if (el) el.innerHTML = askProgress(); else refreshSim();
+  }
+
+  function sendAsk(text) {
+    var c = SIM.chat, msg = String(text || '').trim();
+    if (!msg || c.pending) return;
+    var history = c.turns.map(function (t) {
+      return t.a ? { role: 'assistant', text: t.a.memo || t.a.reply || '' } : { role: 'user', text: t.text };
+    });
+    var basis = askBasis();
+    c.turns.push({ text: msg });
+    c.draft = ''; c.pending = true; c.error = null; c.reveal = true; SIM.refocus = '#askinput';
+    c.steps = [{ text: 'Sending your request' }]; c.started = Date.now();
+    refreshSim();
+    clearInterval(c.clock);
+    c.clock = setInterval(function () {
+      var el = document.querySelector('.askmsg.is-busy .askclock');
+      if (el) el.textContent = askSeconds();
+    }, 1000);
+    var seq = CTX.seq;
+    apiStream('/api/ask', ctxBody({ message: msg, history: history, current: basis, stream: true,
+                                    who: window.Session.who() || null }),
+      function (step) { if (seq === CTX.seq) { c.steps.push(step); paintAskProgress(); } })
+      .then(function (a) { if (seq === CTX.seq) { a.seq = seq; c.turns.push({ a: a }); } })
+      .catch(function (e) { if (seq === CTX.seq) c.error = e.message; })
+      .then(function () {
+        clearInterval(c.clock);
+        c.pending = false; c.reveal = true; SIM.refocus = '#askinput'; refreshSim();
+      });
+  }
+
+  /** Approval, bad rate and who moves, for one replayed result: the outcome bar's figures, compact. */
+  function askFigures(r) {
+    var breach = r.risk_known && r.expected_bad_rate > ceilingRate();
+    return '<div class="optgrid askfig">' +
+      '<div><div class="k">Approval</div><div class="v"><span class="c-obs">' + pct(r.approval_rate) + '</span></div>' +
+        '<div class="d">' + ptsChange(r.approval_change_pp) + '</div></div>' +
+      '<div' + (breach ? ' class="is-breach"' : '') + '><div class="k">Bad rate</div><div class="v">' +
+        (r.risk_known ? '<span class="' + (r.swap_in ? 'c-inf' : 'c-obs') + '">' + pct(r.expected_bad_rate, 2) + '</span>' : '<span class="c-nm">no estimate</span>') +
+        '</div><div class="d">' + (breach ? 'above the ' + pct(ceilingRate(), 1) + ' limit' : riskPill(r.risk_known)) + '</div></div>' +
+      '<div><div class="k">Newly approved</div><div class="v">' + n0(r.swap_in) + '</div>' +
+        (r.swap_out ? '<div class="d">' + n0(r.swap_out) + ' newly declined</div>' : '') + '</div>' +
+      '</div>' + (r.risk_known ? '' : '<p class="simnote">' + esc(r.verdict) + '</p>');
+  }
+
+  function askUse(key, stale) {
+    if (stale) return '<p class="simnote">Built on another product or period. Ask again to use it here.</p>';
+    return '<div class="simacts"><button class="btn sm" data-ask-use="' + key + '">Use this scenario</button></div>';
+  }
+
+  function askAnswer(a, i, first) {
+    var stale = a.seq !== CTX.seq;
+    var body;
+    if (a.action === 'scenario') {
+      body = '<ol class="steps">' + a.steps_text.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
+        askFigures(a.result.result) + askUse(i, stale);
+    } else if (a.action === 'goal_seek') {
+      var g = a.result, opts = g.options.slice(0, 3);
+      body = '<p class="rhead"><b>' + (g.reached ? 'Reachable: ' : 'Out of reach: ') + '</b>' + pct(g.target, 1) +
+        ' approval within a ' + pct(g.ceiling, 1) + ' bad-rate limit.</p>' +
+        (opts.length ? opts.map(function (o, j) {
+          return '<div class="opt' + (o.breaches_ceiling ? ' is-breach' : j === 0 && g.reached ? ' is-best' : '') + '">' +
+            '<h4>Option ' + esc(String(o.option).charAt(0)) + ' <small>' +
+              (o.breaches_ceiling ? 'above the bad-rate limit' : o.reaches_target ? 'reaches the target' : 'falls short') + '</small></h4>' +
+            '<ol class="steps">' + (o.steps_text || []).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol>' +
+            askFigures(o) + (o.changes && o.changes.length ? askUse(i + ':' + j, stale) : '') + '</div>';
+        }).join('') : '<p>The search found nothing it could change.</p>');
+    } else if (a.action === 'refused') {
+      body = caveat('warn', 'REFUSED', esc(a.reply));
+    } else {
+      body = '<p class="askq"><span class="rtag">' + (a.action === 'clarify' ? 'Question' : 'Cannot do') + '</span> ' + esc(a.reply) + '</p>';
+    }
+    var by = a.fallback ? 'The language model could not be reached, so this was answered without it: only a target and ' +
+        'limit, a score cutoff or a rule ID was read, and anything else in the request was not.'
+      : a.provider === 'keyword' ? 'Answered without a language model.'
+      : a.action === 'refused' ? 'Asked ' + esc(a.model || a.provider) + (a.attempts > 1 ? ', twice' : '') + '.'
+      : (a.action === 'scenario' || a.action === 'goal_seek' ? 'Changes chosen by ' : 'Asked by ') +
+        esc(a.model || a.provider) + (a.attempts > 1 ? ', corrected once' : '') + '.';
+    if (a.action === 'scenario' || a.action === 'goal_seek') by += ' Every figure is replayed by the engine.';
+    return '<div class="askmsg is-bot">' + body + '<p class="askby"' + (first ? N('ask_by') : '') + '>' + by + '</p></div>';
+  }
+
+  function viewAsk() {
+    var c = SIM.chat, st = SIM.health && SIM.health.assistant;
+    if (!SIM.live) return panel('Ask', '', '<p class="note">The chat opens as soon as the engine is ready.</p>', N('ask_panel'));
+    var firstBot = true;
+    var thread = c.turns.map(function (t, i) {
+      if (!t.a) return '<div class="askmsg is-me">' + esc(t.text) + '</div>';
+      var html = askAnswer(t.a, i, firstBot);
+      firstBot = false;
+      return html;
+    }).join('');
+    if (!c.turns.length) {
+      thread = '<p class="note">Say what you want to achieve. The engine replays what the model proposes against every ' +
+        'applicant, and nothing changes until you choose Use this scenario.</p><div class="askex">' +
+        ASK_EXAMPLES.map(function (x) { return '<button class="chip" data-ask-example="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>';
+    }
+    if (c.pending) thread += '<div class="askmsg is-bot is-busy" role="status">' + askProgress() + '</div>';
+    var status = st ? '<span class="askstat"' + N('ask_status') + '>' + esc(st.provider === 'keyword' ? 'No language model' : st.model || st.provider) + '</span>' : '';
+    return '<div class="askpane">' + panel('Ask', status,
+      (st && st.note ? '<p class="simnote">' + esc(st.note) + '.</p>' : '') +
+      '<div class="askthread" aria-live="polite">' + thread + '</div>' +
+      (c.error ? caveat('warn', 'REFUSED', esc(c.error)) : '') +
+      '<form class="askform" data-ask-form>' +
+        '<textarea class="siminput" id="askinput" rows="2" maxlength="1000" placeholder="For example: get approval to 28% without touching the SIMAH rules" ' +
+          'aria-label="What do you want to achieve?"' + N('ask_input') + (c.pending ? ' disabled' : '') + '>' + esc(c.draft) + '</textarea>' +
+        '<div class="simacts"><button class="btn" type="submit"' + (c.pending ? ' disabled' : '') + '>Send</button>' +
+          (c.turns.length ? '<button class="btn ghost sm" type="button" data-ask-clear>New conversation</button>' : '') + '</div>' +
+      '</form>', N('ask_panel')) + '</div>';
+  }
+
+  /** The Ask panel reaches at least the bottom of the screen, so the input sits there from the first message. */
+  function fitAsk(root) {
+    var pane = root.querySelector('.askpane > .panel'), canvas = document.getElementById('canvas');
+    if (!pane || !canvas) return;
+    var top = pane.getBoundingClientRect().top - canvas.getBoundingClientRect().top + canvas.scrollTop;
+    pane.style.minHeight = Math.max(320, canvas.clientHeight - top) + 'px';
+  }
+
+  function wireAsk(root) {
+    fitAsk(root);
+    var form = root.querySelector('[data-ask-form]'), box = root.querySelector('#askinput');
+    if (box) {
+      box.addEventListener('input', function () { SIM.chat.draft = box.value; });
+      box.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAsk(box.value); }
+      });
+    }
+    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); sendAsk(box && box.value); });
+    root.querySelectorAll('[data-ask-example]').forEach(function (b) {
+      b.addEventListener('click', function () { sendAsk(b.getAttribute('data-ask-example')); });
+    });
+    root.querySelectorAll('[data-ask-clear]').forEach(function (b) {
+      b.addEventListener('click', function () { SIM.chat.turns = []; SIM.chat.error = null; SIM.refocus = '#askinput'; go('simulator', true); });
+    });
+    root.querySelectorAll('[data-ask-use]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var k = b.getAttribute('data-ask-use').split(':'), a = (SIM.chat.turns[+k[0]] || {}).a;
+        var changes = !a ? null : a.action === 'scenario' ? a.changes : (a.result.options[+k[1]] || {}).changes;
+        if (!changes || !changes.length) return;
+        SIM.view = 'try';
+        propose(changes.slice());
+      });
+    });
+    // A new message or answer is brought into view by its top, so a long answer reads from the start.
+    var msgs = root.querySelectorAll('.askthread .askmsg');
+    if (SIM.chat.reveal && msgs.length) {
+      SIM.chat.reveal = false;
+      msgs[msgs.length - 1].scrollIntoView({ block: 'nearest', behavior: calmMotion() ? 'auto' : 'smooth' });
+    }
+  }
+
   function modeNote() {
     if (SIM.live === null) return '<p class="simmode"' + N('sim_mode') + '>Connecting to the engine…</p>';
     if (SIM.live) return '';
@@ -2333,16 +2560,19 @@
       'Start the engine (<code>python -m ui.serve</code>) to stack changes and set your own target.</p>';
   }
 
-  var VIEWS = [['target', 'Set a target'], ['try', 'Try a change'], ['rules', 'All rules'], ['saved', 'Saved']];
+  var VIEWS = [['ask', 'Ask'], ['target', 'Set a target'], ['try', 'Try a change'], ['rules', 'All rules'], ['saved', 'Saved']];
 
   function pageSimulator() {
-    var tabs = '<div class="fseg simviews" role="tablist"' + N('sim_views') + '>' + VIEWS.map(function (v) {
+    if (SIM.view === 'ask' && !canAsk()) SIM.view = 'target';
+    var tabs = '<div class="fseg simviews" role="tablist"' + N('sim_views') + '>' + VIEWS.filter(function (v) {
+      return v[0] !== 'ask' || canAsk();
+    }).map(function (v) {
       return '<button role="tab" data-sim-view="' + v[0] + '" aria-pressed="' + (SIM.view === v[0]) + '" aria-selected="' +
         (SIM.view === v[0]) + '">' + v[1] + '</button>';
     }).join('') + '</div>';
     var body = SIM.view === 'target' ? viewTarget() : SIM.view === 'try' ? viewTry() :
-      SIM.view === 'saved' ? viewSaved() : viewRules();
-    var scenario = SIM.view === 'target' || SIM.view === 'saved' ? '' :
+      SIM.view === 'saved' ? viewSaved() : SIM.view === 'ask' ? viewAsk() : viewRules();
+    var scenario = SIM.view === 'target' || SIM.view === 'saved' || SIM.view === 'ask' ? '' :
       '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() + scenarioActions() +
         (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') + outcomeDetails() + '</div>';
     return '<div class="pagehead simhead"><div><h2' + N('sim_head') + '>Simulator</h2>' +
@@ -2372,10 +2602,12 @@
     if (SIM.view === 'rules' && SIM.picked && narrow !== syncStick.narrow) { syncStick.narrow = narrow; go('simulator', true); return; }
     syncStick.narrow = narrow;
     syncStick(document.getElementById('canvaswrap'));
+    fitAsk(document.getElementById('canvaswrap'));
   });
 
   function wireSimulator(root) {
     wireSaved(root);
+    wireAsk(root);
     root.querySelectorAll('[data-sim-view]').forEach(function (b) {
       b.addEventListener('click', function () { SIM.view = b.getAttribute('data-sim-view'); go('simulator', true); });
     });
@@ -2882,6 +3114,7 @@
     if (!sameProduct) g.frozen = [];
     if (!sameProduct) SIM.picked = null;
     SIM.error = null; SIM.steps = []; SIM.out = null; SIM.pending = false; SIM.notice = null;
+    SIM.chat.error = null;       // earlier answers stay readable; each says it was built on another context
     if (SIM.live !== true) {
       SIM.rules = F.rule_catalogue || [];
       if (had.length) SIM.notice = { tag: 'SCENARIO CLEARED', html: 'Your change was cleared: its worked-out result belongs to the previous ' + (sameProduct ? 'period.' : 'product.') };
@@ -2976,7 +3209,7 @@
   document.getElementById('railbtn').addEventListener('click', function () { toggleRail(); });
   scrim.addEventListener('click', function () { toggleRail(false); });
   // A different person (the demo menu, later the server) may see a different rail.
-  window.Session.onChange(function () { renderNav(); applySpec(); });
+  window.Session.onChange(function () { renderNav(); applySpec(); if (S.page === 'simulator') go('simulator', true); });
   function fromHash() { var h = location.hash.slice(1); return RENDER[h] ? h : 'portfolio'; }
   window.addEventListener('hashchange', function () { if (fromHash() !== S.page) go(fromHash()); });
   connectEngine(0, pendingCustom);

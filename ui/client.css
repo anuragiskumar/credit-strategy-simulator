@@ -819,3 +819,56 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .trmore > summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 .trmore[open] > summary { margin-bottom: 8px; }
 .t tr.is-win td:first-child { box-shadow: inset 3px 0 0 var(--line-hard); }
+
+/* ---- Simulator: Ask. Ink and surfaces only: colour stays on the figures, where it means provenance */
+/* No scroll box of its own: the conversation grows with the page, so one scroll reaches the input. */
+.askthread { display: flex; flex-direction: column; gap: 12px; padding: 2px 0 8px; }
+.askmsg { max-width: min(760px, 100%); line-height: 1.55; font-size: 13.5px; }
+.askmsg.is-me { align-self: flex-end; background: var(--sunken); border: 1px solid var(--line-soft);
+                border-radius: 12px 12px 3px 12px; padding: 9px 13px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.askmsg.is-bot { align-self: stretch; border: 1px solid var(--line); border-radius: 3px 12px 12px 12px;
+                 padding: 12px 15px; background: var(--surface); }
+.askmsg.is-busy { align-self: flex-start; }
+.askmsg .steps { margin: 0 0 10px; padding-inline-start: 18px; color: var(--ink-2); line-height: 1.7; }
+.askmsg .rhead { margin: 0 0 4px; color: var(--ink-2); }
+.askmsg .opt { margin-top: 8px; }
+.askmsg .caveat { margin: 0; }
+.askfig .d { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+.askfig .is-breach .d { color: var(--breach); }
+.askq { margin: 0; color: var(--ink); }
+.askq .rtag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-inline-end: 4px; }
+.askby { margin: 10px 0 0; font-size: 11.5px; color: var(--faint); }
+
+/* Progress while the request runs. Ink only, like every other busy state: colour means provenance. */
+.askprog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;
+           font-size: 13px; line-height: 1.45; }
+.askprog li { display: flex; align-items: baseline; gap: 8px; }
+.askprog .is-done { color: var(--faint); }
+.askprog .is-now { color: var(--ink-2); }
+.askmark { width: 18px; flex: 0 0 18px; text-align: center; font-size: 11px; color: var(--muted); }
+.askclock { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.askdots { width: 18px; flex: 0 0 18px; display: inline-flex; gap: 3px; align-items: center; justify-content: center;
+           align-self: center; }
+.askdots i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); animation: askdot 1.2s ease-in-out infinite; }
+.askdots i:nth-child(2) { animation-delay: .15s; }
+.askdots i:nth-child(3) { animation-delay: .3s; }
+@keyframes askdot { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .askdots i { animation: none; opacity: .7; } }
+.askex { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.askex .chip { white-space: normal; text-align: start; height: auto; min-height: 28px; padding-block: 5px; line-height: 1.35; }
+.askstat { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+/* The input stays on screen: the panel is a column at least as tall as the room below the page head,
+ * the thread takes the slack, and the form sticks to the bottom of the canvas as the thread grows.
+ * `overflow: hidden` on .panel would stop sticky working, so this one panel lets its content show. */
+.canvaswrap:has(.askpane) { padding-bottom: 0; }
+.askpane > .panel { overflow: visible; display: flex; flex-direction: column; margin-bottom: 0;
+                    border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
+.askpane > .panel > .panelbody { flex: 1 1 auto; display: flex; flex-direction: column; padding-bottom: 0; }
+.askpane .askthread { flex: 1 1 auto; }
+.askform { position: sticky; bottom: 0; z-index: 3; margin: 12px -15px 0; padding: 12px 15px 14px;
+           background: var(--surface); border-top: 1px solid var(--line-soft); }
+.askform textarea { width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--ui); font-size: 14px; line-height: 1.45; padding: 9px 11px; }
+.askform .simacts { margin-top: 8px; }
+@media (max-width: 760px) {
+  .askmsg.is-me { max-width: 90%; }
+}

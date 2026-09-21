@@ -9,7 +9,7 @@ Steps 1 and 2 produced the rules and the population. This is what runs on them.
 | 4 | What-if simulation and swap sets | [src/client_simulate.py](src/client_simulate.py) |
 | 4 | Goal-seek to a target approval rate | [src/client_optimise.py](src/client_optimise.py) |
 | 5 | Three CxO screens | [ui/client.html](ui/client.html), [ui/client.js](ui/client.js), [ui/client_export.py](ui/client_export.py) |
-| 6 | Thin LLM layer | [src/client_llm.py](src/client_llm.py), [src/client_ask.py](src/client_ask.py) |
+| 6 | Thin LLM layer | [src/client_llm.py](src/client_llm.py), [src/client_ask.py](src/client_ask.py), [src/client_assistant.py](src/client_assistant.py) |
 
 ```bash
 python -m src.client_ask "which rules cost approvals without reducing risk?"
@@ -283,6 +283,38 @@ question nobody asked is worse than saying the question is not supported.
 
 A Saudi bank in a private cloud points `base_url` at its own server and nothing else changes.
 That is why the protocol, not the vendor, is what the layer is built around.
+
+### The Simulator's chat: a request in words, a scenario from the engine
+
+The Ask view on the Simulator screen goes one step further than the question catalogue: a person
+says what they want to achieve, and gets a scenario back.
+
+```
+request ──model──> plan ──validate_plan──> Engine.simulate / goal_seek ──> template ──> answer
+                     ^                                                        |
+                     └──── refused? the reason goes back to the model, once ──┘
+```
+
+**The plan format is closed.** One JSON object whose `action` is `scenario` (the complete list of
+`off` / `threshold` / `cutoff` changes, the same format `/api/simulate` takes), `goal_seek`
+(target, ceiling, rules to leave alone), `clarify` (a question back) or `unsupported` (why not).
+`validate_plan` checks every rule ID and field against the rule list of the product on screen,
+refuses a rule the bank may not change with its reason, and sets a cutoff's `from` itself.
+
+**What the model sees** is `Engine.rules()`, the list the All rules view shows: IDs, business
+names, thresholds, what each declines on its own, and the rules that may not be changed and why.
+Never an applicant. Client names go through `redactions.local.yaml` on the way out.
+
+**What the person sees** is the engine's replay: the changes in committee words, approval, bad
+rate with its provenance, and who moves. The model supplies no figure. A proposal is not applied:
+"Use this scenario" loads it into Try a change, as a goal-seek option does.
+
+**When the model cannot be reached** (no key, a 503, a spent quota) the keyword matcher answers
+instead, and the answer says so: a target and limit, a score cutoff or a rule ID still work.
+Gemini tries `fallback_models` in turn while the first is overloaded. Every request, the model's
+raw reply, the plan and the outcome go to `assistant.log_path` with who asked and when.
+
+Configured under `assistant:` in `config_client.yaml`; served at `POST /api/ask`.
 
 ### The ten questions, answered
 

@@ -453,6 +453,12 @@ class Engine:
             out.update(window=base.window_dict(), product=base.cfg["product"])
             return out
 
+    def describe(self, changes: list, window=None, product=None) -> list[str]:
+        """Each change in committee words, for a proposal the page has not loaded yet."""
+        with self._lock:
+            base = self.baseline(window, product)
+            return [describe_change(base, self.inv, ch) for ch in changes]
+
     # ------------------------------------------------------------------ saved scenarios
     def _store(self):
         if self.store is None:
