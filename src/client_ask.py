@@ -18,6 +18,7 @@ import sys
 import pandas as pd
 
 from src import client_analysis as A, client_llm, client_optimise as O, client_simulate as S
+from src.client_replay import locked_rules
 from src.config import resolve_path
 from src.client_generate import load_client_config
 from src.rule_inventory import build_inventory
@@ -72,7 +73,8 @@ def execute(call: client_llm.EngineCall, base: S.Baseline, inv, cfg: dict) -> di
                 "flags": A.concentration_flags(book, cfg).to_dict("records")}
 
     if intent in ("simulate", "swap_set"):
-        lever = S.field_lever(inv, p["field"], p["from"], p["to"], product=cfg["product"])
+        lever = S.field_lever(inv, p["field"], p["from"], p["to"], product=cfg["product"],
+                              locked=locked_rules(cfg))
         result = S.simulate(base, inv, lever)
         out = {k: v for k, v in result.items() if not k.startswith("_")}
         out.update({"field": p["field"], "from": p["from"], "to": p["to"]})

@@ -43,10 +43,14 @@
         drillable: spec.drill !== false && !!d && d.rules.length > 0,
         rulesTotal: d ? d.total : null, rulesCounted: d ? d.counted : null,
         nRules: d ? d.n_rules : 0, topN: d ? d.top_n : 0, topNPct: d ? d.top_n_pct : null,
+        soleTotal: d && d.sole_total !== undefined ? d.sole_total : null,
+        multiCaught: d && d.multi_caught !== undefined ? d.multi_caught : null,
         rules: d ? d.rules.map(function (x) {
           return { id: x.rule_id, code: x.policy_code, label: x.label, count: x.count,
                    pctOfStage: x.pct_of_stage, relaxable: x.relaxable,
-                   tests: x.tests || '', disagrees: !!x.description_disagrees };
+                   tests: x.tests || '', disagrees: !!x.description_disagrees,
+                   sole: x.sole_cause === undefined ? null : x.sole_cause,
+                   locked: !!x.locked, fixedField: !!x.fixed_field };
         }) : []
       };
     });

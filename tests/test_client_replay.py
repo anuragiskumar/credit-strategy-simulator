@@ -301,3 +301,71 @@ def test_two_rules_with_the_same_description_are_told_apart(res, outcome, cfg, i
     for label, same in by_label.items():
         if len(same) > 1:
             assert len({(r["rule_id"], r["tests"]) for r in same}) == len(same), label
+
+
+# --------------------------------------------------------------------------- phase 6
+def test_sole_cause_never_exceeds_caught_first_and_matches_declines_alone(df, res, outcome, cfg):
+    drivers = A.decline_drivers(df, res, outcome, cfg).set_index("rule_id")
+    for block in A.funnel_rules(res, outcome, cfg):
+        replayed = [r for r in block["rules"] if r["sole_cause"] is not None]
+        for r in replayed:
+            assert 0 <= r["sole_cause"] <= r["count"], r["rule_id"]
+            # Same definition as the decline-driver screen's "declines on its own".
+            assert r["sole_cause"] == drivers.loc[r["rule_id"], "declines_alone"], r["rule_id"]
+        if replayed:
+            assert block["sole_total"] == sum(r["sole_cause"] for r in replayed)
+            assert block["multi_caught"] == block["total"] - block["sole_total"] >= 0
+        else:
+            assert block["sole_total"] is None and block["multi_caught"] is None
+
+
+def _with_locked(cfg, ids):
+    return {**cfg, "replay": {**cfg["replay"], "locked_rules": list(ids)}}
+
+
+def test_a_locked_rule_is_never_relaxable_and_says_why(df, inv, cfg, res):
+    target = res.rules[res.rules["relaxable"] & (res.rules["kind"] == "block")]["rule_id"].iloc[0]
+    locked = client_replay.replay(df, inv, _with_locked(cfg, [target])).rules.set_index("rule_id")
+    assert bool(locked.loc[target, "locked"]) and not bool(locked.loc[target, "relaxable"])
+    assert not bool(locked.loc[target, "fixed_field"]), "declared, not inferred"
+    others = locked.drop(index=target)
+    assert not others["locked"].any()
+
+
+def test_an_unknown_locked_rule_id_fails_loudly(df, inv, cfg):
+    with pytest.raises(ValueError, match="do not exist"):
+        client_replay.replay(df, inv, _with_locked(cfg, ["noSuchTable#999"]))
+
+
+def test_locking_a_rule_freezes_only_its_threshold_not_the_field(inv, cfg):
+    from src import client_simulate as S
+    free = S.field_lever(inv, "simahcreditscore", 600, 580, product=cfg["product"])
+    moved = sorted(free.overrides)
+    assert len(moved) >= 2, "needs two rules on the same field and threshold"
+    target, neighbour = moved[0], moved[1]
+    lever = S.field_lever(inv, "simahcreditscore", 600, 580, product=cfg["product"],
+                          locked=frozenset({target}))
+    assert target not in lever.overrides
+    assert neighbour in lever.overrides, "an unlocked rule on the same field stays movable"
+    assert set(lever.overrides) == set(moved) - {target}
+    assert lever.skipped_locked == 1
+
+
+def test_a_field_whose_every_rule_is_locked_cannot_move(inv, cfg):
+    from src import client_simulate as S
+    free = S.field_lever(inv, "simahcreditscore", 600, 580, product=cfg["product"])
+    with pytest.raises(ValueError, match="locked"):
+        S.field_lever(inv, "simahcreditscore", 600, 580, product=cfg["product"],
+                      locked=frozenset(free.overrides))
+
+
+def test_the_optimiser_never_moves_or_switches_off_a_locked_rule(df, inv, cfg):
+    from src import client_optimise as O, client_simulate as S
+    from src.client_replay import locked_rules
+    free = S.field_lever(inv, "simahcreditscore", 600, 580, product=cfg["product"])
+    target = sorted(free.overrides)[0]
+    lcfg = _with_locked(cfg, [target])
+    base = S.build_baseline(df, inv, lcfg)
+    assert locked_rules(base.cfg) == {target}
+    for lever in O.candidate_levers(base, inv, lcfg):
+        assert target not in lever.overrides, lever.label

@@ -144,3 +144,15 @@ for (const [width, narrow, minRun] of [[900, false, 48], [311, true, 16]]) {
     });
   });
 }
+
+test('rules carry sole cause and lock flags, and sole cause never exceeds caught first', () => {
+  const M = FunnelModel.build(load());
+  for (const s of M.stages) {
+    for (const r of s.rules) {
+      assert.equal(typeof r.locked, 'boolean');
+      assert.equal(typeof r.fixedField, 'boolean');
+      if (r.sole !== null) assert.ok(r.sole >= 0 && r.sole <= r.count, `${r.id}`);
+    }
+    if (s.soleTotal !== null) assert.equal(s.multiCaught, s.lost - s.soleTotal);
+  }
+});

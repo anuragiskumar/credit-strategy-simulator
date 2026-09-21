@@ -274,6 +274,11 @@ military:
 replay:
   rules_folder: "."
   include_inactive_rules: false   # the 10 Inactive SIMAH rules stay off, as the client has them
+  # Regulatory knock-outs the bank has declared untouchable. A locked rule is never relaxable,
+  # never switched off by the optimiser, and no what-if moves ITS thresholds; other rules on the
+  # same field stay movable. This is the bank's declaration, not an inference, so it stays
+  # empty until the client confirms which rules belong here. IDs are checked on every replay.
+  locked_rules: []
 
   # Guru's funnel starts with hard rejects "nothing can be done about", then credit policy.
   # Mapping each decision table to a stage is our reading of executionLevel, not the client's word.

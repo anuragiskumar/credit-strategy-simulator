@@ -51,7 +51,8 @@ def field_aliases(field_name: str) -> set[str]:
 
 
 def field_lever(inv, field_name: str, from_value: float, to_value: float,
-                *, product: str, label: str | None = None) -> Lever:
+                *, product: str, label: str | None = None,
+                locked: frozenset[str] = frozenset()) -> Lever:
     """Move every threshold of `from_value` on `field_name` to `to_value`.
 
     This is Guru's "what is that one thing I change?". 102 rules turn on three SIMAH
@@ -61,6 +62,9 @@ def field_lever(inv, field_name: str, from_value: float, to_value: float,
     that tests the same number the other way round is left alone and counted in
     `skipped_wrong_direction`, because silently tightening it while the user asked to
     loosen would show up as an approval *fall* with no explanation.
+
+    A locked rule (a regulatory knock-out) keeps its threshold; only that rule is skipped and
+    counted in `skipped_locked`. Other rules testing the same field still move.
     """
     conds, rules = inv.conditions, inv.rules
     scope = rules[(rules["product"].isin([product, "ALL"]) | rules["product"].isna())]
@@ -75,8 +79,11 @@ def field_lever(inv, field_name: str, from_value: float, to_value: float,
     # stays coherent and no applicant falls between them.
     kind = rules.set_index("rule_id")["outcome"].str.lower().to_dict()
     wanted = +1 if to_value > from_value else -1
-    overrides, skipped = {}, 0
+    overrides, skipped, skipped_locked = {}, 0, 0
     for r in hit.itertuples():
+        if r.rule_id in locked:
+            skipped_locked += 1
+            continue
         direction = RELAX_DIRECTION.get(r.operator)
         if direction is not None and kind.get(r.rule_id) == "pass":
             direction = -direction
@@ -84,6 +91,8 @@ def field_lever(inv, field_name: str, from_value: float, to_value: float,
             skipped += 1
             continue
         overrides[r.rule_id] = {"field": r.field, "value_low": to_value}
+    if not overrides and skipped_locked:
+        raise ValueError(f"every rule testing {field_name} at {from_value:g} is locked")
     if not overrides:
         raise ValueError(
             f"moving {field_name} {from_value:g} to {to_value:g} would tighten every rule "
@@ -91,6 +100,7 @@ def field_lever(inv, field_name: str, from_value: float, to_value: float,
     lever = Lever(label=label or f"{field_name}: {from_value:g} -> {to_value:g}",
                   overrides=overrides)
     object.__setattr__(lever, "skipped_wrong_direction", skipped)
+    object.__setattr__(lever, "skipped_locked", skipped_locked)
     return lever
 
 
@@ -232,7 +242,8 @@ def sweep(base: Baseline, inv, field_name: str, from_value: float,
                          "expected_bad_rate": round(base.booked_bad_rate, 4),
                          "risk_known": True, "note": "current"})
             continue
-        lever = field_lever(inv, field_name, from_value, value, product=product)
+        lever = field_lever(inv, field_name, from_value, value, product=product,
+                            locked=client_replay.locked_rules(base.cfg))
         r = simulate(base, inv, lever)
         rows.append({"cutoff": value, "approval_rate": r["approval_rate"],
                      "approval_change_pp": r["approval_rate_change_pp"],

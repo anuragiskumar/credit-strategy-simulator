@@ -108,7 +108,10 @@ window.__NOTES__ = function (F) {
       t: 'The rules behind a stage',
       d: 'Opened from a stage\'s chevron (Bars) or its loss arrow (Funnel). Lists the rules that caught the most ' +
          'applicants at that stage. Each applicant is counted once, under the first rule that caught them, so the ' +
-         'counts add up to the stage total; if they ever do not, the difference is shown here rather than hidden.'
+         'counts add up to the stage total; if they ever do not, the difference is shown here rather than hidden. ' +
+         'Sole cause is how many of them only that rule stops: remove just that rule and they pass every other ' +
+         'rule (they may still fail a finance cap). A solid lock marks a rule the bank has declared a regulatory ' +
+         'knock-out; a hollow one marks a rule inferred to be fixed because of the fields it tests.'
     },
     stage_applied: { t: 'Applied', d: 'Every application in the population, before any rule is run.' },
     stage_hard_reject: {

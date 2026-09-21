@@ -258,9 +258,33 @@
   var DISAGREE_TIP = 'The bank\'s description quotes different numbers from the conditions this rule ' +
     'actually tests. The conditions are what is replayed, so they are what the counts reflect.';
 
+  var SOLE_TIP = 'Caught first counts each applicant once, under the first rule that stopped them, so ' +
+    'these add up to the stage. Sole cause counts applicants only this rule stops: remove just this ' +
+    'rule and they pass every other rule. These do not add up, because many applicants are stopped ' +
+    'by several rules.';
+  var LOCK_SVG = '<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">' +
+    '<path d="M3.8 5.5V4a2.2 2.2 0 0 1 4.4 0v1.5" fill="none" stroke="currentColor" stroke-width="1.4"/>' +
+    '<rect x="2" y="5.5" width="8" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.2"/></svg>';
+
+  /* Locked is declared by the bank, so it is drawn solid; a fixed field is inferred from the
+   * rule's fields, so it is drawn hollow and lighter — the same known/guessed distinction the
+   * provenance tags make, in neutral ink because colour is reserved for provenance. */
+  function lockMark(r) {
+    if (r.locked) {
+      return '<span class="rlock is-locked" role="img" aria-label="Locked: regulatory knock-out" ' +
+        'title="Locked: regulatory knock-out">' + LOCK_SVG + '</span>';
+    }
+    if (r.fixedField) {
+      return '<span class="rlock is-fixed" role="img" aria-label="Fixed field (inferred from rule fields)" ' +
+        'title="Fixed field (inferred from rule fields)">' + LOCK_SVG + '</span>';
+    }
+    return '';
+  }
+
   function drillHtml(M) {
     var s = S.fdrill ? stageById(M, S.fdrill) : null;
     if (!s) return '';
+    var hasSole = s.soleTotal !== null;
     var all = S.fdrillAll && s.nRules > M.drillTopN;
     var shown = all ? s.rules : s.rules.slice(0, M.drillTopN), more = s.nRules - M.drillTopN;
     var rows = shown.map(function (r) {
@@ -269,11 +293,12 @@
       var sub = (r.id !== r.label ? '<span class="rid">' + esc(r.id) + '</span>' : '') +
         (r.tests ? '<span class="rtests">tests ' + esc(r.tests) + '</span>' : '') +
         (r.disagrees ? '<span class="rdiff" title="' + esc(DISAGREE_TIP) + '">≠ description</span>' : '');
-      return '<li><span class="rn"><span class="rl" title="' + esc(r.label) + '">' +
+      return '<li><span class="rn"><span class="rl" title="' + esc(r.label) + '">' + lockMark(r) +
           (r.code ? '<code>' + esc(r.code) + '</code>' : '') + esc(r.label) + '</span>' +
           (sub ? '<span class="rsub">' + sub + '</span>' : '') + '</span>' +
         '<span class="rc">' + n0(r.count) + '</span>' +
         '<span class="rp">' + r.pctOfStage.toFixed(1) + '%</span>' +
+        (hasSole ? '<span class="rs">' + (r.sole === null ? '<span class="nodata">—</span>' : n0(r.sole)) + '</span>' : '') +
         '<span class="rb" aria-hidden="true"><i style="width:' + r.pctOfStage + '%"></i></span></li>';
     }).join('');
     var issues = s.issues.length
@@ -291,8 +316,18 @@
         '<button type="button" class="fclose" data-drill-close aria-label="Close the rules behind ' + esc(s.label) + '">×</button></div>' +
       '<p class="fdrill-sub">' + n0(s.lost) + ' lost here across ' + n0(s.nRules) + (s.nRules === 1 ? ' reason' : ' rules') +
         '. Each applicant is counted once, under the first rule that caught them.</p>' +
-      '<div class="fdrill-cols" aria-hidden="true"><span>Rule</span><span>Applicants</span><span>Share of stage</span><span></span></div>' +
-      '<ol class="fdrill-list" id="fdrill-list">' + rows + '</ol>' + moreBtn + issues + '</div>';
+      '<div class="fdrill-cols' + (hasSole ? ' has-sole' : '') + '"><span aria-hidden="true">Rule</span>' +
+        '<span aria-hidden="true">Caught first</span><span aria-hidden="true">Share</span>' +
+        (hasSole ? '<span class="soleh">Sole cause<button type="button" class="finfo" ' +
+          'aria-label="What caught first and sole cause mean" aria-describedby="fdrill-sole-tip">i</button>' +
+          '<span class="ftip" role="tooltip" id="fdrill-sole-tip">' + esc(SOLE_TIP) + '</span></span>' : '') +
+        '<span></span></div>' +
+      '<ol class="fdrill-list' + (hasSole ? ' has-sole' : '') + '" id="fdrill-list">' + rows + '</ol>' + moreBtn +
+      (hasSole && s.multiCaught > 0
+        ? '<p class="fdrill-multi"><b>' + n0(s.multiCaught) + '</b> of ' + n0(s.lost) + ' are stopped by more than ' +
+          'one rule, so removing any single rule would not let them through.</p>'
+        : '') +
+      issues + '</div>';
   }
 
   function funnelPanelHtml() {

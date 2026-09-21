@@ -232,10 +232,19 @@ def funnel_rules(res, outcome: pd.DataFrame, cfg: dict,
     (`counted` is exported beside `total` so the screen can show it if they ever disagree).
     No top-N cut: every rule that caught anyone is listed and the screen decides how many to show.
     Not `decline_drivers`, whose counts are any-match and overlap.
+
+    Each replayed rule also carries `sole_cause`: applicants this rule alone stops, who would
+    pass every other blocking rule if only it were removed (they may still fail a finance cap
+    afterwards). It is never more than `count`, and a stage's sole causes sum to less than its
+    total by `multi_caught`, the applicants stopped by more than one rule.
     """
     top_n = int(cfg["funnel"]["headline_top_n"])
     labels = cfg["funnel"].get("reasons", {})
     lookup = res.rules.drop_duplicates("rule_id").set_index("rule_id")
+    block = _blocking(res)
+    arr = block.to_numpy()
+    only_one = arr.sum(axis=1) == 1 if arr.size else np.zeros(len(outcome), dtype=bool)
+    sole = {rid: int((arr[:, j] & only_one).sum()) for j, rid in enumerate(block.columns)}
     out = []
     for stage in STAGES[1:-1]:
         reasons = outcome.loc[outcome["stage"] == stage, "reason_rule"].astype("object")
@@ -251,14 +260,22 @@ def funnel_rules(res, outcome: pd.DataFrame, cfg: dict,
                 label = clean_description(r["description"]) or rid
                 tests, numbers = rule_tests(conditions, rid) if conditions is not None else ("", set())
                 row.update(label=label, policy_code=r["policy_code"], relaxable=bool(r["relaxable"]),
+                           locked=bool(r.get("locked", False)),
+                           fixed_field=bool(r.get("fixed_field", False)),
+                           sole_cause=sole.get(rid),
                            tests=tests or None,
                            description_disagrees=description_disagrees(label, numbers))
             else:
                 row.update(label=labels.get(rid, rid), policy_code=None, relaxable=None,
+                           locked=False, fixed_field=False, sole_cause=None,
                            tests=None, description_disagrees=False)
             rows.append(row)
         top = sum(c for _, c in ordered[:top_n])
+        sole_known = [r["sole_cause"] for r in rows if r["sole_cause"] is not None]
+        sole_total = sum(sole_known) if sole_known else None
         out.append({"stage": stage, "total": total, "counted": int(counts.sum()),
+                    "sole_total": sole_total,
+                    "multi_caught": total - sole_total if sole_total is not None else None,
                     "n_rules": len(rows), "top_n": top_n,
                     "top_n_pct": round(100 * top / total, 1) if total else 0.0,
                     "rules": rows})
@@ -314,7 +331,10 @@ def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
                 True if not r["relaxable"]
                 else None if not est.get("known")
                 else bool(est["estimated_bad_rate"] > booked_bad * cfg["drivers"]["earns_place_multiple"]))
-            if not r["relaxable"]:
+            if bool(r.get("locked", False)):
+                row["risk_note"] = "locked: the bank has declared it a regulatory knock-out. " \
+                                   "Relaxing it is not a risk trade-off."
+            elif not r["relaxable"]:
                 row["risk_note"] = "not relaxable: rests on a fixed field (regulatory, " \
                                    "bureau or identity). Relaxing it is not a risk trade-off."
         if include_oracle:

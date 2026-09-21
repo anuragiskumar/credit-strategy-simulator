@@ -56,6 +56,8 @@ class CompiledRule:
     fields: tuple[str, ...]
     evaluable: bool
     relaxable: bool = True
+    locked: bool = False          # declared in config: a regulatory knock-out
+    fixed_field: bool = False     # inferred: tests a field the bank cannot relax
     note: str = ""
 
 
@@ -120,10 +122,24 @@ def _condition_mask(frame: pd.DataFrame, cond, null_matches: bool) -> np.ndarray
     return None                                        # unparsed: cannot be evaluated
 
 
+def locked_rules(cfg: dict) -> frozenset[str]:
+    """The rules the bank has declared regulatory knock-outs (config replay.locked_rules)."""
+    return frozenset(cfg.get("replay", {}).get("locked_rules") or ())
+
+
 def compile_rules(inv: Inventory, *, product: str, include_inactive: bool = False,
-                  stage_map: dict[str, str] | None = None) -> list[CompiledRule]:
-    """Select the rules that apply to one product and tag each with a funnel stage."""
+                  stage_map: dict[str, str] | None = None,
+                  locked: frozenset[str] = frozenset()) -> list[CompiledRule]:
+    """Select the rules that apply to one product and tag each with a funnel stage.
+
+    Two different reasons stop a rule being relaxed, and they are kept apart because one is
+    known and one is guessed: `locked` is the bank's declaration; `fixed_field` is inferred
+    from the fields a rule tests. Either makes it non-relaxable.
+    """
     rules, conds = inv.rules, inv.conditions
+    unknown = sorted(set(locked) - set(rules["rule_id"]))
+    if unknown:
+        raise ValueError(f"replay.locked_rules names rules that do not exist: {unknown}")
     applicable = rules[(rules.table != "employer_keyword_check")
                        & (rules["product"].isin([product, "ALL"]) | rules["product"].isna())]
     by_rule = {rid: g for rid, g in conds.groupby("rule_id")}
@@ -145,18 +161,20 @@ def compile_rules(inv: Inventory, *, product: str, include_inactive: bool = Fals
         # Relaxable means two things at once: there is a number to move, and moving it is
         # the bank's call. Code can measure what a rule costs; it cannot know the bank is
         # allowed to drop it, so anything regulatory stays a human's decision.
-        relaxable = bool(
-            g is not None
-            and (g.tunability == "tunable").any()
-            and not g.field.isin(NON_RELAXABLE_FIELDS).any()
-            and not g.field.str.startswith(NON_RELAXABLE_PREFIXES).any())
+        fixed_field = bool(g is not None and (
+            g.field.isin(NON_RELAXABLE_FIELDS).any()
+            or g.field.str.startswith(NON_RELAXABLE_PREFIXES).any()))
+        is_locked = r.rule_id in locked
+        relaxable = bool(g is not None and (g.tunability == "tunable").any()
+                         and not fixed_field and not is_locked)
         out.append(CompiledRule(
             rule_id=r.rule_id, table=r.table, outcome=r.outcome or "", kind=kind,
             cap_amount=r.cap_amount if isinstance(r.cap_amount, str) else None,
             policy_code=r.policy_code, description=r.description_en or "",
             is_active=bool(r.is_active),
             stage=(stage_map or {}).get(r.table, "credit_policy"),
-            fields=fields, evaluable=True, relaxable=relaxable))
+            fields=fields, evaluable=True, relaxable=relaxable,
+            locked=is_locked, fixed_field=fixed_field))
     if not include_inactive:
         out = [c for c in out if c.is_active]
     return out
@@ -196,7 +214,7 @@ def replay(df: pd.DataFrame, inv: Inventory, cfg: dict, *,
     rep = cfg["replay"]
     compiled = compile_rules(inv, product=cfg["product"],
                              include_inactive=rep["include_inactive_rules"],
-                             stage_map=rep["stage_by_table"])
+                             stage_map=rep["stage_by_table"], locked=locked_rules(cfg))
     overrides = overrides or {}
     compiled = [c for c in compiled if overrides.get(c.rule_id, {}).get("enabled", True)]
 
@@ -229,6 +247,7 @@ def replay(df: pd.DataFrame, inv: Inventory, cfg: dict, *,
                      "outcome": c.outcome, "kind": c.kind, "cap_amount": c.cap_amount,
                      "policy_code": c.policy_code, "description": c.description,
                      "is_active": c.is_active, "relaxable": c.relaxable,
+                     "locked": c.locked, "fixed_field": c.fixed_field,
                      "matched": int(mask.sum()), "fields": ", ".join(c.fields)})
     hit_df = pd.DataFrame(hits, index=df.index) if hits else pd.DataFrame(index=df.index)
     return ReplayResult(hits=hit_df, rules=pd.DataFrame(rows), unevaluable=unevaluable)

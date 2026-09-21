@@ -24,6 +24,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from src import client_analysis as A, client_simulate as S
+from src.client_replay import locked_rules
 
 
 @dataclass
@@ -70,7 +71,7 @@ def candidate_levers(base: S.Baseline, inv, cfg: dict) -> list[S.Lever]:
     for move in opt["field_moves"]:
         try:
             levers.append(S.field_lever(inv, move["field"], move["from"], move["to"],
-                                        product=cfg["product"],
+                                        product=cfg["product"], locked=locked_rules(cfg),
                                         label=f"{move['label']} ({move['from']:g} to {move['to']:g})"))
         except ValueError:
             continue                  # threshold not present for this product; skip quietly
