@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 03:48 UTC",
+  "generated": "2026-09-21 05:23 UTC",
   "product": "TWQR",
   "applicants": 50000,
   "rules_replayed": 226,
@@ -2190,6 +2190,2554 @@
   "score_ceiling": 900.0,
   "booked_missing_score": true
  },
+ "rule_catalogue": [
+  {
+   "rule_id": "racAndPolicies#012",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL182",
+   "label": "CRIF SCORE <= 570 and SIMAH SCORE <=650",
+   "tests": "simahcreditscore ≤ 650 · crifscore ≤ 570 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF",
+   "declines": 12676,
+   "declines_alone": 4444,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lte",
+     "value_low": 650.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 570.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#016",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 70",
+   "tests": "age outside 30–70 · employeesegment G, SG, PL",
+   "declines": 6643,
+   "declines_alone": 3125,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 30.0,
+     "value_high": 70.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#015",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL189",
+   "label": "Employer Keyword present and CRIF SCORE < 626 and SIMAH SCORE <= 700",
+   "tests": "simahcreditscore ≤ 700 · crifscore ≤ 690 · employer_keyword_check Y",
+   "declines": 5487,
+   "declines_alone": 2078,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lte",
+     "value_low": 700.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 690.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#004",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Customer Salary – for Civillian except Retired is 3500",
+   "tests": "totalincome < 3,500 · employername not GOSI, GOSI Taqdeer · employeesegment ST, SMG, PVTL, PVTSML · typeofemployment CV",
+   "declines": 5060,
+   "declines_alone": 1624,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.totalincome",
+     "operator": "lt",
+     "value_low": 3500.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#006",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Customer Salary – for Military is 10000",
+   "tests": "totalincome < 10,000 · employeesegment ST · typeofemployment ML",
+   "declines": 2296,
+   "declines_alone": 812,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.totalincome",
+     "operator": "lt",
+     "value_low": 10000.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#221",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW6",
+   "label": "Tenure Non Saudi",
+   "tests": "nationality not SAU · tenure outside 6–36 · customersegment ST, SMG, PVTL · program SMART",
+   "declines": 2242,
+   "declines_alone": 804,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 36.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#028",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW16",
+   "label": "Minimum Income Non Saudi",
+   "tests": "nationality not SAU · income < 5,000 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF",
+   "declines": 2689,
+   "declines_alone": 433,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "income",
+     "operator": "lt",
+     "value_low": 5000.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yakeen-post-validation#004",
+   "table": "yakeen-post-validation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is greater than 60",
+   "tests": "age > 60 · employername not GOSI",
+   "declines": 2406,
+   "declines_alone": 416,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 60.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#222",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW5",
+   "label": "Tenure Saudi",
+   "tests": "nationality SAU · tenure outside 6–60 · customersegment ST, SMG, PVTL · program SMART",
+   "declines": 644,
+   "declines_alone": 261,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#189",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW11",
+   "label": "Tenure Saudi",
+   "tests": "nationality SAU · tenure outside 6–60 · customersegment ST, SMG, PVTL · program PF",
+   "declines": 569,
+   "declines_alone": 215,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#032",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "Pay Slip older than 2 months",
+   "tests": "durationinmonth > 2 · employeesegment ST",
+   "declines": 652,
+   "declines_alone": 213,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "paydurationinmonth.durationinmonth",
+     "operator": "gt",
+     "value_low": 2.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#101",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL179",
+   "label": "Customer Related to Politically Exposed person",
+   "tests": "relatedtopep = 1",
+   "declines": 477,
+   "declines_alone": 180,
+   "locked": false,
+   "fixed_field": true,
+   "editable": false,
+   "reason": "rests on a fixed field (regulatory, bureau or identity)",
+   "thresholds": []
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#014",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 60",
+   "tests": "age outside 25–60 · employeesegment SE",
+   "declines": 431,
+   "declines_alone": 161,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 25.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#010",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Customer Salary – for Retired is 1980",
+   "tests": "totalincome < 1,980 · nationality SAU · employername GOSI, GOSI Taqdeer · typeofemployment CV",
+   "declines": 340,
+   "declines_alone": 139,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.totalincome",
+     "operator": "lt",
+     "value_low": 1980.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#223",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW39",
+   "label": "Tenure Saudi & Non Saudi",
+   "tests": "nationality not SAU · tenure outside 6–36 · customersegment PVTSML · program SMART",
+   "declines": 765,
+   "declines_alone": 123,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 36.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#199",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW38",
+   "label": "Tenure Saudi & Non Saudi",
+   "tests": "nationality SAU · tenure outside 6–60 · customersegment PVTSML · program SMART, PF",
+   "declines": 418,
+   "declines_alone": 118,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#015",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 70",
+   "tests": "age outside 25–70 · employeesegment BSFPB",
+   "declines": 161,
+   "declines_alone": 108,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 25.0,
+     "value_high": 70.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#191",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW13",
+   "label": "LOS Saudi",
+   "tests": "nationality SAU · monthcnt = 1 · customersegment ST, SMG, PVTL · program SMART, PF",
+   "declines": 175,
+   "declines_alone": 78,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": []
+  },
+  {
+   "rule_id": "racAndPolicies#100",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL178",
+   "label": "Customer is Political Exposed Person",
+   "tests": "politicallyexposedperson = 1",
+   "declines": 205,
+   "declines_alone": 71,
+   "locked": false,
+   "fixed_field": true,
+   "editable": false,
+   "reason": "rests on a fixed field (regulatory, bureau or identity)",
+   "thresholds": []
+  },
+  {
+   "rule_id": "simati_chk_IAF#017",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Length of Service - Saudi for Employer segment (Gov, Semi Gov, PVTL) is 1 month",
+   "tests": "nationality SAU · lengthofservice < 1 · employername not GOSI, GOSI Taqdeer · employeesegment ST, SMG, PVTL · typeofemployment CV",
+   "declines": 166,
+   "declines_alone": 71,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.lengthofservice",
+     "operator": "lt",
+     "value_low": 1.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#011",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Length of Service - Saudi for Employer segment (PS) is 3 months",
+   "tests": "nationality SAU · lengthofservice < 3 · employeesegment PVTSML · typeofemployment CV",
+   "declines": 212,
+   "declines_alone": 69,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.lengthofservice",
+     "operator": "lt",
+     "value_low": 3.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#190",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW12",
+   "label": "Tenure Non Saudi",
+   "tests": "nationality not SAU · tenure outside 6–60 · customersegment ST, SMG, PVTL · program PF",
+   "declines": 156,
+   "declines_alone": 64,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#031",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Bank Staff not allowed",
+   "tests": "employername Saudi Fransi for Finance Leasing Joint Stock (SFL), Saudi Fransi for Finance Leasing (SFL)",
+   "declines": 140,
+   "declines_alone": 49,
+   "locked": false,
+   "fixed_field": false,
+   "editable": false,
+   "reason": "has no tunable threshold: switching it off is a policy decision, not a what-if",
+   "thresholds": []
+  },
+  {
+   "rule_id": "racAndPolicies#099",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL177",
+   "label": "Customer is under Diplomcatic Service",
+   "tests": "diplomaticservice = 1",
+   "declines": 101,
+   "declines_alone": 45,
+   "locked": false,
+   "fixed_field": true,
+   "editable": false,
+   "reason": "rests on a fixed field (regulatory, bureau or identity)",
+   "thresholds": []
+  },
+  {
+   "rule_id": "racAndPolicies#238",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW40",
+   "label": "LOS Saudi",
+   "tests": "nationality SAU · monthcnt = 3 · customersegment PVTSML · program SMART, PF",
+   "declines": 100,
+   "declines_alone": 32,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": []
+  },
+  {
+   "rule_id": "racAndPolicies#245",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL189",
+   "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 605 · employer_keyword_check N · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 1525,
+   "declines_alone": 26,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 605.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#019",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Length of Service - Non Saudi for Employer segment (Gov, Semi Gov, PVTL) is 3 months",
+   "tests": "nationality not SAU · lengthofservice < 3 · employername not GOSI, GOSI Taqdeer · employeesegment ST, SMG, PVTL · typeofemployment CV",
+   "declines": 120,
+   "declines_alone": 26,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.lengthofservice",
+     "operator": "lt",
+     "value_low": 3.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#013",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL183",
+   "label": "CRIF SCORE <= 570 and SIMAH SCORE <=650",
+   "tests": "simahcreditscore > 650 · simahscorecarddescription not CLEAN, Intermediate · crifscore ≤ 570 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF",
+   "declines": 54,
+   "declines_alone": 26,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gt",
+     "value_low": 650.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 570.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#002",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Age is less than 21 for Saudi",
+   "tests": "nationality SAU · age < 21 · employeesegment ST, SMG, PVTL, PVTSML",
+   "declines": 765,
+   "declines_alone": 25,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "lt",
+     "value_low": 21.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#015",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Length of Service - Non Saudi for Employer segment (PS) is 6 months",
+   "tests": "nationality not SAU · lengthofservice < 6 · employeesegment PVTSML · typeofemployment CV",
+   "declines": 129,
+   "declines_alone": 17,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.lengthofservice",
+     "operator": "lt",
+     "value_low": 6.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#243",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL187",
+   "label": "Military CRIF SCORE <= 615 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 615 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment ST · program SMART, PF · typeofemployment ML",
+   "declines": 1175,
+   "declines_alone": 15,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 615.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#192",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW14",
+   "label": "LOS Non Saudi",
+   "tests": "nationality not SAU · monthcnt = 3 · customersegment ST, SMG, PVTL · program SMART, PF",
+   "declines": 67,
+   "declines_alone": 15,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": []
+  },
+  {
+   "rule_id": "simati_chk_IAF#003",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Age is less than 23 for Non Saudi",
+   "tests": "nationality not SAU · age < 23 · employeesegment ST, SMG, PVTL, PVTSML",
+   "declines": 400,
+   "declines_alone": 13,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "lt",
+     "value_low": 23.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#244",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL188",
+   "label": "Military CRIF SCORE <= 588 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 588 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment ST · program SMART, PF · typeofemployment ML",
+   "declines": 312,
+   "declines_alone": 10,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 588.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#003",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 44",
+   "tests": "age outside 20–44 · employeesegment M · employeetype OLNP, NOP",
+   "declines": 87,
+   "declines_alone": 10,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 44.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#246",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL190",
+   "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check N · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 257,
+   "declines_alone": 8,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#005",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 48",
+   "tests": "age outside 20–48 · employeesegment M · employeetype NOV, OCNP, OMP",
+   "declines": 95,
+   "declines_alone": 8,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 48.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#230",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW41",
+   "label": "LOS Non Saudi",
+   "tests": "nationality not SAU · monthcnt = 6 · customersegment PVTSML · program SMART, PF",
+   "declines": 37,
+   "declines_alone": 6,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": []
+  },
+  {
+   "rule_id": "simati_chk_IAF#008",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "PF - Minimum Length of Service – Military is 1 month",
+   "tests": "nationality SAU · lengthofservice < 1 · employeesegment ST · typeofemployment ML",
+   "declines": 24,
+   "declines_alone": 6,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "netincome.lengthofservice",
+     "operator": "lt",
+     "value_low": 1.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#184",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH82",
+   "label": "Age – Non-Officer Sargent (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–42 · miltaryrank SCLIEUOP · customersegment ST · typeofemployment ML",
+   "declines": 41,
+   "declines_alone": 5,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 42.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#104",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL184",
+   "label": "TRADITIONAL, PRIVATE SMALL,SAUDI,INCOME>10000,CRIF <588",
+   "tests": "nationality SAU · income > 10,000 · crifscore < 588 · gender Female · customersegment PVTSML · program SMART, PF · sourcetype not digital",
+   "declines": 32,
+   "declines_alone": 5,
+   "locked": false,
+   "fixed_field": true,
+   "editable": false,
+   "reason": "rests on a fixed field (regulatory, bureau or identity)",
+   "thresholds": []
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#006",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 50",
+   "tests": "age outside 20–50 · employeesegment M · employeetype NOS, OMNP, OLCP, NOF",
+   "declines": 98,
+   "declines_alone": 4,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 50.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#004",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 46",
+   "tests": "age outside 20–46 · employeesegment M · employeetype NOC, OCP",
+   "declines": 73,
+   "declines_alone": 4,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 46.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#009",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 42",
+   "tests": "age outside 20–42 · employeesegment M · employeetype OLP",
+   "declines": 64,
+   "declines_alone": 4,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 42.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#203",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW49",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 44 · miltaryrank ONP, NOSB · program SMART, PF · typeofemployment ML",
+   "declines": 55,
+   "declines_alone": 4,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 44.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#167",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH65",
+   "label": "Age – Officer 1st & 2nd Lieutenant (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–44 · miltaryrank SCLIEONP · customersegment ST · typeofemployment ML",
+   "declines": 28,
+   "declines_alone": 4,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 44.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#008",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 52",
+   "tests": "age outside 20–52 · employeesegment M · employeetype NOM, OLCNP, OCLP",
+   "declines": 80,
+   "declines_alone": 3,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 52.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#181",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH79",
+   "label": "Age – Non-Officer Private & Private 1st Class (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–44 · miltaryrank FRLIEONP · customersegment ST · typeofemployment ML",
+   "declines": 28,
+   "declines_alone": 3,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 44.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#017",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW4",
+   "label": "Min. Finance Amount GOV-SEMI-PVTL-PVTS",
+   "tests": "loanamount < 3,000 · customersegment ST, SMG, PVTL, PVTSML · program SMART",
+   "declines": 80,
+   "declines_alone": 2,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "loanamount",
+     "operator": "lt",
+     "value_low": 3000.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#168",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH66",
+   "label": "Age – Officer 1st & 2nd Lieutenant (Pilot)",
+   "tests": "nationality SAU · age outside 20–42 · miltaryrank FRLIEUOP · customersegment ST · typeofemployment ML",
+   "declines": 23,
+   "declines_alone": 2,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 42.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#209",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW55",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 42 · miltaryrank OP · program SMART, PF · typeofemployment ML",
+   "declines": 26,
+   "declines_alone": 1,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 42.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#169",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH67",
+   "label": "Age – Officer Captain (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–50 · miltaryrank FCSGNOAS, SGTNOSB · customersegment ST · typeofemployment ML",
+   "declines": 23,
+   "declines_alone": 1,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 50.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#172",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH70",
+   "label": "Age – Officer Major (Pilot)",
+   "tests": "nationality SAU · age outside 20–48 · miltaryrank MAJOP · customersegment ST · typeofemployment ML",
+   "declines": 16,
+   "declines_alone": 1,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 48.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#180",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH78",
+   "label": "Age – Officer Major General (Pilot)",
+   "tests": "nationality SAU · age outside 20–48 · miltaryrank VSGTNOSB · customersegment ST · typeofemployment ML",
+   "declines": 11,
+   "declines_alone": 1,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 48.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#247",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL191",
+   "label": "PVTSML & Keyword CRIF SCORE <= 605 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 626 · employer_keyword_check Y · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 1724,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 626.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#013",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "Both products - Age is greater than 60 years for All except Retired",
+   "tests": "employername not GOSI, GOSI Taqdeer · age > 60",
+   "declines": 1536,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 60.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#012",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 60",
+   "tests": "age outside 20–60 · employeesegment PL, PS, BSFE",
+   "declines": 1194,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#010",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL192",
+   "label": "PVTSML & Keyword CRIF SCORE <= 626 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 626 · employer_keyword_check Y · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 1146,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 626.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#008",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL190",
+   "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 605 · employer_keyword_check N · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 1011,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 605.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#006",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL188",
+   "label": "Military CRIF SCORE <= 615 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 615 · salarytobsf No · employername not GOSI Taqdeer · customersegment ST · program SMART, PF · typeofemployment ML",
+   "declines": 765,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 615.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yakeen-post-validation#002",
+   "table": "yakeen-post-validation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is less than 20",
+   "tests": "age < 20",
+   "declines": 727,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "lt",
+     "value_low": 20.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#002",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 60",
+   "tests": "age outside 20–60 · employeesegment G, SG",
+   "declines": 587,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#248",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL192",
+   "label": "PVTSML & KeywordCRIF SCORE <= 605 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check Y · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 290,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#014",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL185",
+   "label": "Employer Keyword present and CRIF SCORE < 626 and SIMAH SCORE <= 600",
+   "tests": "simahcreditscore ≤ 600 · crifscore ≤ 626 · employer_keyword_check Y · customersegment ST, SMG, PVTL",
+   "declines": 284,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 626.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#007",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL189",
+   "label": "Military CRIF SCORE <= 588 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 588 · salarytobsf No · employername not GOSI Taqdeer · customersegment ST · program SMART, PF · typeofemployment ML",
+   "declines": 203,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 588.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "simati_chk_IAF#012",
+   "table": "simati_chk_IAF",
+   "stage": "credit_policy",
+   "policy_code": null,
+   "label": "Both products - Age is greater than 75 years for Retired",
+   "tests": "employername GOSI, GOSI Taqdeer · age > 75",
+   "declines": 189,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 75.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#013",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 75",
+   "tests": "age outside 25–75 · employeesegment P",
+   "declines": 189,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 25.0,
+     "value_high": 75.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#011",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL193",
+   "label": "PVTSML & KeywordCRIF SCORE <= 571 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check Y · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 187,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#009",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL191",
+   "label": "PVTSML CRIF SCORE <= 571 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check N · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+   "declines": 157,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#196",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW32",
+   "label": "Tenure Saudi",
+   "tests": "nationality SAU · tenure outside 6–60 · customersegment ST · program SMART, PF · typeofemployment ML",
+   "declines": 146,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yakeen-post-validation#003",
+   "table": "yakeen-post-validation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is greater than 75",
+   "tests": "age > 75 · employername GOSI",
+   "declines": 101,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 75.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#016",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW3",
+   "label": "Finance Amount Saudi GOV-SEMI-PVTL",
+   "tests": "nationality SAU · loanamount < 3,000 · customersegment ST, SMG, PVTL · program SMART",
+   "declines": 50,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "loanamount",
+     "operator": "lt",
+     "value_low": 3000.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#205",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW51",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 48 · miltaryrank NOSB, ONP, OP · program SMART, PF · typeofemployment ML",
+   "declines": 43,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 48.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#024",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW43",
+   "label": "Minimum Income Saudi",
+   "tests": "nationality SAU · income < 2,000 · customersegment PVTL · program SMART, PF · natureofemployment Retired",
+   "declines": 41,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "income",
+     "operator": "lt",
+     "value_low": 2000.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#212",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW58",
+   "label": "Age Saudi",
+   "tests": "nationality SAU · age > 75 · customersegment PVTL · program SMART, PF · natureofemployment Retired",
+   "declines": 41,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 75.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#193",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW20",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age = 21 · program SMART, PF · typeofemployment ML",
+   "declines": 38,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": []
+  },
+  {
+   "rule_id": "racAndPolicies#225",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW19",
+   "label": "’Minimum Customer Age (Hijri)",
+   "tests": "nationality SAU · age = 21 · program SMART, PF · typeofemployment ML",
+   "declines": 38,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": []
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#010",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 56",
+   "tests": "age outside 20–56 · employeesegment M · employeetype OBGNP, OMGP",
+   "declines": 37,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 56.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#170",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH68",
+   "label": "Age – Officer Captain (Pilot)",
+   "tests": "nationality SAU · age outside 20–46 · miltaryrank CAPOP, CORPNOSB · customersegment ST · typeofemployment ML",
+   "declines": 36,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 46.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#206",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW52",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 50 · miltaryrank NOSB, ONP, OP · program SMART, PF · typeofemployment ML",
+   "declines": 36,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 50.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#204",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW50",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 46 · miltaryrank NOSB, OP · program SMART, PF · typeofemployment ML",
+   "declines": 33,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 46.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#175",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH73",
+   "label": "Age – Officer Colonel (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–54 · miltaryrank PVT1NOSB, PVTNOSB · customersegment ST · typeofemployment ML",
+   "declines": 26,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 54.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#208",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW54",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 52 · miltaryrank ONP, OP · program SMART, PF · typeofemployment ML",
+   "declines": 24,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 52.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#171",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH69",
+   "label": "Age – Officer Major (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–50 · miltaryrank LICOLOP · customersegment ST · typeofemployment ML",
+   "declines": 21,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 50.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#183",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH81",
+   "label": "Age – Non-Officer Vice Sargent (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–48 · miltaryrank CAPONP · customersegment ST · typeofemployment ML",
+   "declines": 19,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 48.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#207",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW53",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 54 · miltaryrank ONP, OP · program SMART, PF · typeofemployment ML",
+   "declines": 19,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 54.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#224",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW45",
+   "label": "Tenure Saudi",
+   "tests": "nationality SAU · tenure outside 6–60 · customersegment PVTL · program SMART · natureofemployment Retired",
+   "declines": 18,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#210",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW56",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 56 · miltaryrank ONP, OP · program SMART, PF · typeofemployment ML",
+   "declines": 17,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 56.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#174",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH72",
+   "label": "Age – Officer Lieutenant Colonel (Pilot)",
+   "tests": "nationality SAU · age outside 20–50 · miltaryrank MAJONP · customersegment ST · typeofemployment ML",
+   "declines": 14,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 50.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#178",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH76",
+   "label": "Age – Officer Brigadier General (Pilot)",
+   "tests": "nationality SAU · age outside 20–54 · miltaryrank COLOONP · customersegment ST · typeofemployment ML",
+   "declines": 13,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 54.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#007",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 54",
+   "tests": "age outside 20–54 · employeesegment M · employeetype OCLNP",
+   "declines": 12,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 54.0
+    }
+   ]
+  },
+  {
+   "rule_id": "yknBasicCheckValidation#011",
+   "table": "yknBasicCheckValidation",
+   "stage": "hard_reject",
+   "policy_code": null,
+   "label": "Age is not between 20 and 58",
+   "tests": "age outside 20–58 · employeesegment M · employeetype OMGNP",
+   "declines": 12,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 58.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#176",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH74",
+   "label": "Age – Officer Colonel (Pilot)",
+   "tests": "nationality SAU · age outside 20–52 · miltaryrank LICOONP · customersegment ST · typeofemployment ML",
+   "declines": 11,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 52.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#182",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH80",
+   "label": "Age – Non-Officer Corporal (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–52 · miltaryrank MSSGNOAS · customersegment ST · typeofemployment ML",
+   "declines": 11,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 52.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#200",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW44",
+   "label": "Tenure Saudi",
+   "tests": "nationality SAU · tenure outside 6–60 · customersegment PVTL · program PF · natureofemployment Retired",
+   "declines": 11,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "tenure",
+     "operator": "outside",
+     "value_low": 6.0,
+     "value_high": 60.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#177",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH75",
+   "label": "Age – Officer Brigadier General (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–56 · miltaryrank BRIGEONP · customersegment ST · typeofemployment ML",
+   "declines": 10,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 56.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#173",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH71",
+   "label": "Age – Officer Lieutenant Colonel (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–52 · miltaryrank COLOOP · customersegment ST · typeofemployment ML",
+   "declines": 9,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 52.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#185",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH83",
+   "label": "Age – Non-Officer First Class Sargent (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–56 · miltaryrank MAJGENOP · customersegment ST · typeofemployment ML",
+   "declines": 8,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 56.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#186",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH84",
+   "label": "Age – Non-Officer Master Sargent (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–54 · miltaryrank BRIGENOP · customersegment ST · typeofemployment ML",
+   "declines": 6,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 54.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#211",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW57",
+   "label": "Customer Age (Hijri)",
+   "tests": "nationality SAU · age > 58 · miltaryrank ONP · program SMART, PF · typeofemployment ML",
+   "declines": 6,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 58.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#179",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCIJH77",
+   "label": "Age – Officer Major General (Non-Pilot)",
+   "tests": "nationality SAU · age outside 20–58 · miltaryrank MAJGEONP · customersegment ST · typeofemployment ML",
+   "declines": 5,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "outside",
+     "value_low": 20.0,
+     "value_high": 58.0
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#002",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL184",
+   "label": "Gov/ Semi Gov/ PVTL CRIF SCORE <= 605 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 605 · salarytobsf No · employername not GOSI Taqdeer · customersegment ST, SMG, PVTL · program SMART, PF · typeofemployment CV · pensioner = false",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 605.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#003",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL185",
+   "label": "Gov/ Semi Gov/ PVTL CRIF SCORE <= 571 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · salarytobsf No · employername not GOSI Taqdeer · customersegment ST, SMG, PVTL · program SMART, PF · typeofemployment CV · pensioner = false",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#004",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL186",
+   "label": "Retired CRIF SCORE <= 605 and SIMAH SCORE < 600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 605 · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTL · program SMART, PF · typeofemployment CV · pensioner = true",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 605.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#005",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL187",
+   "label": "Retired CRIF SCORE <= 571 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTL · program SMART, PF · typeofemployment CV · pensioner = true",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#027",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCTW15",
+   "label": "Minimum Income Saudi",
+   "tests": "nationality SAU · income < 3,500 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF · natureofemployment not Retired",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "income",
+     "operator": "lt",
+     "value_low": 3500.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#102",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL180",
+   "label": "Customer Age (Hijri)",
+   "tests": "age > 65 · pensioner = false",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 65.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#103",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL181",
+   "label": "Pensioner age at maturity > 75",
+   "tests": "age > 75 · pensioner = true",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "age",
+     "operator": "gt",
+     "value_low": 75.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#239",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL184",
+   "label": "Gov/ Semi Gov/ PVTL CRIF SCORE <= 605 and SIMAH SCORE <600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 605 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment ST, SMG, PVTL · program SMART, PF · typeofemployment CV · pensioner = false",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 605.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#240",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL185",
+   "label": "Gov/ Semi Gov/ PVTL CRIF SCORE <= 571 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment ST, SMG, PVTL · program SMART, PF · typeofemployment CV · pensioner = false",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#241",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL185",
+   "label": "Retired CRIF SCORE <= 605 and SIMAH SCORE < 600",
+   "tests": "simahcreditscore < 600 · crifscore ≤ 605 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTL · program SMART, PF · typeofemployment CV · pensioner = true",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "lt",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 605.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#242",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL186",
+   "label": "Retired CRIF SCORE <= 571 and SIMAH SCORE >=600",
+   "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTL · program SMART, PF · typeofemployment CV · pensioner = true",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": true,
+   "reason": null,
+   "thresholds": [
+    {
+     "field": "simahcreditscore",
+     "operator": "gte",
+     "value_low": 600.0,
+     "value_high": null
+    },
+    {
+     "field": "crifscore",
+     "operator": "lte",
+     "value_low": 571.0,
+     "value_high": null
+    }
+   ]
+  },
+  {
+   "rule_id": "racAndPolicies#261",
+   "table": "racAndPolicies",
+   "stage": "credit_policy",
+   "policy_code": "PCAPL261",
+   "label": "Manually simah obligation has been changed.",
+   "tests": "originalinstallmentamount != 0]) > 0 = true",
+   "declines": 0,
+   "declines_alone": 0,
+   "locked": false,
+   "fixed_field": false,
+   "editable": false,
+   "reason": "cannot be evaluated against these applicants",
+   "thresholds": []
+  }
+ ],
  "sweeps": [
   {
    "field": "simahcreditscore",

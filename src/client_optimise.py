@@ -50,18 +50,22 @@ class Option:
                 "breaches_ceiling": self.breaches_ceiling}
 
 
-def candidate_levers(base: S.Baseline, inv, cfg: dict) -> list[S.Lever]:
+def candidate_levers(base: S.Baseline, inv, cfg: dict,
+                     frozen: frozenset[str] = frozenset()) -> list[S.Lever]:
     """Everything the bank could plausibly change, one at a time.
 
     Two kinds. Switching a rule off is what the client already does by hand — ten SIMAH rules are
     marked Inactive — so it is the change they recognise. Moving a cutoff is the change
     Guru described.
+
+    `frozen` is the person's own "don't touch these": treated exactly like a locked rule for
+    this one search — never switched off, and skipped by any cutoff move.
     """
     opt = cfg["optimise"]
     drivers = A.decline_drivers(base.df, base.res, base.outcome, cfg, model=base.model)
     levers: list[S.Lever] = []
 
-    eligible = drivers[drivers["relaxable"]
+    eligible = drivers[drivers["relaxable"] & ~drivers["rule_id"].isin(frozen)
                        & (drivers["declines_alone"] >= opt["min_declines_alone"])]
     for r in eligible.nlargest(opt["max_rule_candidates"], "declines_alone").itertuples():
         text = (r.description or r.rule_id)[:60]
@@ -71,19 +75,20 @@ def candidate_levers(base: S.Baseline, inv, cfg: dict) -> list[S.Lever]:
     for move in opt["field_moves"]:
         try:
             levers.append(S.field_lever(inv, move["field"], move["from"], move["to"],
-                                        product=cfg["product"], locked=locked_rules(cfg),
+                                        product=cfg["product"], locked=locked_rules(cfg) | frozen,
                                         label=f"{move['label']} ({move['from']:g} to {move['to']:g})"))
         except ValueError:
             continue                  # threshold not present for this product; skip quietly
     return levers
 
 
-def _evaluate(base: S.Baseline, inv, lever: S.Lever, cfg: dict) -> Option:
+def _evaluate(base: S.Baseline, inv, lever: S.Lever, cfg: dict,
+              ceiling: float | None = None) -> Option:
     r = S.simulate(base, inv, lever)
     est = r["expected_bad_rate_after"]
     known = r["expected_bad_rate_known"]
     cost = round(100 * (est - base.booked_bad_rate), 3) if known else None
-    ceiling = cfg["optimise"]["max_bad_rate"]
+    ceiling = cfg["optimise"]["max_bad_rate"] if ceiling is None else ceiling
     return Option(
         label=lever.label, lever=lever, approval_rate=r["approval_rate"],
         approval_change_pp=r["approval_rate_change_pp"], swap_in=r["swap_in"],
@@ -115,18 +120,25 @@ def _reach_key(o: Option) -> tuple:
 
 
 def goal_seek(base: S.Baseline, inv, target_approval_rate: float, cfg: dict,
-              *, max_options: int = 3) -> pd.DataFrame:
+              *, max_options: int = 3, ceiling: float | None = None,
+              frozen: frozenset[str] = frozenset()) -> pd.DataFrame:
     """Find combinations reaching the target, ranked by risk cost.
 
     Beam search over single changes: each round adds the change that buys the most approval
     for the least estimated risk, keeping the best few partial strategies alive.
+
+    The target and the bad-rate `ceiling` are the person's to set; the ceiling defaults to
+    `optimise.max_bad_rate`. `frozen` names rules they will not have touched.
     """
     opt = cfg["optimise"]
-    candidates = candidate_levers(base, inv, cfg)
+    ceiling = opt["max_bad_rate"] if ceiling is None else float(ceiling)
+    candidates = candidate_levers(base, inv, cfg, frozen=frozenset(frozen))
     if not candidates:
-        return pd.DataFrame()
+        out = pd.DataFrame()
+        out.attrs.update(target=target_approval_rate, ceiling=ceiling, reached=False)
+        return out
 
-    singles = [_evaluate(base, inv, lv, cfg) for lv in candidates]
+    singles = [_evaluate(base, inv, lv, cfg, ceiling) for lv in candidates]
     evaluated = list(singles)
     beam: list[Option] = sorted(singles, key=_reach_key)[:opt["beam_width"]]
     complete = [o for o in singles if o.approval_rate >= target_approval_rate]
@@ -141,7 +153,7 @@ def goal_seek(base: S.Baseline, inv, target_approval_rate: float, cfg: dict,
                 if set(cand.overrides) & used:
                     continue
                 combined = S.combine(partial.lever, cand)
-                nxt.append(_evaluate(base, inv, combined, cfg))
+                nxt.append(_evaluate(base, inv, combined, cfg, ceiling))
         if not nxt:
             break
         evaluated += nxt
@@ -180,6 +192,6 @@ def goal_seek(base: S.Baseline, inv, target_approval_rate: float, cfg: dict,
         rows.append(row)
     out = pd.DataFrame(rows)
     out.attrs["target"] = target_approval_rate
-    out.attrs["ceiling"] = opt["max_bad_rate"]
+    out.attrs["ceiling"] = ceiling
     out.attrs["reached"] = reached
     return out

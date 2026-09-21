@@ -92,12 +92,37 @@ def test_the_fixture_supplies_every_rate_the_screens_show():
         assert {"risk_cost_pp", "approval_change_pp"} <= set(data["goal_seek"][0]["options"][0])
 
 
+@pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not built")
+def test_the_simulator_lists_every_decline_rule_not_the_precomputed_eight():
+    """Regression: the Switch one rule off panel offered the top 8 rules and nothing else."""
+    data = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    catalogue = data["rule_catalogue"]
+    assert len(catalogue) > len(data["rule_toggles"])
+    ids = {r["rule_id"] for r in catalogue}
+    assert {t["rule_id"] for t in data["rule_toggles"]} <= ids
+    for r in catalogue:
+        assert {"rule_id", "label", "declines_alone", "editable", "reason", "thresholds"} <= set(r)
+        assert r["editable"] or r["reason"], r["rule_id"]
+
+
+def test_the_simulator_falls_back_to_the_fixture_when_the_engine_is_not_running():
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    assert "/api/health" in js and "engineUnavailable" in js
+    assert "F.rule_catalogue" in js
+
+
+def test_goal_seek_target_is_typed_not_hard_coded_on_the_page():
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    assert 'id="goaltarget"' in js and 'id="goalceiling"' in js
+    assert "/api/goal-seek" in js
+
+
 # --------------------------------------------------------------------------- fixture shape
 @pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not built")
 def test_the_exported_fixture_has_every_key_the_screens_read():
     data = json.loads(FIXTURE.read_text(encoding="utf-8"))
     for key in ("meta", "headline", "funnel", "by_channel", "portfolio", "drivers",
-                "model", "sweeps", "rule_toggles", "goal_seek"):
+                "model", "sweeps", "rule_toggles", "goal_seek", "rule_catalogue"):
         assert key in data, key
     for slice_name in ("employer_segment", "sector", "channel", "score_band", "nationality"):
         assert slice_name in data["portfolio"], slice_name

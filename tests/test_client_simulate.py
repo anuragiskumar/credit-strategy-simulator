@@ -188,3 +188,122 @@ def test_an_option_breaching_the_bad_rate_ceiling_is_flagged(base, inv, fast_cfg
     strict = {**fast_cfg, "optimise": {**fast_cfg["optimise"], "max_bad_rate": 0.001}}
     out = O.goal_seek(base, inv, 0.24, strict)
     assert out["breaches_ceiling"].all()
+
+
+# --------------------------------------------------------------------------- rule editing
+# A person editing one rule's threshold, in either direction, and laddering changes. The
+# re-replay only re-evaluates the rules a lever touches; the first test holds it to giving
+# exactly what a full replay gives, because a fast answer that drifts is worse than a slow one.
+from dataclasses import replace as _replace
+
+from src import client_replay
+
+
+@pytest.mark.parametrize("overrides", [
+    {"racAndPolicies#012": {"enabled": False}},
+    {"racAndPolicies#028": {"thresholds": {"income": {"value_low": 4000.0}}}},
+    {"racAndPolicies#028": {"thresholds": {"income": {"value_low": 9000.0}}},
+     "yknBasicCheckValidation#016": {"enabled": False}},
+    {"yknBasicCheckValidation#016": {"thresholds": {"age": {"value_low": 18.0,
+                                                            "value_high": 75.0}}}},
+])
+def test_re_replaying_only_changed_rules_matches_a_full_replay(base, inv, cfg, overrides):
+    fast = client_replay.replay(base.df, inv, cfg, overrides=overrides, frames=base.frames,
+                                base=base.res)
+    full = client_replay.replay(base.df, inv, cfg, overrides=overrides, frames=base.frames)
+    assert list(fast.hits.columns) == list(full.hits.columns)
+    assert (fast.hits.to_numpy() == full.hits.to_numpy()).all()
+    pd.testing.assert_frame_equal(fast.rules.reset_index(drop=True),
+                                  full.rules.reset_index(drop=True), check_dtype=False)
+
+
+def test_the_example_that_started_this_minimum_income_non_saudi_to_4000(base, inv):
+    """"Would changing Minimum Income Non Saudi to 4000 help us?" — it must be answerable."""
+    lever = S.threshold_lever(base, inv, "racAndPolicies#028", "income", value_low=4000)
+    assert lever.direction == "loosen"
+    r = S.simulate(base, inv, lever)
+    assert r["swap_out"] == 0
+    off = S.simulate(base, inv, S.off_lever(base, "racAndPolicies#028"))
+    assert 0 <= r["swap_in"] <= off["swap_in"]
+
+
+def test_tightening_a_rule_declines_booked_loans_and_is_priced_on_what_they_did(base, inv):
+    """Regression: with no swap-ins the expected bad rate came back unknown."""
+    lever = S.threshold_lever(base, inv, "racAndPolicies#028", "income", value_low=10000)
+    assert lever.direction == "tighten"
+    r = S.simulate(base, inv, lever)
+    assert r["swap_in"] == 0 and r["swap_out"] > 0
+    assert r["expected_bad_rate_known"] is True
+    assert r["expected_bad_rate_after"] is not None
+    assert r["swap_out_observed_bad_rate"] is not None
+    assert "booked loans would be declined" in r["risk_verdict"]
+
+
+def test_editing_a_fail_rule_moves_the_pass_rule_it_mirrors(base, inv):
+    lever = S.threshold_lever(base, inv, "simati_chk_IAF#004", "netincome.totalincome",
+                              value_low=3000)
+    assert set(lever.overrides) == {"simati_chk_IAF#004", "simati_chk_IAF#005"}
+
+
+def test_a_range_rule_can_have_both_ends_moved(base, inv):
+    lever = S.threshold_lever(base, inv, "yknBasicCheckValidation#016", "age",
+                              value_low=18, value_high=75)
+    assert lever.direction == "loosen"
+    assert S.simulate(base, inv, lever)["swap_out"] == 0
+
+
+@pytest.mark.parametrize("kwargs, match", [
+    ({"value_low": 5000}, "already"),
+    ({}, "new value"),
+    ({"value_high": 9000}, "single threshold"),
+    ({"value_low": float("nan")}, "finite"),
+])
+def test_threshold_edits_that_make_no_sense_are_refused(base, inv, kwargs, match):
+    with pytest.raises(S.NotEditable, match=match):
+        S.threshold_lever(base, inv, "racAndPolicies#028", "income", **kwargs)
+
+
+def test_a_back_to_front_range_is_refused(base, inv):
+    with pytest.raises(S.NotEditable, match="back to front"):
+        S.threshold_lever(base, inv, "yknBasicCheckValidation#016", "age",
+                          value_low=80, value_high=30)
+
+
+def test_a_locked_rule_cannot_be_edited_or_switched_off_by_a_person(base, inv):
+    """The optimiser already refused these; the rule list must refuse them too."""
+    compiled = dict(base.res.compiled)
+    compiled["racAndPolicies#028"] = _replace(compiled["racAndPolicies#028"], locked=True)
+    locked = _replace(base, res=_replace(base.res, compiled=compiled))
+    with pytest.raises(S.NotEditable, match="locked"):
+        S.off_lever(locked, "racAndPolicies#028")
+    with pytest.raises(S.NotEditable, match="locked"):
+        S.threshold_lever(locked, inv, "racAndPolicies#028", "income", value_low=4000)
+
+
+def test_a_fixed_field_rule_cannot_be_switched_off(base):
+    fixed = base.res.rules[base.res.rules["fixed_field"]]
+    assert not fixed.empty
+    with pytest.raises(S.NotEditable, match="fixed field"):
+        S.off_lever(base, fixed["rule_id"].iloc[0])
+
+
+def test_a_field_move_asked_for_explicitly_may_tighten(base, inv):
+    lever = S.field_lever(inv, "income", 5000, 6000, product="TWQR", allow_tighten=True)
+    assert S.simulate(base, inv, lever)["swap_out"] > 0
+
+
+def test_combining_two_edits_to_one_rule_keeps_both(base, inv):
+    a = S.Lever("a", {"r": {"thresholds": {"x": {"value_low": 1}}}})
+    b = S.Lever("b", {"r": {"thresholds": {"y": {"value_low": 2}}}})
+    assert S.combine(a, b).overrides == {"r": {"thresholds": {"x": {"value_low": 1},
+                                                              "y": {"value_low": 2}}}}
+
+
+def test_goal_seek_honours_the_persons_ceiling_and_untouchable_rules(base, inv, fast_cfg):
+    out = O.goal_seek(base, inv, 0.24, fast_cfg, ceiling=0.001)
+    assert out.attrs["ceiling"] == 0.001
+    assert out["breaches_ceiling"].all()
+    top = O.candidate_levers(base, inv, fast_cfg)[0]
+    frozen = frozenset(top.overrides)
+    for lever in O.candidate_levers(base, inv, fast_cfg, frozen=frozen):
+        assert not (set(lever.overrides) & frozen)
