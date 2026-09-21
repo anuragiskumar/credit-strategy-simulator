@@ -27,8 +27,16 @@ import pandas as pd
 from src import client_analysis as A
 
 
-class WindowError(ValueError):
-    """The requested window cannot be analysed. The message says why, in words."""
+class ContextError(ValueError):
+    """The requested analysis context cannot be analysed. The message says why, in words."""
+
+
+class WindowError(ContextError):
+    """The requested window cannot be analysed."""
+
+
+class ProductError(ContextError):
+    """The requested product is not one the data or the rules carry."""
 
 
 DESCRIPTIVE = {"id", "name", "label", "applicants", "mature_loans", "mature_booked_from",
@@ -170,7 +178,7 @@ def check(window: AnalysisWindow, n_applicants: int, n_mature: int, cfg: dict) -
 
 
 class ContextCache:
-    """Baselines per analysis context, built on one replay of the whole file per product.
+    """Baselines per analysis context (product and window), on one replay per product.
 
     The replay is the expensive part and depends only on the product. The outcome and the PD
     model depend on the performance window; everything else is a row mask. Only recent
@@ -184,25 +192,50 @@ class ContextCache:
         self._perf: dict[tuple, tuple] = {}
         self._baselines: OrderedDict = OrderedDict()
 
-    def full(self):
-        from src import client_simulate as S
-        product = self.cfg["product"]
-        if product not in self._full:
-            self._full[product] = S.full_replay(self.df, self.inv, self.cfg)
-        return self._full[product]
+    # ------------------------------------------------------------------ products
+    def products(self) -> list[str]:
+        """The products the selector offers: configured, and present in the data."""
+        present = set(self.df["product"].dropna().unique())
+        offered = self.cfg.get("products") or [self.cfg["product"]]
+        return [p for p in offered if p in present]
 
-    def default(self) -> AnalysisWindow:
-        return default_window(self.df, self.cfg)
+    def product(self, product: str | None = None) -> str:
+        p = product or self.cfg["product"]
+        if p not in self.products():
+            known = ", ".join(self.products()) or "none"
+            raise ProductError(f"no {p} applications to analyse; the data carries {known}")
+        return p
 
-    def baseline(self, window: AnalysisWindow | None = None):
+    def cfg_for_product(self, product: str | None = None) -> dict:
+        return {**self.cfg, "product": self.product(product)}
+
+    def product_df(self, product: str | None = None) -> pd.DataFrame:
+        return self.full(product).df
+
+    # ------------------------------------------------------------------ baselines
+    def full(self, product: str | None = None):
         from src import client_simulate as S
-        w = resolve(window or self.default(), self.df, self.cfg)
-        key = (self.cfg["product"], w.key)
+        p = self.product(product)
+        if p not in self._full:
+            self._full[p] = S.full_replay(self.df, self.inv, self.cfg_for_product(p))
+        return self._full[p]
+
+    def default(self, product: str | None = None) -> AnalysisWindow:
+        return default_window(self.product_df(product), self.cfg)
+
+    def resolve(self, window: AnalysisWindow | None, product: str | None = None) -> AnalysisWindow:
+        return resolve(window or self.default(product), self.product_df(product), self.cfg)
+
+    def baseline(self, window: AnalysisWindow | None = None, product: str | None = None):
+        from src import client_simulate as S
+        p = self.product(product)
+        w = self.resolve(window, p)
+        key = (p, w.key)
         if key in self._baselines:
             self._baselines.move_to_end(key)
             return self._baselines[key]
-        base = S.build_baseline(self.df, self.inv, self.cfg, window=w, full=self.full(),
-                                perf_cache=self._perf)
+        base = S.build_baseline(self.df, self.inv, self.cfg_for_product(p), window=w,
+                                full=self.full(p), perf_cache=self._perf)
         self._baselines[key] = base
         while len(self._baselines) > self.size:
             self._baselines.popitem(last=False)

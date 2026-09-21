@@ -310,6 +310,13 @@ class FullReplay:
 
 
 def full_replay(df: pd.DataFrame, inv, cfg: dict) -> FullReplay:
+    """Replay one product's applicants under that product's rules.
+
+    A file can carry several products. Replaying IJMB applicants against TWQR rules would
+    decide them by a policy nobody applied to them, so the file is cut to `cfg["product"]` here,
+    once, and everything downstream only ever sees that product.
+    """
+    df = df[df["product"] == cfg["product"]]
     frames = client_replay.prepare_frames(df, cfg)
     return FullReplay(df=df, frames=frames,
                       res=client_replay.replay(df, inv, cfg, frames=frames))
@@ -388,9 +395,9 @@ def build_baseline(df: pd.DataFrame, inv, cfg: dict, *, window=None,
     """
     from src import client_context as C
 
-    w = C.resolve(window, df, cfg)
-    cfg_w = C.cfg_for(cfg, w)
     full = full or full_replay(df, inv, cfg)
+    w = C.resolve(window, full.df, cfg)
+    cfg_w = C.cfg_for(cfg, w)
     mask = C.app_mask(full.df, w).to_numpy()
 
     key = (cfg["product"], w.performance_months)

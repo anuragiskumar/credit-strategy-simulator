@@ -82,6 +82,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return None
         return {k: query[k][0] for k in keys if k in query}
 
+    def _product_query(self):
+        query = urllib.parse.parse_qs(self.path.partition("?")[2])
+        return query["product"][0] if "product" in query else None
+
     def do_GET(self):
         from src.client_api import ApiError
         path = self.path.split("?", 1)[0]
@@ -91,10 +95,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if eng is None:
                     return self._json(200, {"ready": False, "loading": ENGINE["loading"],
                                             "error": ENGINE["error"]})
-                return self._json(200, eng.health(self._window_query()))
+                return self._json(200, eng.health(self._window_query(), self._product_query()))
             if path == "/api/rules":
                 eng = self._engine()
-                return eng and self._json(200, {"rules": eng.rules(self._window_query())})
+                return eng and self._json(200, {"rules": eng.rules(self._window_query(),
+                                                                   self._product_query())})
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         if path.startswith("/api/"):
@@ -118,10 +123,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         try:
             if path == "/api/simulate":
-                return self._json(200, eng.simulate(body.get("changes"), body.get("window")))
+                return self._json(200, eng.simulate(body.get("changes"), body.get("window"),
+                                                    body.get("product")))
             if path == "/api/goal-seek":
                 return self._json(200, eng.goal_seek(body.get("target"), body.get("ceiling"),
-                                                     body.get("frozen"), body.get("window")))
+                                                     body.get("frozen"), body.get("window"),
+                                                     body.get("product")))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         except Exception as e:                  # report, never hang the page

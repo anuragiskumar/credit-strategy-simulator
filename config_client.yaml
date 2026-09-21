@@ -10,7 +10,12 @@ n_rows: 50000
 data_path: data/client_applications.parquet
 fixture_path: tests/fixtures/client_sample.parquet
 
-product: TWQR
+product: TWQR                  # the default product
+products: [TWQR, IJMB]         # what the product selector offers, where the data carries them
+# Synthetic only: each extra product is its own block of applicants, generated with its own seed
+# and booked by replaying that product's rules. The TWQR block above is left exactly as it was.
+generate_products:
+  IJMB: {n_rows: 20000, seed: 20260921}
 # 24 months of applications, not 12. A loan needs `outcome.bad_definition.within_months` of
 # history before its bad rate means anything, so the older year is what the bad rate and the PD
 # model learn from, and the recent year is what the analysis window replays.

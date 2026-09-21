@@ -274,25 +274,26 @@ def goal_search_space(cfg: dict) -> dict:
             "beam_width": int(opt["beam_width"]), "max_depth": int(opt["max_depth"])}
 
 
-def window_presets(cache) -> list[dict]:
-    """The windows the period control offers, resolved against this file's dates."""
+def window_presets(cache, product: str | None = None) -> list[dict]:
+    """The windows the period control offers, resolved against this product's dates."""
     from src import client_context as C
+    df = cache.product_df(product)
     out = []
     for months in cache.cfg["analysis"]["presets"]["last_months"]:
-        w = C.last_months(cache.df, cache.cfg, int(months))
+        w = C.last_months(df, cache.cfg, int(months))
         out.append({"id": f"last_{months}m", "name": f"Last {months} months", **w.to_dict()})
-    whole = C.resolve(C.AnalysisWindow(), cache.df, cache.cfg)
+    whole = C.resolve(C.AnalysisWindow(), df, cache.cfg)
     out.append({"id": "all", "name": "All applications", **whole.to_dict()})
     return out
 
 
 @dataclass
 class Engine:
-    """Baselines per analysis window, shared by every request. Calls are serialised by a lock.
+    """Baselines per analysis context, shared by every request. Calls are serialised by a lock.
 
-    `base` is the default window. A request with no `window` runs on it; a request with one runs
-    on that window's baseline, built on first use and kept while it is recent. `{}` as a window
-    means the whole file. An engine made without a `cache` serves only its one baseline.
+    `base` is the default: the default product over its default window. A request may name a
+    `product` and a `window`; each is built on first use and kept while it is recent. `{}` as a
+    window means the product's whole file. An engine made without a `cache` serves only `base`.
     """
     base: S.Baseline
     inv: object
@@ -314,59 +315,66 @@ class Engine:
         cache = C.ContextCache(df, inv, cfg)
         return cls(base=cache.baseline(), inv=inv, cache=cache)
 
-    def baseline(self, window=None) -> S.Baseline:
-        """The baseline for a request's `window`, or a refusal in words."""
+    def baseline(self, window=None, product=None) -> S.Baseline:
+        """The baseline for a request's product and window, or a refusal in words."""
         from src import client_context as C
-        if window is None:
+        if window is None and product is None:
             return self.base
         if self.cache is None:
-            raise ApiError("this engine was loaded for one analysis window only")
+            raise ApiError("this engine was loaded for one product and window only")
+        if product is not None and not isinstance(product, str):
+            raise ApiError("product must be a product code, such as TWQR")
         try:
-            return self.cache.baseline(C.AnalysisWindow.from_dict(window))
-        except C.WindowError as e:
+            w = C.AnalysisWindow.from_dict(window) if window is not None else None
+            return self.cache.baseline(w, product)
+        except C.ContextError as e:
             raise ApiError(str(e)) from None
 
-    def health(self, window=None) -> dict:
+    def health(self, window=None, product=None) -> dict:
         with self._lock:
-            base = self.baseline(window)
-        out = {"ready": True, "product": base.cfg["product"],
-               "applicants": int(len(base.df)),
-               "approval_rate": _num(base.approval_rate),
-               "booked_bad_rate": _num(base.booked_bad_rate),
-               "bad_rate_ceiling": _num(base.cfg["optimise"]["max_bad_rate"]),
-               "max_changes": MAX_CHANGES,
-               "goal_search": goal_search_space(base.cfg),
-               "cutoffs": CUTOFFS,
-               "window": base.window_dict(),
-               "default_window": self.base.window_dict()}
-        if self.cache is not None:
-            from src import client_context as C
-            lo, hi = C.data_range(self.cache.df)
-            bd = A.bad_definition(self.cache.cfg)
-            out["data_range"] = {"app_from": f"{lo:%Y-%m-%d}", "app_to": f"{hi:%Y-%m-%d}"}
-            out["outcome"] = {"as_of": f"{bd['as_of']:%Y-%m-%d}", "dpd": bd["dpd"],
-                              "within_months": bd["within_months"]}
-            out["window_presets"] = window_presets(self.cache)
-        return out
+            base = self.baseline(window, product)
+            out = {"ready": True, "product": base.cfg["product"],
+                   "applicants": int(len(base.df)),
+                   "approval_rate": _num(base.approval_rate),
+                   "booked_bad_rate": _num(base.booked_bad_rate),
+                   "bad_rate_ceiling": _num(base.cfg["optimise"]["max_bad_rate"]),
+                   "max_changes": MAX_CHANGES,
+                   "goal_search": goal_search_space(base.cfg),
+                   "cutoffs": CUTOFFS,
+                   "window": base.window_dict(),
+                   "default_window": self.base.window_dict()}
+            if self.cache is not None:
+                from src import client_context as C
+                p = base.cfg["product"]
+                lo, hi = C.data_range(self.cache.product_df(p))
+                bd = A.bad_definition(self.cache.cfg)
+                out["default_product"] = self.cache.cfg["product"]
+                out["products"] = self.cache.products()
+                out["default_window"] = self.cache.baseline(None, p).window_dict()
+                out["data_range"] = {"app_from": f"{lo:%Y-%m-%d}", "app_to": f"{hi:%Y-%m-%d}"}
+                out["outcome"] = {"as_of": f"{bd['as_of']:%Y-%m-%d}", "dpd": bd["dpd"],
+                                  "within_months": bd["within_months"]}
+                out["window_presets"] = window_presets(self.cache, p)
+            return out
 
-    def rules(self, window=None) -> list[dict]:
+    def rules(self, window=None, product=None) -> list[dict]:
         with self._lock:
-            base = self.baseline(window)
-            key = base.window.key if base.window is not None else None
+            base = self.baseline(window, product)
+            key = (base.cfg["product"], base.window.key if base.window is not None else None)
             if key not in self._rules:         # a baseline never changes, so neither does this
                 self._rules[key] = rule_catalogue(base, self.inv)
             return self._rules[key]
 
-    def simulate(self, changes: list, window=None) -> dict:
+    def simulate(self, changes: list, window=None, product=None) -> dict:
         with self._lock:
-            base = self.baseline(window)
+            base = self.baseline(window, product)
             out = simulate_changes(base, self.inv, changes)
-            out["window"] = base.window_dict()
+            out.update(window=base.window_dict(), product=base.cfg["product"])
             return out
 
-    def goal_seek(self, target, ceiling=None, frozen=None, window=None) -> dict:
+    def goal_seek(self, target, ceiling=None, frozen=None, window=None, product=None) -> dict:
         with self._lock:
-            base = self.baseline(window)
+            base = self.baseline(window, product)
             out = run_goal_seek(base, self.inv, target, ceiling, frozen)
-            out["window"] = base.window_dict()
+            out.update(window=base.window_dict(), product=base.cfg["product"])
             return out

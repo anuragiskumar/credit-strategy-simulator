@@ -294,6 +294,27 @@ def _observe(df: pd.DataFrame, cfg: dict, rng) -> pd.DataFrame:
     return df
 
 
+def generate_file(cfg: dict) -> pd.DataFrame:
+    """The data file: the default product's applicants, then one block per extra product.
+
+    Each block is a separate population with its own seed, booked by replaying its own product's
+    rules. `generate()` stays single-product, so the default product's applicants are identical
+    whether or not other products are generated beside them.
+    """
+    blocks = [generate(cfg)]
+    for product, spec in (cfg.get("generate_products") or {}).items():
+        if product == cfg["product"]:
+            continue
+        block = generate({**cfg, "product": product, "n_rows": int(spec["n_rows"]),
+                          "seed": int(spec["seed"])})
+        start = sum(len(b) for b in blocks) + 1
+        ids = pd.Series([f"APP{i:07d}" for i in range(start, start + len(block))],
+                        index=block.index)
+        block["application_id"] = ids.astype(block["application_id"].dtype)
+        blocks.append(block)
+    return pd.concat(blocks, ignore_index=True)
+
+
 # --------------------------------------------------------------------------- calibration
 def threshold_coverage(df: pd.DataFrame, folder="." ) -> pd.DataFrame:
     """For every numeric threshold the TWQR rules use, count applicants on each side.
@@ -390,8 +411,9 @@ def main(argv=None) -> int:
 
     overrides = {k: v for k, v in [("n_rows", args.n_rows), ("seed", args.seed)] if v is not None}
     cfg = load_client_config(overrides=overrides)
-    df = generate(cfg)
-    report = calibration_report(df, cfg)
+    df = generate_file(cfg)
+    # Calibration is checked on the default product: the planted answers are planted there.
+    report = calibration_report(df[df["product"] == cfg["product"]], cfg)
 
     if not args.check:
         out = resolve_path(args.out or cfg["data_path"])
