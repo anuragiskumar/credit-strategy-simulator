@@ -651,12 +651,15 @@
   var PAGES = [
     { id: 'portfolio', t: 'Portfolio', n: '1' },
     { id: 'drivers', t: 'Decline drivers', n: '2' },
-    { id: 'simulator', t: 'Simulator', n: '3' },
-    { id: 'settings', t: 'Settings', n: '4' }
+    { id: 'simulator', t: 'Simulator', n: '3' }
   ];
-  // The Settings page lives in settings.js, which owns its own state and events.
-  var RENDER = { portfolio: pagePortfolio, drivers: pageDrivers, simulator: pageSimulator,
-                 settings: function () { return window.SettingsScreen.page(); } };
+  var RENDER = { portfolio: pagePortfolio, drivers: pageDrivers, simulator: pageSimulator };
+  // Settings and Administration are pages of their own. Administration is listed only for someone
+  // Session (session.js) allows it; the server refuses it for anyone else whatever the rail shows.
+  var LINKS = [
+    { t: 'Settings', n: '4', href: 'settings.html' },
+    { t: 'Administration', n: '5', href: 'admin.html', need: 'admin.view' }
+  ];
 
   function renderNav() {
     document.getElementById('rail').innerHTML =
@@ -664,8 +667,9 @@
         return '<button class="navitem" data-page="' + p.id + '"' +
           (S.page === p.id ? ' aria-current="page"' : '') + '>' +
           '<span class="n">' + p.n + '</span><span class="lbl">' + esc(p.t) + '</span></button>';
+      }).join('') + LINKS.filter(function (l) { return !l.need || window.Session.can(l.need); }).map(function (l) {
+        return '<a class="navitem" href="' + l.href + '"><span class="n">' + l.n + '</span><span class="lbl">' + esc(l.t) + '</span></a>';
       }).join('') + '</div>' +
-      (S.page === 'settings' ? window.SettingsScreen.rail() : '') +
       '<div class="railgroup"><h4' + N('rail_prov') + '>Provenance</h4><div style="padding:6px 10px;display:flex;' +
       'flex-direction:column;gap:6px;align-items:flex-start">' +
       pv('OBSERVED', 'OBSERVED') + pv('PREDICTED', 'PREDICTED') + pv('INFERRED', 'INFERRED') +
@@ -679,6 +683,8 @@
     var canvas = document.getElementById('canvas');
     var at = canvas.scrollTop;
     S.page = page;
+    // The hash names the screen, so settings.html and admin.html can link straight to one.
+    if (location.hash !== '#' + page) history.replaceState(null, '', '#' + page);
     var wrap = document.getElementById('canvaswrap');
     wrap.innerHTML = RENDER[page]();
     // Changing a slice or a scenario re-renders the screen in place. Jumping to the top
@@ -687,7 +693,6 @@
     renderNav();
     wire(wrap);
     mountFunnel(wrap);
-    if (page === 'settings') window.SettingsScreen.after();
     applySpec();
   }
 
@@ -740,8 +745,7 @@
     btn.setAttribute('aria-pressed', S.spec ? 'true' : 'false');
     if (!S.spec) return;
 
-    // The Settings page keeps its notes in settings_notes.js; the keys never overlap.
-    var notes = Object.assign({}, window.__NOTES__(F, S), window.__SETTINGS_NOTES__(window.__SETTINGS__));
+    var notes = window.__NOTES__(F, S);
     var order = [], number = {}, firstBadge = {}, rows = [];
     document.querySelectorAll('[data-note]').forEach(function (el) {
       var key = el.getAttribute('data-note');
@@ -811,9 +815,9 @@
   }
   document.getElementById('railbtn').addEventListener('click', function () { toggleRail(); });
   scrim.addEventListener('click', function () { toggleRail(false); });
-  window.SettingsScreen.init({
-    wrap: document.getElementById('canvaswrap'), rail: document.getElementById('rail'),
-    go: go, closeRail: function () { toggleRail(false); }, refreshSpec: applySpec
-  });
-  go('portfolio');
+  // A different person (the demo menu, later the server) may see a different rail.
+  window.Session.onChange(function () { renderNav(); applySpec(); });
+  function fromHash() { var h = location.hash.slice(1); return RENDER[h] ? h : 'portfolio'; }
+  window.addEventListener('hashchange', function () { if (fromHash() !== S.page) go(fromHash()); });
+  go(fromHash());
 })();

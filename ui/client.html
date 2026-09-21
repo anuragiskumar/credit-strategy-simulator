@@ -1,29 +1,23 @@
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Credit Strategy Optimiser</title>
+<title>Azentio.ai | Credit Strategy Optimiser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
 
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="client.css">
-<link rel="stylesheet" href="settings.css">
+<link rel="stylesheet" href="shell.css">
 
 <div class="app">
   <header class="topbar">
     <button class="iconbtn railtoggle" id="railbtn" aria-label="Menu">☰</button>
-    <div class="mark">
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-        <rect x="1" y="1" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".3"/>
-        <rect x="4.5" y="11" width="2.6" height="5" rx="1" fill="var(--obs)"/>
-        <rect x="8.7" y="7" width="2.6" height="9" rx="1" fill="var(--pred)"/>
-        <rect x="12.9" y="9" width="2.6" height="7" rx="1" fill="var(--inf)"/>
-      </svg>
-      <b>Credit Strategy Optimiser</b>
+    <div class="mark brand" aria-label="Azentio.ai | Credit Strategy Optimiser">
+      <span class="az">Azentio<em>.ai</em></span><span class="sep" aria-hidden="true">|</span><b>Credit Strategy Optimiser</b>
     </div>
     <div class="topdiv hide-sm"></div>
     <button class="chip is-static" id="productchip" data-note="product"><span class="fig">TWQR</span></button>
     <button class="chip is-static hide-sm" id="ruleschip" data-note="rules">— rules replayed</button>
-    <button class="chip" id="licchip" data-note="lic_chip" title="Go to the licence"></button>
     <div class="spacer"></div>
     <button class="iconbtn" id="specbtn" aria-label="Spec notes" aria-pressed="false" title="Spec notes: number each item and explain it below">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -48,9 +42,8 @@
 <div class="scrim" id="scrim"></div>
 
 <script src="client_data.js"></script>
-<script src="settings_data.js"></script>
+<script src="session.js"></script>
+<script src="demo_bar.js"></script>
 <script src="client_notes.js"></script>
-<script src="settings_notes.js"></script>
 <script src="client_funnel_model.js"></script>
-<script src="settings.js"></script>
 <script src="client.js"></script>

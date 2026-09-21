@@ -245,10 +245,7 @@ def test_spec_notes_are_off_by_default_and_toggled_by_an_icon_beside_the_theme_b
 def test_every_tagged_element_has_a_note_and_no_note_is_orphaned():
     used, defined = _note_keys_used(), _note_keys_defined()
     assert used, "no element is tagged with a spec note"
-    # The topbar licence chip in client.html is explained by settings_notes.js, which client.js merges in.
-    settings_defined = set(re.findall(r"^    ([a-z0-9_]+): \{",
-                                      (UI / "settings_notes.js").read_text(encoding="utf-8"), re.M))
-    assert not used - defined - settings_defined, f"tagged but no note text: {sorted(used - defined - settings_defined)}"
+    assert not used - defined, f"tagged but no note text: {sorted(used - defined)}"
     # stage_* keys are built at runtime from the funnel stage names, so they are checked below.
     orphans = {k for k in defined - used if not k.startswith("stage_")}
     assert not orphans, f"note text that nothing on screen points to: {sorted(orphans)}"
