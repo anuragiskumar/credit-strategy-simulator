@@ -1,0 +1,91 @@
+/* Screen-specific layout for the client screens.
+   No new colours: everything chromatic comes from the provenance tokens in tokens.css. */
+
+/* client.html has no evidence ledger, so the rail + canvas flex layout in tokens.css needs no
+   override here. The rail's own responsive collapse below 860px is inherited unchanged. */
+
+/* ------------------------------------------------------------------ funnel */
+.rulefunnel { display: flex; flex-direction: column; gap: 3px; padding: 4px 0; }
+.rulestep { display: grid; grid-template-columns: 148px minmax(0, 1fr) 120px; gap: 12px; align-items: center; }
+.rulestep .lbl { font-size: 12.5px; color: var(--ink-2); }
+.rulestep .bar { height: 26px; background: var(--sunken); border-radius: 4px; position: relative; overflow: hidden; }
+.rulestep .bar i { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--obs); opacity: .82; border-radius: 4px; display: block; }
+.rulestep .bar b { position: absolute; inset-block: 0; inset-inline-end: 7px; display: flex; align-items: center;
+                 font-family: var(--mono); font-size: 11px; color: var(--ink-2); font-weight: 500; }
+.rulestep .drop { font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-align: end; }
+.rulestep.is-drop .lbl { color: var(--muted); }
+/* Column headings, so "still in" and "lost here" cannot be read as the same thing. */
+.rulehead { margin-bottom: 2px; }
+.rulehead .lbl, .rulehead .bar-h, .rulehead .drop {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+}
+.rulehead .drop { font-size: 9.5px; }
+
+/* ------------------------------------------------------------------ bars in tables */
+.minibar { display: block; height: 7px; border-radius: 2px; background: var(--ink); opacity: .26; min-width: 1px; }
+.minibar.alone { opacity: .78; }
+
+/* ------------------------------------------------------------------ verdict */
+.verdict { font-size: 11.5px; color: var(--muted); }
+td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ sweep chart */
+.sweep { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+         background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.sweep .s { background: var(--surface); padding: 11px 13px; }
+.sweep .s.is-current { background: var(--sunken); }
+.sweep .s .c { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--faint); text-transform: uppercase; }
+.sweep .s .a { font-family: var(--mono); font-size: 19px; margin-top: 5px; letter-spacing: -.02em; }
+.sweep .s .b { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+
+/* ------------------------------------------------------------------ options */
+.opt { border: 1px solid var(--line); border-radius: 8px; padding: 13px 15px; margin-top: 10px; background: var(--surface); }
+.opt.is-breach { border-inline-start: 3px solid var(--breach); }
+.opt.is-best { border-inline-start: 3px solid var(--obs); }
+.opt h4 { margin: 0 0 8px; font-size: 13px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.opt .steps { margin: 8px 0 0; padding-inline-start: 18px; font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+.optgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-top: 4px; }
+.optgrid div { min-width: 0; }
+.optgrid .k { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.optgrid .v { font-family: var(--mono); font-size: 16px; margin-top: 3px; letter-spacing: -.02em; }
+
+@media (max-width: 760px) {
+  /* Keep the "lost here" column on a phone: it is the only place the drop-out count appears. */
+  .rulestep { grid-template-columns: 84px minmax(0, 1fr) 52px; gap: 8px; }
+  .rulehead .bar-h { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* ------------------------------------------------------------------ spec notes
+   Off by default: nothing below renders until the spec-notes icon is pressed. The badge is
+   neutral ink, not a provenance colour, because colour here encodes provenance and nothing else. */
+.iconbtn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.iconbtn[aria-pressed="true"]:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.iconbtn:focus-visible, .specnum:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.specnum {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
+  margin-inline-start: 6px; border-radius: 8px; vertical-align: middle;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 600; line-height: 1;
+  letter-spacing: 0; text-transform: none; cursor: pointer; user-select: none;
+}
+.specnum:hover { background: var(--ink-2); }
+
+.specnotes { margin-top: 30px; padding-top: 18px; border-top: 1px solid var(--line-hard); }
+.specnotes h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; letter-spacing: -.005em; }
+.specsub { margin: 0 0 14px; font-size: 12px; color: var(--muted); max-width: 66ch; }
+.specrow {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start;
+  padding: 9px 8px; margin-inline: -8px; border-radius: 6px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.specrow .specnum { margin: 1px 0 0; justify-self: start; }
+.specrow b { display: block; font-size: 12.5px; font-weight: 600; }
+.specrow p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); max-width: 78ch; }
+
+@keyframes specflash { from { background: var(--sunken); box-shadow: 0 0 0 6px var(--sunken); } to { background: transparent; box-shadow: none; } }
+.specrow.is-flash { animation: specflash 1.6s ease-out; }
+.specnum.is-flash { animation: specpulse 1.2s ease-out; }
+@keyframes specpulse { 0%, 60% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 28%, transparent); } 100% { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .specrow.is-flash, .specnum.is-flash { animation: none; } }
+

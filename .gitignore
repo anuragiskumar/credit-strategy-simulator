@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/
+business-rules-*.xlsx
+.~lock.*#
+redactions.local.yaml

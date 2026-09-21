@@ -1,10 +1,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Credit Decision Studio</title>
+<title>Credit Strategy Optimiser</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
 
 <link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="client.css">
 
 <div class="app">
   <header class="topbar">
@@ -16,38 +17,34 @@
         <rect x="8.7" y="7" width="2.6" height="9" rx="1" fill="var(--pred)"/>
         <rect x="12.9" y="9" width="2.6" height="7" rx="1" fill="var(--inf)"/>
       </svg>
-      <b>Credit Decision Studio</b>
+      <b>Credit Strategy Optimiser</b>
     </div>
     <div class="topdiv hide-sm"></div>
-    <button class="chip" id="tenantchip" data-i18n-title="tenant">
-      <span class="fig" id="tenantname">Tenant A — Retail Lending</span> <kbd>▾</kbd>
-    </button>
-    <button class="chip env-uat is-static hide-sm" id="envchip"><span class="dot"></span> UAT</button>
-    <button class="chip is-static hide-sm" id="verchip">strategy v4.2.1</button>
+    <button class="chip is-static" id="productchip" data-note="product"><span class="fig">TWQR</span></button>
+    <button class="chip is-static hide-sm" id="ruleschip" data-note="rules">— rules replayed</button>
     <div class="spacer"></div>
-    <button class="chip hide-sm" id="localebtn">SAR · EN</button>
+    <button class="iconbtn" id="specbtn" aria-label="Spec notes" aria-pressed="false" title="Spec notes: number each item and explain it below">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.5 1.75h6.25L12.5 4.5v9.75h-9z"/>
+        <path d="M9.5 1.75V4.75h3"/>
+        <path d="M5.5 8h5M5.5 10.25h5M5.5 12.25h2.5"/>
+      </svg>
+    </button>
     <button class="iconbtn" id="themebtn" aria-label="Theme">◐</button>
-    <button class="iconbtn railtoggle" id="ledgerbtn" aria-label="Evidence ledger">◧</button>
-    <div class="topdiv hide-sm"></div>
-    <div class="who hide-sm">
-      <div class="av">NA</div>
-      <div class="nm"><b id="whoname">N. Al-Rashid</b><span id="whorole">RISK ANALYST · MAKER</span></div>
-    </div>
   </header>
 
-  <div class="demostrip">
-    <b>SYNTHETIC DEMO DATA</b>
-    <span id="demostriptext">1,000,000 generated applications · figures are not from any client book · currency shown as SAR pending localisation (§31.4)</span>
+  <div class="demostrip" data-note="strip">
+    <b>SYNTHETIC APPLICANTS · REAL RULES</b>
+    <span id="demostriptext">The rules and the method are real. The applicants are generated, so every figure is illustrative and none comes from any client book.</span>
   </div>
 
   <div class="body">
-    <nav class="rail" id="rail" aria-label="Method"></nav>
+    <nav class="rail" id="rail" aria-label="Screens"></nav>
     <main class="canvas" id="canvas"><div class="canvaswrap" id="canvaswrap"></div></main>
-    <aside class="ledger" id="ledger" aria-label="Evidence ledger"></aside>
   </div>
 </div>
 <div class="scrim" id="scrim"></div>
-<div class="tip" id="tip" role="tooltip"></div>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="client_data.js"></script>
+<script src="client_notes.js"></script>
+<script src="client.js"></script>

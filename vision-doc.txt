@@ -50,3 +50,20 @@ The attached Experian material is useful as a conceptual reference, not somethin
 For the first prototype, I would keep the scope narrow: take historical application data, reproduce the current approval/decline strategy, show the decline waterfall, allow us to change/select strategy parameters, simulate the effect on approvals and bad rate, and then identify a better strategy subject to a defined risk constraint.
 
 If we can make that work convincingly, we have the foundation for the larger portfolio optimisation product.
+
+1. Multiple users
+2. ⁠If the customer stops paying subscription, the software will stop working.
+3. ⁠the application should be configurable but could not be replicated or similar could be developed by the client using our platform.
+4. ⁠the update patches should go and integrate without impacting customers’ configurations.
+5. It should be integrated with multiple db and API which should be configurable
+6. Multi-tenant architecture – each customer’s data, configuration, strategies and models should remain completely isolated.
+7. Role-based access – maker/checker/admin/business user etc., with full audit trail of who changed what and when.
+8. Versioning & rollback – every strategy/configuration should be version controlled and we should be able to compare, restore or roll back.
+9. Sandbox → test → production – customers should be able to simulate and test changes before publishing them.
+10. Configuration should be separated from the core engine – upgrades to our engine should not disturb customer-specific policies, mappings, rules or models.
+11. Explainability – whenever the optimiser recommends a strategy/change, it should show why, expected impact and which constraint drove the recommendation.
+12. Open modelling layer – should support our models as well as external scorecards/ML models/APIs, rather than locking the product to one modelling approach.
+13. Champion/challenger & experimentation – ability to deploy a challenger to a controlled population and compare actual vs expected performance.
+14. Monitoring – data quality, model/strategy performance, drift, API failures and execution should all be visible.
+Also, let us keep the architecture generic enough that the same platform can optimise originations, existing-book actions, collections, limits, pricing etc. not build it only around one approval-rate use case.
+Otherwise we may end up building a very good approval simulation tool, when what you actually want is a reusable decision + simulation + optimisation platform.

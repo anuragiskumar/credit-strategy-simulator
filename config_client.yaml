@@ -1,0 +1,360 @@
+# Client-shaped synthetic applicant population (plan step 2).
+# All business parameters live here. No magic numbers in code.
+#
+# Every distribution below is chosen so applicants land on BOTH sides of the thresholds the
+# 227 TWQR rules actually use (see RULE-INVENTORY.md). A population that no rule bites makes
+# the decline-driver ranking meaningless, so `calibration` asserts the coverage.
+
+seed: 20260920
+n_rows: 50000
+data_path: data/client_applications.parquet
+fixture_path: tests/fixtures/client_sample.parquet
+
+product: TWQR
+app_date_start: "2025-10-01"
+app_date_days: 365          # the last 12 months of applications, per Guru's ask
+
+# ---------------------------------------------------------------- population mix
+population:
+  employer_segment_probs:
+    GOV:            0.26
+    SEMI_GOV:       0.11
+    PRIVATE_LARGE:  0.27
+    PRIVATE_SMALL:  0.22
+    SELF_EMPLOYED:  0.08
+    BSF_PRIORITY:   0.04
+    BSF_EMPLOYEE:   0.02
+  military_share_gov: 0.30    # of GOV applicants, the share who are military (typeOfEmployment ML)
+  pensioner_share: 0.06
+  saudi_share: 0.78
+  non_saudi_nationalities: [EGY, IND, PAK, PHL, SYR, YEM, SDN, JOR, LBN, BGD]
+  female_share: 0.21
+  program_probs: {SMART: 0.55, PF: 0.45}
+  ntb_share: 0.23             # simCustType NTB vs ETB
+
+  # Guru's concentration example: IT heavy, finance thin, no government exposure.
+  # Planted so the portfolio-concentration report has something true to find.
+  sector_probs:
+    it:            0.34
+    retail:        0.14
+    construction:  0.12
+    healthcare:    0.10
+    logistics:     0.09
+    education:     0.08
+    manufacturing: 0.06
+    hospitality:   0.05
+    finance:       0.02
+    government:    0.00
+
+# ---------------------------------------------------------------- age
+# Bands must straddle the rule cutoffs: 20, 21, 23, 25, 30, 42-60, 65, 70, 75.
+age:
+  median: 36
+  sigma: 0.28
+  min: 19
+  max: 78
+  pensioner_median: 63
+  pensioner_sigma: 0.12
+
+# ---------------------------------------------------------------- income (SAR per month)
+# Lognormal, the shape the LendingClub notebook showed for income. Medians are per segment so
+# applicants straddle the 2000 / 3500 / 5000 / 10000 / 15000 / 40000 rule thresholds.
+income:
+  sigma: 0.52
+  min: 1200
+  max: 250000
+  median_by_segment:
+    GOV:            11500
+    SEMI_GOV:       13000
+    PRIVATE_LARGE:  11000
+    PRIVATE_SMALL:   5200
+    SELF_EMPLOYED:   7800
+    BSF_PRIORITY:   46000
+    BSF_EMPLOYEE:   17000
+  military_median: 11000
+  pensioner_multiplier: 0.55
+
+# ---------------------------------------------------------------- employment
+length_of_service:
+  median_months: 42
+  sigma: 0.95
+  min: 0
+  max: 420
+  # Rules set minimum service of 1, 3 and 6 months. Without a genuine tail of recent joiners
+  # those rules can never fire, so they vanish from the decline-driver ranking and the
+  # ranking still looks plausible. This share puts applicants on the low side of each.
+  recent_joiner_share: 0.09
+  recent_joiner_max_months: 11
+payslip_age:
+  probs: {0: 0.55, 1: 0.30, 2: 0.10, 3: 0.04, 4: 0.01}
+salary_to_bsf_share: 0.34
+
+# ---------------------------------------------------------------- bureau
+# SIMAH cutoffs in the rules are 600 / 650 / 700; CRIF 570-690. Both distributions straddle them.
+bureau:
+  simah_mean: 648
+  simah_sd: 88
+  simah_min: 300
+  simah_max: 900
+  # New-to-credit applicants have no SIMAH score at all. The brief's second Kaggle finding is
+  # that blank fields carry signal, so this must be a real segment, not an imputed value.
+  no_score_share: 0.11
+  crif_offset: -22           # CRIF tracks SIMAH but is not identical
+  crif_noise_sd: 42
+  crif_min: 300
+  crif_max: 900
+  scorecard_probs:
+    CLEAN:             0.46
+    Intermediate:      0.27
+    New To Credit:     0.13
+    Telecom:           0.09
+    Buy Now Pay Later: 0.05
+
+# ---------------------------------------------------------------- requested amount
+# Requested amount tracks income with an elasticity below 1, the relationship the notebook
+# showed. Thresholds in the rules run 20k to 1.5M.
+request:
+  median_multiple_of_income: 11.0
+  income_elasticity: 0.72
+  sigma: 0.50
+  # A `<3000` Decline rule sets a MINIMUM finance amount, so the population needs requests
+  # below it or that rule can never fire. The 1M and 1.5M caps need a tail at the other end.
+  min: 1000
+  max: 2000000
+  rounding: 5000
+  # Not every request scales with income: some applicants want a small top-up. Without them
+  # the `<3000` minimum-finance-amount Decline rule can never fire.
+  small_ticket_share: 0.04
+  small_ticket_min: 1000
+  small_ticket_max: 20000
+  tenures: [12, 24, 36, 48, 60, 72]
+  tenure_probs: [0.05, 0.14, 0.24, 0.22, 0.30, 0.05]
+  # Whole percent, matching the client's scale: downpaymentPer tests are `<5`, `<10`, `20`.
+  downpayment_pct_probs: {0: 0.62, 5: 0.18, 10: 0.12, 20: 0.08}
+
+# ---------------------------------------------------------------- regulatory flags (rare)
+flags:
+  pep_share: 0.004
+  related_to_pep_share: 0.010
+  diplomatic_service_share: 0.002
+
+# ---------------------------------------------------------------- sourcing
+# PLANTED ANSWER 1 — the digital channel carries a much weaker applicant mix, so it should
+# dominate the decline-driver ranking. Guru's Alpha client saw 980 declines all from digital.
+sourcing:
+  channel_probs: {digital: 0.46, branch: 0.24, dsa: 0.20, telesales: 0.10}
+  digital_income_multiplier: 0.62      # digital applicants earn less
+  digital_simah_shift: -46             # and score lower
+  digital_no_score_multiplier: 2.1     # and are far more often new-to-credit
+  agents_per_channel: 12
+  sources_per_channel: 3
+
+# ---------------------------------------------------------------- latent risk
+# A logistic probability of going bad, for EVERY applicant including those who are declined.
+# Coefficients act on standardised drivers. Calibrated to a ~14% population bad rate, matching
+# the honest 13.95% the LendingClub notebook arrived at after applying a performance window.
+risk:
+  target_bad_rate: 0.14
+  coefficients:
+    simah_score:        -0.88    # the dominant driver
+    crif_score:         -0.31
+    log_income:         -0.24
+    loan_to_income:      0.37
+    age:                -0.12
+    # PLANTED ANSWER 2 — length of service does NOT predict risk, yet rules decline on it.
+    # This is the notebook's flat-employment-length finding, reproduced so question 10
+    # ("which rules cost approvals without reducing risk") has a correct answer to find.
+    length_of_service:   0.00
+  # PLANTED ANSWER 3 — a missing SIMAH score is the riskiest state, not a neutral one.
+  # Mirrors the notebook's blank-employment-length group: 20.5% bad against a 13.95%
+  # population. Sized so the group lands near 1.5x the scored population, which is large
+  # enough for the analysis to find but not so large that it is the only thing it finds.
+  no_score_uplift: 1.15
+  no_score_min_ratio: 1.30      # the calibration check fails below this
+  sector_uplift:
+    construction:  0.30
+    hospitality:   0.26
+    retail:        0.18
+    logistics:     0.10
+    manufacturing: 0.05
+    it:            0.00
+    education:    -0.10
+    healthcare:   -0.14
+    finance:      -0.20
+    government:   -0.25
+  self_employed_uplift: 0.22
+  non_saudi_uplift: 0.14
+
+# ---------------------------------------------------------------- behaviour
+# Guru's funnel loses 10 of every 100 applicants because the bank took too long.
+# base_share was 0.10. It is now 0.0746, chosen so that 1,136 of the 12,076 applicants who reach
+# this stage walk away (9.4%). That is a demo calibration, not an observation: the walk-away rate
+# is unknown until real data arrives, and Guru's figure was never verified. Only this one draw
+# changes when base_share moves, so nothing else in the population shifts with it.
+walk_away:
+  base_share: 0.0746
+  digital_multiplier: 1.6      # digital applicants are the quickest to go elsewhere
+
+# ---------------------------------------------------------------- calibration guardrails
+# Checked by `python -m src.client_generate --check`. These are the population properties the
+# analysis depends on; if one fails the dataset is not fit to demo against.
+calibration:
+  min_applicants_per_threshold_side: 200
+  bad_rate_tolerance: 0.02
+  min_segment_share: 0.01
+
+# ---------------------------------------------------------------- employers
+# Employer name is not cosmetic: three separate rule groups read it.
+#   * "GOSI" / "GOSI Taqdeer" marks a retired applicant, switching the income floor to 1980
+#     and the age ceiling to 75.
+#   * Banque Saudi Fransi and the SFL entities are staff, who are declined outright.
+#   * The employer_keyword_check lookup runs 61 Arabic substring tests to spot small traders.
+# The generator emits real names and lets the lookup decide, per the brief's "derive, don't
+# assign" rule. Assigning the Y/N directly would break the simulator: moving the keyword list
+# would then change nothing.
+employers:
+  retired_names: ["GOSI", "GOSI Taqdeer"]
+  staff_names:
+    - "Banque Saudi Fransi"
+    - "Saudi Fransi for Finance Leasing (SFL)"
+    - "Saudi Fransi for Finance Leasing Joint Stock (SFL)"
+  staff_share: 0.004
+  # Names containing a keyword from the client's list, so the lookup returns Y.
+  keyword_names:
+    - "مؤسسة الرياض للمقاولات"
+    - "مؤسسة النخبة التجارية"
+    - "ورشة الخليج للحدادة"
+    - "صالون حلاقة الأمير"
+    - "بقالة السلام"
+    - "مطعم البيك الشعبي"
+    - "محل قطع غيار السيارات"
+    - "مؤسسة الاستقدام الوطنية"
+    - "تموينات الواحة"
+    - "مقاولات عامة الشرق"
+    - "للخياطة الحديثة"
+    - "مشغل الجوهرة"
+    - "نقليات الصحراء"
+    - "التجارة العامة المتحدة"
+    - "اسواق المدينة"
+  # Ordinary employers: no keyword, not staff, not retired.
+  plain_names:
+    - "Saudi Aramco"
+    - "SABIC"
+    - "Ministry of Education"
+    - "Ministry of Health"
+    - "Saudi Telecom Company"
+    - "Almarai Company"
+    - "King Faisal Specialist Hospital"
+    - "Saudi Electricity Company"
+    - "Mobily"
+    - "Riyadh Airports Company"
+    - "Nesma & Partners"
+    - "Alfanar Group"
+    - "Jarir Marketing Company"
+    - "Panda Retail Company"
+    - "Saudia Airlines"
+  # Share of PRIVATE_SMALL and SELF_EMPLOYED applicants whose employer trips a keyword.
+  keyword_share_small: 0.55
+  keyword_share_other: 0.03
+
+# ---------------------------------------------------------------- military
+# yknBasicCheckValidation sets a different age ceiling per military sub-type, from 42 to 58.
+military:
+  ranks: [ONP, OP, NOSB, CAPOP, CAPONP, MAJOP, MAJONP, COLOOP, COLOONP, LICOLOP,
+          LICOONP, BRIGENOP, BRIGEONP, MAJGENOP, MAJGEONP, SGTNOSB, CORPNOSB,
+          PVTNOSB, PVT1NOSB, VSGTNOSB, MSSGNOAS, FCSGNOAS, SCLIEONP, SCLIEUOP,
+          FRLIEONP, FRLIEUOP]
+  employee_types: [OLNP, NOP, NOC, OCP, NOV, OCNP, OMP, NOS, OMNP, OLCP, NOF,
+                   OCLNP, NOM, OLCNP, OCLP, OLP, OBGNP, OMGP, OMGNP]
+
+# ---------------------------------------------------------------- rule replay (step 3)
+# Three things the client's export does not record. Each is a DECISION, not a fact, and each is an
+# open question with them. The funnel moves when they change, which is the point of having
+# them here rather than hard-coded.
+replay:
+  rules_folder: "."
+  include_inactive_rules: false   # the 10 Inactive SIMAH rules stay off, as the client has them
+
+  # Guru's funnel starts with hard rejects "nothing can be done about", then credit policy.
+  # Mapping each decision table to a stage is our reading of executionLevel, not the client's word.
+  stage_by_table:
+    yknBasicCheckValidation: hard_reject
+    yakeen-post-validation:  hard_reject
+    simati_chk_IAF:          credit_policy
+    racAndPolicies:          credit_policy
+
+  # A condition on a value the applicant does not have. 16.4% have no SIMAH score and 102
+  # rules test it, so this single switch moves a lot of people. `false` means a missing
+  # value does NOT satisfy the condition, so those applicants pass the score rules by
+  # default — which is why the funnel report counts them separately.
+  condition_on_missing_value_matches: false
+
+  # An applicant no rule matches at all.
+  no_rule_matched: approve
+
+  # Rules that block outright regardless of stage: staff, PEP, diplomatic service.
+  # These are the "nothing can be done" group in Guru's funnel.
+  hard_reject_fields:
+    - employername
+    - politicallyexposedperson
+    - relatedtopep
+    - diplomaticservice
+
+# ---------------------------------------------------------------- funnel (step 3)
+# Guru's funnel, per 100 applications: 100 applied, 70 survive hard rejects, 40 survive
+# credit policy, 20 survive the eligibility cut, 10 survive the wait, 10 book.
+funnel:
+  product_min_amount: 3000        # racAndPolicies declines requests below this
+  # An applicant capped well below what they asked for walks away. Guru: "offered amount
+  # below requested, or below product minimum". This is the share of the request they will
+  # still accept; below it they are counted as an eligibility drop-out.
+  min_acceptable_offer_ratio: 0.60
+
+portfolio:
+  over_exposed_multiple: 2.0      # x an even split across slices
+  under_exposed_multiple: 0.3
+  score_bands: [0, 500, 550, 600, 650, 700, 900]
+
+# ---------------------------------------------------------------- PD model (steps 3-4)
+risk_model:
+  min_training_rows: 2000
+  # Below this many applicants a group gets no estimate at all, however tempting.
+  min_group_size: 50
+  max_iter: 1000
+  C: 1.0
+  # A group with less than this share inside the booked score range gets no estimate at all.
+  # The brief: below the historical cutoff, a confident number tells a CxO to loosen for free.
+  min_support_coverage: 0.70
+  # Applicants with no score count as in-support only if the bank booked at least this
+  # many of them. On a book that never funded them, no estimate is defensible.
+  min_missing_score_booked: 200
+  interval_low: 0.25
+  interval_high: 0.75
+
+drivers:
+  # A rule earns its place if the applicants it alone declines are this much riskier than
+  # the booked book. Below it, the rule is costing approvals without buying safety.
+  earns_place_multiple: 1.15
+
+# ---------------------------------------------------------------- simulator (step 4)
+simulate:
+  riskier_multiple: 1.15      # swap-ins above this x the booked bad rate are "riskier"
+  safer_multiple: 0.85
+
+# ---------------------------------------------------------------- optimiser (step 4)
+optimise:
+  # "Maximise approval" alone is solved by approving everyone. Every search is bounded by
+  # a bad rate the bank will accept — the constraint nobody raised on the call.
+  max_bad_rate: 0.11
+  min_declines_alone: 100     # a rule that catches fewer is not worth a committee's time
+  max_rule_candidates: 8
+  beam_width: 3
+  max_depth: 3
+  field_moves:
+    - {field: simahcreditscore, from: 600, to: 560, label: "SIMAH cutoff down"}
+    - {field: simahcreditscore, from: 600, to: 580, label: "SIMAH cutoff down"}
+    - {field: simahcreditscore, from: 650, to: 620, label: "SIMAH 650 band down"}
+    - {field: crifscore,        from: 605, to: 580, label: "CRIF cutoff down"}
+    - {field: crifscore,        from: 571, to: 545, label: "CRIF 571 cutoff down"}
+    - {field: income,           from: 3500, to: 3000, label: "Minimum salary down"}
+    - {field: income,           from: 5000, to: 4000, label: "Low-income LOS band down"}

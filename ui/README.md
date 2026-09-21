@@ -26,15 +26,48 @@ surfaces (adjacent-pair ΔE ≥ 14.9 deutan/protan, ≥ 17.4 normal vision).
 calls the same core functions the headless CLIs call. `ui/app.js` contains no arithmetic beyond
 turning a number into a string, a width, or an SVG coordinate.
 
-## Files
+## Two pages, one design system
 
 | File | What it is |
 |---|---|
-| `index.html` | Page shell and the whole design system (tokens, components, responsive rules) |
-| `app.js` | Ten screens, charts, and interaction. Reads `window.__FIXTURE__`, nothing else |
-| `export_fixture.py` | Produces `fixture.json` and `data.js` from the real 1M-row dataset |
-| `fixture.json` | The exported payload |
-| `data.js` | The same payload as a script tag, for a prototype with no server |
+| `tokens.css` | The design system — tokens, components, responsive rules. Shared by both pages |
+| `index.html` | Page shell for the original ten screens |
+| `app.js` | Those ten screens. Reads `window.__FIXTURE__`, nothing else |
+| `export_fixture.py` | Produces `fixture.json` and `data.js` from the 1M-row dataset |
+| `client.html` | Page shell for the three CxO screens over a real rule set |
+| `client.css` | Layout for those three screens. No new colours |
+| `client.js` | Portfolio, Decline drivers, Simulator. Reads `window.__CLIENT__`, nothing else |
+| `client_export.py` | Produces `client_fixture.json` and `client_data.js` from the engine |
+| `client_notes.js` | Text of the spec notes: what each element on the three screens is and stands for |
+
+`tokens.css` was extracted out of `index.html` so the client screens could reuse it rather than
+copy it. The two pages are separate only because they sit on different engines; they merge
+when the API lands.
+
+## The three client screens
+
+```bash
+python -m ui.client_export && python -m ui.serve
+```
+
+Then <http://127.0.0.1:8777/client.html>. See `ENGINE.md` for what they show. The export takes
+about three minutes, most of it the two goal-seek runs; `--quick` skips the scenario grid and
+takes seconds when only the static parts changed.
+
+### Spec notes
+
+The icon at the top right, beside the theme switch, turns spec notes on. Hidden by default. When on,
+every annotated item on the current screen gets a number and each number is explained as a footnote
+at the foot of the page; clicking a number jumps between the item and its note.
+
+Adding a note is two edits: tag the element with `N('key')` in `client.js` (or `data-note="key"` in
+`client.html`), and add `key: { t: 'Title', d: 'Text' }` to `client_notes.js`. A test fails if a tag has
+no text, or text has no tag. Values that come from the data or config (rule count, ceiling, replay
+assumptions) are read from the fixture in the notes file rather than typed in, so they cannot drift.
+
+The server sends `Cache-Control: no-store`. The data file is regenerated whenever the engine
+changes, and a browser holding an old `client_data.js` shows last week's figures with this week's
+screens — silently, in front of whoever is being demoed to.
 
 ## Regenerating the data
 
