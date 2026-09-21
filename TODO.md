@@ -239,4 +239,82 @@ has access, and does anything need me?"
       Data alone. "Figures built" on the analysis screens is now the engine's time when it is
       running, the same as Settings and Administration show (they disagreed by the export gap)._
 
+## D. Every screen size — phone to boardroom TV
+
+Found on 2026-09-21 from a photo of `client.html` on a large monitor: the content stops at 1180px
+and sits on the left, so half the screen is empty, and the text is too small to read across a room.
+The demo is pushed a week so this is fixed properly, not patched.
+
+**Why it happens.** `.canvaswrap { max-width: 1180px }` in `ui/tokens.css` has no
+`margin-inline: auto`, and `tokens.css` is shared, so `client.html`, `settings.html`, `admin.html`
+and `index.html` all show the same gap. Under that, the UI is built from 1,231 fixed `px` values
+and 33 viewport `@media` rules, and the charts are SVGs with a fixed `viewBox` (720 / 620 / 560
+wide) stretched to their panel. Nothing scales from one source, so every new screen size needs its
+own patch.
+
+**Not doing:** CSS `zoom` on `.app` at large widths. It breaks the JS that measures (the funnel's
+`clientWidth`, the Simulator's `--simstick`, the product/period menu and tooltip positions, pointer
+coordinates on the funnel) and does nothing for phones or tablets.
+
+**Order:** D1 → D4 carry the risk and go first; D5 is the WOW and needs sketches approved; then
+D6, and D7 closes it. Estimate 3–4 focused days.
+
+### D1. One size scale — P0 (before the demo)
+- [ ] A fluid root size: `html { font-size: clamp(14px, 0.35vw + 9px, 20px) }` (tune the numbers).
+- [ ] A type scale and a spacing scale as tokens in `tokens.css` (`--fs-1…`, `--sp-1…`) in `rem`.
+      Other CSS uses only these names.
+- [ ] Convert every `px` in `tokens.css`, `client.css`, `settings.css` and `shell.css`: type,
+      spacing, the rail (`--rail`), the ledger (`--ledger`), radii where they matter. Hairline
+      borders stay `1px`.
+- [ ] Done when a 1440px screenshot of every page is unchanged before and after, and browser zoom
+      and the OS text size still scale the whole UI.
+
+### D2. Layout that grows and centres — P0 (before the demo)
+- [ ] `--content-max` in `rem` (for example `90rem`) on `.canvaswrap`, with
+      `margin-inline: auto` and fluid padding (`clamp(…)`), so width and text grow together and
+      the top bar, demo strip and content share their edges.
+- [ ] Keep the reading limits (`max-width: 66–78ch`) on prose.
+- [ ] Settings and Administration forms (`.su-grid`) capped at about 60rem so text boxes don't
+      stretch; card grids and tables keep the full width.
+
+### D3. Components answer to their container, not the viewport — P0 (before the demo)
+- [ ] Replace the viewport `@media` rules with container queries on `.canvaswrap` and `.panel`:
+      the Simulator's two columns (`.simgrid`, today `max-width: 1180px`), tiles (`.tiles.c3/c4`),
+      the drivers and rule tables, the funnel bars (`.fbars`).
+- [ ] `narrowRules()` in `client.js` reads the same container width instead of a `matchMedia`.
+- [ ] Done when the Simulator's narrow side column, a tablet and a TV each get the right layout
+      from the same rules.
+
+### D4. Charts drawn at their real size — P0 (before the demo)
+- [ ] One chart helper: measure the box (`ResizeObserver`), draw at that pixel width, redraw on
+      resize. Tick and label sizes come from the type scale, not from `viewBox` stretching (at TV
+      width the stretched axis text is about 28px).
+- [ ] Height by rule: an aspect ratio with a minimum and a maximum.
+- [ ] Move the trend and vintage charts (`client.js:144`, `:228`), the drivers chart (`:934`) and
+      the Simulator chart (`:1339`) onto it.
+- [ ] Funnel: label columns (172 / 232), band heights (30 / 54) and the leak run in
+      `FunnelModel.geometry()` scale with the root size, so the glass keeps its shape instead of
+      going flat when it widens. Presenter mode (opens empty and focused, arrow keys pour it) must
+      not change.
+
+### D5. Wide screens show more, not stretch — P1 (before the demo, needs sketches approved)
+Container-query layouts for a canvas wider than about 1400px. Sketch each one for approval first.
+- [ ] **Portfolio:** the headline tiles and the funnel side by side; trend and vintage charts
+      side by side below.
+- [ ] **Decline drivers:** the chart beside its rule table.
+- [ ] **Simulator:** controls, outcome chart and the step breakdown all in view with no scrolling.
+
+### D6. Presenter size control — P1 (before the demo)
+No browser knows how far the audience sits: a 1920px TV across a boardroom needs larger text than
+a 1920px desk monitor.
+- [ ] A 100 / 125 / 150% control in presenter mode that steps the root size. One setting, in the
+      same place as everything else. Remembered per browser.
+
+### D7. Verification — P0 (before the demo)
+- [ ] Automated screenshots at 375, 768, 1280, 1440, 1920, 2560 and 3840px, light and dark, of
+      Portfolio, Decline drivers, Simulator, every Settings section and all six Administration
+      tabs. Keep them as the baseline so later changes can't quietly break a size.
+- [ ] Manual pass: a full presenter-mode funnel pour, the Simulator's sticky columns while
+      scrolling, the product/period menu and tooltips at each width, the print pack unchanged.
+
 <!-- Add new items here. -->
