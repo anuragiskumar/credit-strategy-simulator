@@ -185,6 +185,8 @@ def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
         "by_channel": _records(A.by_source(df, outcome, "channel"), "channel"),
         "by_agent": _records(A.by_source(df, outcome, "agent_id").head(12), "agent_id"),
         "portfolio": book_by,
+        # Over the product's whole file, not the window: it shows how the window compares.
+        "over_time": clean(A.over_time(*base.whole, cfg, base.window)) if base.whole else None,
         # Every decline rule, grouped by verdict; the screen shows the top of each group.
         "drivers": driver_rows,
         "drivers_summary": driver_summary,

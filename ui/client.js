@@ -20,7 +20,7 @@
   var MENU = ROOT.context_menu || null;
   var CTX = { product: F.meta.product, preset: F.meta.preset || null, window: F.meta.window || null,
               loading: false, error: null, seq: 0, open: false };
-  var S = { page: 'portfolio', slice: 'employer_segment', goal: 0, spec: false,
+  var S = { page: 'portfolio', slice: 'employer_segment', trend: 'month', vintageBy: null, goal: 0, spec: false,
             fview: 'funnel', fdrill: null, fdrillAll: false };
 
   /* ------------------------------------------------------------- formatting */
@@ -125,7 +125,184 @@
 
     return '<div class="pagehead"><h2' + N('pf_head') + '>Portfolio</h2>' +
       '<p>What the current strategy books, and what that book is made of.</p>' + periodLine() + '</div>' +
-      tiles + funnelPanel + portfolioPanel + sourcePanel();
+      tiles + funnelPanel + overTimePanel() + portfolioPanel + sourcePanel();
+  }
+
+  /* ------------------------------------------------------------ over time (TODO B2)
+   * Two views of the product's whole file, not the analysis window: approval and bad rate by
+   * application month, and vintage curves by booking month or quarter. Every figure is the
+   * engine's (payload `over_time`); a month or a point it gives no rate is drawn as a gap and
+   * says why, so the recent months can never look safer than the loans behind them. */
+  function dayMonthYear(iso) { var d = String(iso).split('-'); return +d[2] + ' ' + MONTHS[+d[1] - 1] + ' ' + d[0]; }
+  function shortMonth(label) { return String(label).replace(/ 20(\d\d)$/, ' ’$1'); }
+
+  function trendChart(T) {
+    var rows = T.months, n = rows.length, ceil = F.meta.bad_rate_ceiling;
+    var W = 720, L = 56, R = 16, T0 = 22, H1 = 104, GAP = 34, H2 = 124, B = 30;
+    var H = T0 + H1 + GAP + H2 + B, bw = (W - L - R) / n;
+    function xMonth(i) { return L + (i + 0.5) * bw; }
+    var ar = rows.map(function (r) { return r.approval_rate; });
+    var a0 = Math.min.apply(null, ar), a1 = Math.max.apply(null, ar), ap = Math.max(0.01, (a1 - a0) * 0.25);
+    a0 = Math.max(0, a0 - ap); a1 = Math.min(1, a1 + ap);
+    var br = rows.map(function (r) { return r.bad_rate; }).filter(function (v) { return v !== null; });
+    var b1 = Math.max.apply(null, br.concat([ceil || 0])) * 1.15 || 0.1;
+    var y2 = T0 + H1 + GAP;
+    function YA(v) { return T0 + (a1 - v) * H1 / (a1 - a0); }
+    function YB(v) { return y2 + (b1 - v) * H2 / b1; }
+    var g = '';
+    // The analysis window, behind everything.
+    var win = rows.map(function (r, i) { return r.in_window ? i : -1; }).filter(function (i) { return i >= 0; });
+    if (win.length) {
+      var wx = L + win[0] * bw, ww = (win[win.length - 1] - win[0] + 1) * bw;
+      g += '<rect class="win" x="' + wx + '" y="' + (T0 - 16) + '" width="' + ww + '" height="' + (H - B - T0 + 16) + '"/>' +
+           '<text class="wint" x="' + (wx + 6) + '" y="' + (T0 - 5) + '">chosen period</text>';
+    }
+    // Months with no bad rate yet: one band per run, in the bad-rate pane.
+    var i = 0;
+    while (i < n) {
+      if (rows[i].bad_rate !== null) { i++; continue; }
+      var j = i; while (j + 1 < n && rows[j + 1].bad_rate === null) j++;
+      g += '<rect class="unjudged" x="' + (L + i * bw) + '" y="' + y2 + '" width="' + ((j - i + 1) * bw) + '" height="' + H2 + '"/>';
+      if (j - i >= 2) g += '<text class="unj-t" x="' + (L + (i + j + 1) * bw / 2) + '" y="' + (y2 + H2 / 2 + 4) + '" text-anchor="middle">not judged yet: loans still inside the ' + T.performance_months + '-month window</text>';
+      i = j + 1;
+    }
+    [[a0, a1, YA, T0, H1], [0, b1, YB, y2, H2]].forEach(function (p) {
+      for (var k = 0; k <= 2; k++) {
+        var v = p[0] + (p[1] - p[0]) * k / 2;
+        g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + p[2](v) + '" y2="' + p[2](v) + '"/>' +
+             '<text class="tick" x="' + (L - 8) + '" y="' + (p[2](v) + 4) + '" text-anchor="end">' + pct(v, 0) + '</text>';
+      }
+    });
+    g += '<text class="axis" x="' + L + '" y="' + (T0 - 5 - (win.length && win[0] === 0 ? 12 : 0)) + '">Approval rate, today’s rules</text>';
+    g += '<text class="axis" x="' + L + '" y="' + (y2 - 8) + '">Bad rate, ' + T.performance_months + ' months on book</text>';
+    if (ceil) g += '<line class="ceil" x1="' + L + '" x2="' + (W - R) + '" y1="' + YB(ceil) + '" y2="' + YB(ceil) + '"/>' +
+                   '<text class="lbl ceil-t" x="' + (W - R - 4) + '" y="' + (YB(ceil) - 5) + '" text-anchor="end">bad-rate limit ' + pct(ceil, 1) + '</text>';
+    var step = n > 12 ? 3 : 1;
+    rows.forEach(function (r, k) {
+      if (k % step === 0) g += '<text class="tick" x="' + xMonth(k) + '" y="' + (H - B + 17) + '" text-anchor="middle">' + esc(shortMonth(r.label)) + '</text>';
+    });
+    // Lines break where there is no rate; they never bridge a gap.
+    function line(get, Y) {
+      var out = '', seg = [];
+      rows.concat([null]).forEach(function (r, k) {
+        var v = r ? get(r) : null;
+        if (v !== null && v !== undefined) { seg.push([xMonth(k), Y(v)]); return; }
+        if (seg.length > 1) out += '<polyline class="tl" points="' + pts(seg) + '"/>';
+        seg = [];
+      });
+      return out;
+    }
+    g += line(function (r) { return r.approval_rate; }, YA) + line(function (r) { return r.bad_rate; }, YB);
+    rows.forEach(function (r, k) {
+      g += '<circle class="td" cx="' + xMonth(k) + '" cy="' + YA(r.approval_rate) + '" r="3.2"><title>' + esc(r.label + ': approval ' +
+           pct(r.approval_rate) + ', ' + n0(r.booked) + ' of ' + n0(r.applications)) + '</title></circle>';
+      g += r.bad_rate !== null
+        ? '<circle class="td" cx="' + xMonth(k) + '" cy="' + YB(r.bad_rate) + '" r="3.2"><title>' + esc(r.label + ': bad rate ' +
+          pct(r.bad_rate, 2) + ' on ' + n0(r.mature) + ' loans') + '</title></circle>'
+        : '<rect class="hit" x="' + (L + k * bw) + '" y="' + y2 + '" width="' + bw + '" height="' + H2 + '"><title>' +
+          esc(r.label + ': no bad rate, ' + r.bad_rate_reason) + '</title></rect>';
+    });
+    return '<div class="simchart trchart"' + N('trend_chart') + '><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+      esc('Approval rate and bad rate by application month, ' + rows[0].label + ' to ' + rows[n - 1].label) + '">' + g + '</svg></div>';
+  }
+
+  function trendTable(T) {
+    return table('<th>Application month</th><th class="num">Applications</th><th class="num">Approved</th>' +
+      '<th class="num">Approval rate ' + pv('OBSERVED') + '</th><th class="num"' + N('tr_judged') + '>Loans judged</th>' +
+      '<th class="num">Bad rate ' + pv('OBSERVED') + '</th>',
+      T.months.slice().reverse().map(function (r) {
+        return '<tr' + (r.in_window ? ' class="is-win"' : '') + '><td>' + esc(r.label) + (r.partial ? ' <span class="nodata">(part month)</span>' : '') + '</td>' +
+          '<td class="num">' + n0(r.applications) + '</td><td class="num">' + n0(r.booked) + '</td>' +
+          '<td class="num">' + pct(r.approval_rate) + '</td>' +
+          '<td class="num">' + n0(r.mature) + (r.mature_share !== null && r.mature_share < 1 ? ' <span class="nodata">(' + pct(r.mature_share, 0) + ')</span>' : '') + '</td>' +
+          '<td class="num">' + (r.bad_rate !== null ? pct(r.bad_rate, 2) : '<span class="nodata" title="' + esc(r.bad_rate_reason) + '">not yet</span>') + '</td></tr>';
+      }));
+  }
+
+  function vintageChart(V) {
+    var list = V.cohorts.filter(function (c) { return c.points.length; });
+    if (!list.length) return '<p class="simnote">No booking cohort has been on book long enough to draw.</p>';
+    var W = 720, H = 300, L = 56, R = 70, T0 = 16, B = 40;
+    var m1 = Math.max.apply(null, list.map(function (c) { return c.points[c.points.length - 1][0]; }));
+    var y1 = Math.max.apply(null, list.map(function (c) { return c.points[c.points.length - 1][1]; })) * 1.12 || 0.1;
+    function xMob(k) { return L + (k - 1) * (W - L - R) / Math.max(1, m1 - 1); }
+    function yShare(v) { return T0 + (y1 - v) * (H - T0 - B) / y1; }
+    var g = '';
+    for (var k = 0; k <= 4; k++) {
+      var yv = y1 * k / 4;
+      g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + yShare(yv) + '" y2="' + yShare(yv) + '"/>' +
+           '<text class="tick" x="' + (L - 8) + '" y="' + (yShare(yv) + 4) + '" text-anchor="end">' + pct(yv, yv < 0.1 ? 1 : 0) + '</text>';
+    }
+    for (var m = 1; m <= m1; m++) {
+      if (m === 1 || m % 3 === 0) g += '<text class="tick" x="' + xMob(m) + '" y="' + (H - B + 17) + '" text-anchor="middle">' + m + '</text>';
+    }
+    g += '<text class="axis" x="' + ((L + W - R) / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Months on book →</text>' +
+         '<text class="axis" x="14" y="' + ((T0 + H - B) / 2) + '" text-anchor="middle" transform="rotate(-90 14 ' + ((T0 + H - B) / 2) + ')">Share gone bad →</text>';
+    var dm = V.definition_months;
+    if (dm <= m1) g += '<line class="tgt" x1="' + xMob(dm) + '" x2="' + xMob(dm) + '" y1="' + T0 + '" y2="' + (H - B) + '"/>' +
+                       '<text class="lbl tgt-t" x="' + (xMob(dm) + 6) + '" y="' + (T0 + 12) + '">bad definition: ' + dm + ' months</text>';
+    // Newest cohort darkest. One colour, because every point is counted: colour is provenance.
+    var labelled = V.granularity === 'quarter';
+    list.forEach(function (c, idx) {
+      var shade = list.length > 1 ? 0.3 + 0.7 * idx / (list.length - 1) : 1;
+      var p = c.points.map(function (q) { return [xMob(q[0]), yShare(q[1])]; }), last = c.points[c.points.length - 1];
+      var t = c.label + ': ' + n0(c.loans) + ' loans; ' + pct(last[1], 1) + ' gone bad after ' + last[0] + ' months on book';
+      var op = ' style="opacity:' + shade.toFixed(2) + '"';
+      g += '<g class="vl"><title>' + esc(t) + '</title>' +
+           (p.length > 1 ? '<polyline' + op + ' points="' + pts(p) + '"/>' : '') +
+           '<circle' + op + ' cx="' + p[p.length - 1][0] + '" cy="' + p[p.length - 1][1] + '" r="3"/>' +
+           (labelled ? '<text class="vlt" x="' + (p[p.length - 1][0] + 6) + '" y="' + (p[p.length - 1][1] + 4) + '">' + esc(c.label) + '</text>' : '') +
+           '</g>';
+    });
+    return '<div class="simchart trchart"' + N('vintage_chart') + '><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+      esc('Cumulative bad rate by months on book, one line per booking ' + V.granularity) + '">' + g + '</svg></div>';
+  }
+
+  function vintageTable(V) {
+    var at = [3, 6, V.definition_months].filter(function (v, i, a) { return a.indexOf(v) === i; });
+    function point(c, k) { var p = c.points.filter(function (q) { return q[0] === k; })[0]; return p ? pct(p[1], 1) : '<span class="nodata">—</span>'; }
+    return table('<th>Booked in</th><th class="num">Loans</th>' +
+      at.map(function (k) { return '<th class="num">After ' + k + ' months ' + (k === V.definition_months ? pv('OBSERVED') : '') + '</th>'; }).join('') +
+      '<th class="num">Latest</th>',
+      V.cohorts.slice().reverse().map(function (c) {
+        var last = c.points[c.points.length - 1];
+        return '<tr><td>' + esc(c.label) + '</td><td class="num">' + n0(c.loans) + '</td>' +
+          at.map(function (k) { return '<td class="num">' + point(c, k) + '</td>'; }).join('') +
+          '<td class="num">' + (last ? pct(last[1], 1) + ' <span class="nodata">at ' + last[0] + ' mo</span>' : '<span class="nodata" title="' + esc(c.reason || '') + '">none yet</span>') + '</td></tr>';
+      }));
+  }
+
+  function overTimePanel() {
+    var T = F.over_time;
+    if (!T) return '';
+    var view = S.trend || 'month';
+    var by = S.vintageBy && T.vintage[S.vintageBy] ? S.vintageBy : Object.keys(T.vintage)[0];
+    var tabs = [['month', 'By application month'], ['vintage', 'Vintage']].map(function (v) {
+      return '<button class="chip" data-trend="' + v[0] + '"' + (view === v[0] ? ' aria-current="true"' : '') + '>' + v[1] + '</button>';
+    }).join(' ');
+    var body, lastJudged = T.months.filter(function (r) { return r.bad_rate !== null; }).pop();
+    if (view === 'month') {
+      var waiting = T.months.filter(function (r) { return r.bad_rate === null; }).length;
+      body = '<p class="trlead"' + N('trend_lead') + '>Each month’s applications replayed against today’s rules, and the bad rate of the loans they became. ' +
+        'A month gets a bad rate once ' + pct(T.min_mature_share, 0) + ' of its loans have run ' + T.performance_months + ' months by the extract date (' +
+        esc(dayMonthYear(T.as_of)) + ')' + (lastJudged ? '; the latest judged is ' + esc(lastJudged.label) : '') + '.' +
+        (waiting ? ' The ' + waiting + ' months after it are too recent to judge, which is why the bad rate on this page comes from older loans.' : '') + '</p>' +
+        trendChart(T) +
+        '<details class="trmore"><summary>The months, as a table</summary>' + trendTable(T) + '</details>';
+    } else {
+      var V = T.vintage[by];
+      var gran = Object.keys(T.vintage).map(function (k) {
+        return '<button class="chip" data-vby="' + k + '"' + (by === k ? ' aria-current="true"' : '') + '>By ' + k + '</button>';
+      }).join(' ');
+      body = '<div class="trsub">' + gran + '</div>' +
+        '<p class="trlead"' + N('vintage_lead') + '>Every loan the bank booked, grouped by when it was booked: the share that had reached ' +
+        (MENU ? MENU.outcome.dpd + '+ DPD' : 'the bad definition') + ' after each month on book. A line stops at the last month every loan in it has run; ' +
+        'at ' + V.definition_months + ' months it is that cohort’s bad rate. A later line above an earlier one is a book getting worse.</p>' +
+        vintageChart(V) +
+        '<details class="trmore"><summary>The cohorts, as a table</summary>' + vintageTable(V) + '</details>';
+    }
+    return panel('Over time', tabs + (view === 'month' ? csvBtn('trend') : csvBtn('vintage')), body +
+      caveat('', 'ROLL', 'Roll rates are not shown: ' + esc(T.roll_rate.reason) + '.', N('roll_rate')), N('over_time'));
   }
 
   /* ------------------------------------------------ where applicants drop out
@@ -1543,6 +1720,13 @@
       case 'funnel-rules': return { name: 'funnel-rules', rows: [].concat.apply([], (F.funnel_rules || []).map(function (s) {
         return s.rules.map(function (r) { return copy({ stage: s.stage, stage_total: s.total }, r); });
       })) };
+      case 'trend': return { name: 'by-application-month', rows: F.over_time.months };
+      case 'vintage': var V = F.over_time.vintage[S.vintageBy && F.over_time.vintage[S.vintageBy] ? S.vintageBy : Object.keys(F.over_time.vintage)[0]];
+        return { name: 'vintage-by-' + V.granularity, rows: [].concat.apply([], V.cohorts.map(function (c) {
+          var base = { cohort: c.label, loans: c.loans, booked_from: c.booked_from, booked_to: c.booked_to };
+          return c.points.length ? c.points.map(function (q) { return copy(base, { months_on_book: q[0], share_gone_bad: q[1] }); })
+                                 : [copy(base, { months_on_book: null, share_gone_bad: null, reason: c.reason })];
+        })) };
       case 'channels': return { name: 'declines-by-channel', rows: F.by_channel };
       case 'losses': return { name: 'where-applicants-are-lost', rows: (ds.losses || []).map(function (l) {
         return copy(l, { reasons: l.reasons.map(function (r) { return r.label + ' (' + r.count + ')'; }) });
@@ -2159,6 +2343,12 @@
     });
     root.querySelectorAll('[data-slice]').forEach(function (b) {
       b.addEventListener('click', function () { S.slice = b.getAttribute('data-slice'); go(S.page, true); });
+    });
+    root.querySelectorAll('[data-trend]').forEach(function (b) {
+      b.addEventListener('click', function () { S.trend = b.getAttribute('data-trend'); go(S.page, true); });
+    });
+    root.querySelectorAll('[data-vby]').forEach(function (b) {
+      b.addEventListener('click', function () { S.vintageBy = b.getAttribute('data-vby'); go(S.page, true); });
     });
     root.querySelectorAll('[data-goal]').forEach(function (b) {
       b.addEventListener('click', function () { S.goal = +b.getAttribute('data-goal'); go(S.page, true); });

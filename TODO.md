@@ -77,8 +77,12 @@ product chip is static and `product: TWQR` is fixed in `config_client.yaml`.
 
 ### B2. Trend over time / vintage — P1
 The brief lists vintage and roll-rate analysis as step 2. None of it is built.
-- [ ] Approval rate and bad rate by application month.
-- [ ] Vintage curves by booking month. This depends on A1.
+- [x] Approval rate and bad rate by application month. A month shows a bad rate only once 95% of
+      its loans have run the performance window; the recent months say when they will be judged.
+- [x] Vintage curves by booking month or quarter, from the bank's own booking and bad dates.
+- Roll rates stay out: they need each loan's monthly arrears, and the data contract carries only
+  the date a loan first reached the bad DPD. The panel says so. Adding them means extending the
+  contract with a monthly DPD history.
 
 ### B3. Export — P1
 Leadership approves policy changes, so they need something to take into the committee meeting.

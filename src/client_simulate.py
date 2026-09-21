@@ -354,6 +354,7 @@ class Baseline:
     frames: dict = field(default_factory=dict)
     perf: Cohort | None = None
     window: object = None              # the resolved client_context.AnalysisWindow
+    whole: tuple | None = None         # (applicants, outcome) over the product's whole file
 
     @property
     def approval_rate(self) -> float:
@@ -418,7 +419,7 @@ def build_baseline(df: pd.DataFrame, inv, cfg: dict, *, window=None,
     return Baseline(df=full.df[mask], res=client_replay.subset(full.res, mask),
                     outcome=outcome_all[mask], model=model, cfg=cfg_w,
                     frames=client_replay.subset_frames(full.frames, mask),
-                    perf=perf, window=w)
+                    perf=perf, window=w, whole=(full.df, outcome_all))
 
 
 def portfolio(base: Baseline, by: str) -> pd.DataFrame:

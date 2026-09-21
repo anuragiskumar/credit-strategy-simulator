@@ -754,3 +754,25 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 #printpack .pp-key dl { margin: 0; }
 #printpack .pp-key dl > div { display: grid; grid-template-columns: 30mm 1fr; gap: 3mm; margin-bottom: 1.5mm; font-size: 9pt; }
 #printpack .pp-key dd { margin: 0; }
+
+/* ---- Over time (TODO B2): one colour, because every rate here is counted */
+.trlead { margin: 0 0 10px; font-family: var(--prose); font-size: 13.5px; line-height: 1.5; color: var(--ink-2); max-width: 78ch; }
+.trsub { margin: 0 0 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.trchart .win { fill: var(--sunken); }
+.trchart .wint { fill: var(--muted); font-size: 11px; font-family: var(--ui); }
+.trchart .unjudged { fill: var(--nm-wash); opacity: .55; }
+.trchart .unj-t { fill: var(--muted); font-size: 11.5px; font-family: var(--ui); }
+.trchart .axis { font-size: 12px; }
+.trchart .tl { fill: none; stroke: var(--obs); stroke-width: 2; }
+.trchart .td { fill: var(--obs); stroke: var(--surface); stroke-width: 1.5; }
+.trchart .hit { fill: transparent; }
+.trchart .vl polyline { fill: none; stroke: var(--obs); stroke-width: 1.8; }
+.trchart .vl circle { fill: var(--obs); }
+.trchart .vl .vlt { fill: var(--ink-2); font-size: 11px; font-family: var(--ui); }
+.trchart .vl:hover polyline, .trchart .vl:hover circle { opacity: 1 !important; }
+.trchart .vl:hover polyline { stroke-width: 3.2; }
+.chip[aria-current="true"] { border-color: var(--ink-2); background: var(--sunken); color: var(--ink); font-weight: 600; }
+.trmore { margin-top: 10px; }
+.trmore > summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.trmore[open] > summary { margin-bottom: 8px; }
+.t tr.is-win td:first-child { box-shadow: inset 3px 0 0 var(--line-hard); }

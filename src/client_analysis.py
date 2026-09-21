@@ -531,3 +531,115 @@ def concentration_flags(book: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         elif share <= limits["under_exposed_multiple"] * even:
             flags.append({"slice": name, "share_of_exposure": share, "flag": "under-exposed"})
     return pd.DataFrame(flags, columns=["slice", "share_of_exposure", "flag"])
+
+
+# --------------------------------------------------------------------------- over time (TODO B2)
+ROLL_RATE_REASON = ("the data carries only the date a loan first reached the bad DPD, not its "
+                    "arrears month by month, so movement between arrears buckets cannot be counted")
+
+
+def _period_label(p: pd.Period) -> str:
+    return f"Q{p.quarter} {p.year}" if p.freqstr.startswith("Q") else p.strftime("%b %Y")
+
+
+def trend_by_month(df: pd.DataFrame, outcome: pd.DataFrame, cfg: dict, window=None) -> list[dict]:
+    """Approval and bad rate by application month, over the whole file for the product.
+
+    The approval rate is the replay under today's rules, the same as the headline. The bad rate
+    is the month's booked loans that have run the whole performance window; a month is given one
+    only once `trend.min_mature_share` of its loans have, because the loans still paying would
+    otherwise be counted as good and the recent months would look safer than they are.
+    """
+    tr, d = cfg["trend"], bad_definition(cfg)
+    dates = pd.to_datetime(df["app_date"]).dt.normalize()
+    lo, hi = dates.min(), dates.max()
+    month = dates.dt.to_period("M")
+    booking = pd.to_datetime(df["booking_date"])
+    j = pd.DataFrame({"month": month, "booked": outcome["booked"], "mature": outcome["mature"],
+                      "bad": outcome["observed_bad"],
+                      "booking": booking.where(outcome["booked"])}, index=df.index)
+    rows = []
+    for m, g in j.groupby("month", sort=True):
+        start, end = m.start_time.normalize(), m.end_time.normalize()
+        booked, mature = int(g["booked"].sum()), int(g["mature"].sum())
+        share = mature / booked if booked else None
+        last = g["booking"].max()
+        judged = (last + pd.DateOffset(months=d["within_months"])) if pd.notna(last) else None
+        if booked < tr["min_loans"]:
+            bad, reason = None, f"only {booked} booked loans; at least {tr['min_loans']} are needed"
+        elif share < tr["min_mature_share"]:
+            bad = None
+            ran = "none of its loans has" if mature == 0 else f"only {100 * share:.0f}% of its loans have"
+            reason = f"{ran} run {d['within_months']} months yet"
+            if judged is not None and judged > d["as_of"]:
+                reason += f"; judged from {judged:%-d %b %Y}"
+        else:
+            bad, reason = float(g.loc[g["mature"], "bad"].mean()), None
+        rows.append({
+            "month": str(m), "label": _period_label(m),
+            "applications": int(len(g)), "booked": booked,
+            "approval_rate": round(booked / len(g), 6),
+            "mature": mature, "mature_share": None if share is None else round(share, 4),
+            "bad_rate": None if bad is None else round(bad, 6), "bad_rate_reason": reason,
+            "partial": bool(start < lo or end > hi),
+            "in_window": bool(window is not None and start <= window.app_to and end >= window.app_from),
+        })
+    return rows
+
+
+def _months_to_bad(booking: pd.Series, bad: pd.Series) -> pd.Series:
+    """The month on book a loan first reached the bad DPD: the smallest k with
+    bad <= booking + k months. NaN for a loan that has not gone bad."""
+    k = (bad.dt.year - booking.dt.year) * 12 + (bad.dt.month - booking.dt.month)
+    k = k + (bad.dt.day > booking.dt.day).astype(float)
+    return k.clip(lower=1).where(bad.notna())
+
+
+def vintage(df: pd.DataFrame, cfg: dict, granularity: str = "quarter") -> dict:
+    """Cumulative bad rate by months on book, one curve per booking month or quarter.
+
+    Read straight from the bank's own `booking_date` and `bad_date`: every loan it booked,
+    whatever today's rules would do with the applicant. A curve reaches month k only once every
+    loan in the cohort has been on book k months by the extract date, so no point on it counts
+    a loan that has not had the time to go bad. At the performance window's month the curve is
+    the cohort's bad rate as the rest of the engine reads it.
+    """
+    if granularity not in ("month", "quarter"):
+        raise ValueError(f"vintage granularity {granularity!r}: use month or quarter")
+    tr, d = cfg["trend"], bad_definition(cfg)
+    booking = pd.to_datetime(df["booking_date"])
+    booked = booking.notna()
+    booking, bad = booking[booked], pd.to_datetime(df["bad_date"])[booked]
+    k_bad = _months_to_bad(booking, bad)
+    cohort = booking.dt.to_period("Q" if granularity == "quarter" else "M")
+    cohorts = []
+    for c, idx in cohort.groupby(cohort, sort=True).groups.items():
+        n, last = len(idx), booking[idx].max()
+        max_mob = 0
+        while last + pd.DateOffset(months=max_mob + 1) <= d["as_of"]:
+            max_mob += 1
+        row = {"cohort": str(c), "label": _period_label(c), "loans": int(n),
+               "booked_from": f"{booking[idx].min():%Y-%m-%d}", "booked_to": f"{last:%Y-%m-%d}",
+               "max_mob": max_mob, "points": [], "reason": None}
+        if n < tr["min_loans"]:
+            row["reason"] = f"only {n} loans; at least {tr['min_loans']} are needed"
+        elif max_mob == 0:
+            row["reason"] = "no loan in it has been on book a full month"
+        else:
+            ks = k_bad[idx].to_numpy()
+            row["points"] = [[k, round(float(np.sum(ks <= k)) / n, 6)] for k in range(1, max_mob + 1)]
+        cohorts.append(row)
+    return {"granularity": granularity, "cohorts": cohorts,
+            "definition_months": d["within_months"], "as_of": f"{d['as_of']:%Y-%m-%d}"}
+
+
+def over_time(df: pd.DataFrame, outcome: pd.DataFrame, cfg: dict, window=None) -> dict:
+    """Everything the Over time panel shows for one product: the monthly trend and the vintages."""
+    tr, d = cfg["trend"], bad_definition(cfg)
+    return {
+        "months": trend_by_month(df, outcome, cfg, window),
+        "vintage": {g: vintage(df, cfg, g) for g in tr["vintage_granularity"]},
+        "performance_months": d["within_months"], "as_of": f"{d['as_of']:%Y-%m-%d}",
+        "min_mature_share": tr["min_mature_share"], "min_loans": tr["min_loans"],
+        "roll_rate": {"available": False, "reason": ROLL_RATE_REASON},
+    }

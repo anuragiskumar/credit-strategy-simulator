@@ -49,6 +49,16 @@ analysis:
   min_applicants: 1000         # a window with fewer is refused: rates on it are noise
   cached_contexts: 8           # recent windows kept built, so switching back is instant
 
+# ---------------------------------------------------------------- over time (TODO B2)
+# Approval and bad rate by application month, and vintage curves by booking month. Both read the
+# whole file for the product, not the analysis window: they exist to show how it has moved.
+trend:
+  # A month's bad rate is shown only once this share of its booked loans has run the whole
+  # performance window. Before that, the loans still paying would be counted as good.
+  min_mature_share: 0.95
+  min_loans: 100               # a month or a vintage with fewer booked loans shows no rate
+  vintage_granularity: [quarter, month]   # the first is the default view
+
 # ---------------------------------------------------------------- population mix
 population:
   employer_segment_probs:

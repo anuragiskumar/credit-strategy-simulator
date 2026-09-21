@@ -108,6 +108,45 @@ window.__NOTES__ = function (F) {
          'median across all applicants, so a few very large cuts do not distort it. A large gap means finance ' +
          'caps are cutting the amounts lent.'
     },
+    over_time: {
+      t: 'Over time',
+      d: 'How the product has moved, over the whole data file rather than the chosen period, so the period can be ' +
+         'seen against what came before it. Every rate here is counted from the data; none is estimated.'
+    },
+    trend_lead: {
+      t: 'By application month',
+      d: 'Top: each month’s applications replayed against today’s rules, so a change in the approval rate is a change ' +
+         'in who applied, not in the rules. Bottom: the bad rate of the loans those applications became, once they have ' +
+         'run the whole performance window. A recent month has no bad rate yet: its loans that are still paying have not ' +
+         'had the time to go bad, and counting them as good would make the recent book look safer than it is.'
+    },
+    trend_chart: {
+      t: 'Trend chart',
+      d: 'The shaded columns are the chosen period. The pale band in the lower chart covers the months too recent to judge. ' +
+         'The dashed line is the bad-rate limit. Hover a point for its figures.'
+    },
+    tr_judged: {
+      t: 'Loans judged',
+      d: 'Booked loans from that month that have run the whole performance window by the extract date, and the share of ' +
+         'the month’s booked loans they are. Only these count in the bad rate.'
+    },
+    vintage_lead: {
+      t: 'Vintage',
+      d: 'Every loan the bank actually booked, grouped by when it was booked, read from its booking date and the date it ' +
+         'first reached the bad DPD. Each line is the share of that group gone bad after each month on book. Lines that ' +
+         'rise faster, or sit higher, are worse business. A line is drawn only as far as every loan in it has run.'
+    },
+    vintage_chart: {
+      t: 'Vintage chart',
+      d: 'One line per booking quarter or month; the newest is the darkest. The dotted line marks the bad definition: ' +
+         'where a line crosses it is that group’s bad rate. Hover a line for its figures.'
+    },
+    roll_rate: {
+      t: 'Roll rates',
+      d: 'Roll rates show how loans move between arrears buckets (30, 60, 90 days) month by month. They need each ' +
+         'loan’s arrears history. The data contract today carries only the date a loan first reached the bad DPD, so ' +
+         'they are not shown rather than guessed.'
+    },
     funnel: {
       t: 'Where applicants drop out',
       d: 'Each applicant leaves at exactly one place: the first stage they fail. Two views of the same figures. ' +
