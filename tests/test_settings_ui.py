@@ -231,13 +231,16 @@ def test_nothing_leaves_the_browser_but_the_settings_api():
         body = _code(name)
         for banned in ("XMLHttpRequest", "sendBeacon", "WebSocket", "FileReader", ".text()", ".arrayBuffer("):
             assert banned not in body, f"{name} uses {banned}"
-        if name != "settings.js":
+        if name not in ("settings.js", "admin.js"):
             assert "fetch(" not in body, f"{name} uses fetch("
     body = _code("settings.js")
     assert body.count("fetch(") == 1, "one api() helper, so every call is visible in one place"
     paths = set(re.findall(r"'(/api/[a-z/-]+)", body))
     assert paths == {"/api/settings", "/api/settings/propose", "/api/settings/decide", "/api/settings/change",
                      "/api/recompute"}, paths
+    # Administration only reads: the settings history for its audit log, and nothing it sends.
+    admin = _code("admin.js")
+    assert admin.count("fetch(") == 1 and "fetch('/api/settings')" in admin and "method" not in admin
 
 
 def test_the_demo_password_field_is_never_read():
@@ -294,6 +297,59 @@ def test_settings_is_four_tabs_analysis_first_and_has_no_licence():
     assert ids == ["analysis", "appetite", "assumptions", "health"]
     body = _code("settings.js")
     assert "licence" not in " ".join(ids) and "Session.licence" not in body
+
+
+def test_administration_is_six_tabs_overview_first_licence_last():
+    body = _code("admin.js")
+    ids = re.findall(r"\{ id: '([a-z]+)', t: ", body)
+    assert ids == ["overview", "data", "access", "audit", "system", "licence"]
+    assert "{ id: 'audit', t: 'Audit log', need: 'audit.view' }" in body
+    assert "{ id: 'licence', t: 'Licence', need: 'licence.view' }" in body
+
+
+def test_a_source_is_connected_by_one_flow_not_a_tab_per_database():
+    body = _code("admin.js")
+    assert "data-act=\"src\"" not in body and "SOURCES" not in body
+    for db in ("Oracle", "PostgreSQL", "MySQL"):
+        assert db not in _fn(body, "stepConnect"), "database types come from the fixture, as one field"
+    assert "['Kind', 'Connect', 'Check', 'Map fields', 'Review']" in body
+
+
+def test_the_licence_keeps_its_id_and_folds_the_signature_details_away():
+    sec = _fn(_code("admin.js"), "secLicence")
+    assert "L.licence_id" in sec and "signature ' + (L.signature.verified" in sec
+    tech = sec[sec.index('su-tech'):]
+    assert "L.signature.algorithm" in tech and "L.signature.fingerprint" in tech
+
+
+def test_the_overview_opens_only_what_needs_attention():
+    body = _code("admin.js")
+    card = _fn(body, "card")
+    assert "o.attn && o.detail" in card and "o.attn && o.tab" in card
+    cards = _fn(body, "cards")
+    assert "big: !ok" in cards and "attn: !ok" in cards, "the licence goes large only when not active"
+
+
+def test_the_audit_log_reads_the_engines_settings_history():
+    ev = _fn(_code("admin.js"), "events")
+    assert "S.gov.history" in ev and "SIM.audit" in ev and "real: true" in ev
+
+
+@needs_fixture
+def test_the_roles_on_administration_are_the_roles_the_demo_menu_grants():
+    ac = _fixture()["simulated"]["access"]
+    roles = [r["role"] for r in ac["roles"]]
+    assert roles == re.findall(r"label: '([^']+)', can:", _code("demo_bar.js"))
+    assert [g["role"] for g in ac["sso"]["groups"]] == roles
+    assert {u["role"] for u in ac["users"]} <= set(roles)
+    assert any(u["status"] == "Requested" for u in ac["users"]), "the overview shows what a request looks like"
+
+
+@needs_fixture
+def test_the_example_audit_events_are_dated_and_leave_settings_to_the_engine():
+    rows = _fixture()["simulated"]["audit"]
+    assert rows and all(re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", r["at"]) for r in rows)
+    assert "Settings" not in {r["kind"] for r in rows}, "settings changes are the engine's own records"
 
 
 def test_the_workbook_inventory_and_audit_log_live_on_administration():
@@ -469,12 +525,11 @@ def test_the_example_layout_states_how_many_required_fields_are_unmapped():
     assert "illustrative" in ex["note"].lower() and "not your own schema" in ex["note"].lower()
 
 
-def test_the_field_mapping_leads_with_the_data_in_use_not_the_example():
+def test_the_field_mapping_leads_with_the_data_in_use_and_the_example_is_a_step_of_connecting():
     body = _code("admin.js")
-    sec = body[body.index("function secMapping"):body.index("function secRules")]
-    assert "Nothing can run" not in sec
-    assert sec.index("'IN USE'") < sec.index("'EXAMPLE'")
-    assert "C.required_mapped" in sec
+    sec = _fn(body, "secMapping")
+    assert "Nothing can run" not in sec and "'IN USE'" in sec and "C.required_mapped" in sec
+    assert "'EXAMPLE'" not in sec and "'EXAMPLE'" in _fn(body, "stepMap")
 
 
 @needs_fixture

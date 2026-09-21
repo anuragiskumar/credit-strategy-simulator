@@ -194,20 +194,24 @@ values). Nothing on it can be changed, and some of it belongs to IT or to other 
 ### C4. Administration overhaul — P1
 User: the bank's IT or application admin. They want to know "is it healthy, is data flowing, who
 has access, and does anything need me?"
-- [ ] **Overview first:** status cards (Licence · Data · Mapping · Version). Only the ones needing
+- [x] **Overview first:** status cards (Licence · Data · Mapping · Version). Only the ones needing
       attention expand. The licence goes large only when it's actually expiring.
-- [ ] **Licence moves to the bottom.** Fold "signature verified" into the status line, keep
+- [x] **Licence moves to the bottom.** Fold "signature verified" into the status line, keep
       Licence ID (support reference), and move Algorithm and Fingerprint under "Technical details"
       or drop them. They are for Azentio support, not the client.
 - [x] **Field mapping is inconsistent:** it says "11 of 24 mapped. Nothing can run" while the app
       runs. Show the real state, or make it a clearly labelled mapping wizard.
 - [x] **"Outcomes and performance" claims something the engine doesn't do** (90 DPD / 12 months,
       performance source). Label it as planned configuration or remove it until A1 lands.
-- [ ] **Add the missing admin work:** Users & access (who has which role, SSO status) and an
+- [x] **Add the missing admin work:** Users & access (who has which role, SSO status) and an
       audit log you can view and filter, not only export.
-- [ ] Data source: replace the Oracle / PostgreSQL / MySQL tabs with a "connect a source" flow.
-- [ ] Sections: Overview · Data (source, mapping, outcomes, rule workbooks) · Users & access ·
+- [x] Data source: replace the Oracle / PostgreSQL / MySQL tabs with a "connect a source" flow.
+- [x] Sections: Overview · Data (source, mapping, outcomes, rule workbooks) · Users & access ·
       Audit log · System (platform, security, regional, versions, support bundle) · Licence.
+      _Done: six tabs. Overview answers "does anything need me?" and opens only the cards that do
+      (licence goes large only past Active; data opens on a failed recompute). The audit log merges
+      the engine's own settings records (proposals, decisions, recompute) with example events,
+      filters in place and downloads what is shown. Users & access and the source flow are preview._
 
 ### C5. Patterns across all screens — P2
 - [ ] One layout for every page: the answer (tiles or a sentence) → the evidence (one chart or

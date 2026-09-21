@@ -15,15 +15,109 @@ window.__ADMIN_NOTES__ = function (F) {
   return {
     ad_head: {
       t: 'Administration',
-      d: 'How the installed product is licensed, fed, secured and maintained. Only for administrators: in the deployed ' +
-         'product the server decides from the signed-in user\'s attributes and refuses these actions for anyone else. ' +
-         'Everything here is a preview. It looks and reads as the real thing would but does nothing, and carries one ' +
-         'PREVIEW tag for the page. Nothing here changes a figure on any other screen.'
+      d: 'For the bank\'s IT or application administrator: is it healthy, is data flowing, who has access, and does ' +
+         'anything need me? Only for administrators: in the deployed product the server decides from the signed-in ' +
+         'user\'s attributes and refuses these actions for anyone else. Most of it is a preview and carries one PREVIEW ' +
+         'tag for the page. Real: the data in use, its field mapping and bad definition, the rule workbooks, and the ' +
+         'settings changes and recompute in the audit log. Nothing here changes a figure on any other screen.'
     },
     ad_refused: {
       t: 'No access',
       d: 'What someone who is not an administrator sees if they open this page directly. The server would refuse every ' +
          'action here anyway; this message only says so plainly.'
+    },
+
+    /* ------------------------------------------------------------ tabs and overview */
+    ad_tabs: {
+      t: 'Tabs',
+      d: 'Overview · Data · Users & access · Audit log · System · Licence, in the order an administrator works. The ' +
+         'licence is last: it is rarely the task, and the overview raises it when it is. The audit log needs audit.view ' +
+         'and the licence licence.view, so a tab someone may not see is not drawn.'
+    },
+    ov_head: {
+      t: 'What needs you',
+      d: 'The answer first: how many concerns need the administrator, or that none do. It is the count of cards below ' +
+         'that need attention.'
+    },
+    ov_licence: {
+      t: 'Licence card',
+      d: 'One line while the licence is active. It opens and goes large only when a stage other than Active applies ' +
+         '(expiring, grace, read-only, suspended), with what that stage does. Try the licence stages in the demo menu.'
+    },
+    ov_data: {
+      t: 'Data card',
+      d: 'Counted: the applicants in use, their application dates, and when the figures were computed. It needs you only ' +
+         'when the last recompute failed, which the engine reports; the old figures stay in use.'
+    },
+    ov_mapping: {
+      t: 'Field mapping card',
+      d: 'Counted: how many of the fields the rules read are supplied by the data in use. It needs you when one is missing, ' +
+         'because rules on that field are then not evaluated.'
+    },
+    ov_access: {
+      t: 'Users & access card',
+      d: 'Active users and whether single sign-on is connected. It needs you when someone has asked for access. Simulated.'
+    },
+    ov_version: {
+      t: 'Version card',
+      d: 'What is installed and the last patch. Details are under System. Simulated.'
+    },
+
+    /* ------------------------------------------------------------ connect a source */
+    ds_connect: {
+      t: 'Connect a new source',
+      d: 'Replaces the Oracle / PostgreSQL / MySQL tabs with one guided flow. Paused when the licence stage pauses data loads.'
+    },
+    ds_wizard: {
+      t: 'Connect a source',
+      d: 'Kind → connect → check → map fields → review for a database; kind → file → map fields → review for a file. ' +
+         'Next stays disabled until a step is done: a kind chosen, a file chosen, a connection checked. The last step ' +
+         'shows what would be switched to and example rows; switching is not available in this environment.'
+    },
+    ds_kind: {
+      t: 'Kind of source',
+      d: 'A file extract, or a read-only database connection refreshed on a schedule. The database type is a field of ' +
+         'the connection, not a separate tab.'
+    },
+    ds_review: {
+      t: 'Switch the analysis',
+      d: 'In the deployed product this reloads the analysis on the new source, after a risk approver accepts it, and ' +
+         'the old source stays available until then. Simulated.'
+    },
+    lic_tech: {
+      t: 'Technical details',
+      d: 'Who issued the licence, the signing algorithm and the key fingerprint. For Azentio support, not the client, so ' +
+         'folded away. The status line already says whether the signature verified.'
+    },
+
+    /* ------------------------------------------------------------ users and access */
+    ac_sso: {
+      t: 'Sign-in',
+      d: 'Single sign-on through the bank\'s directory. Roles are assigned by directory group, so access is granted ' +
+         'where the bank already manages it, and the product reads it at each sign-in. Simulated.'
+    },
+    ac_users: {
+      t: 'People',
+      d: 'Everyone with an account, their role, status and last sign-in. A request waits for an administrator to ' +
+         'review it. Simulated.'
+    },
+    ac_roles: {
+      t: 'Roles',
+      d: 'What each role may do, and which directory group grants it. These are the roles the demo menu switches ' +
+         'between, with the same permissions. An administrator cannot change the risk appetite: that is the risk ' +
+         'committee\'s, by proposal and approval on Settings.'
+    },
+
+    /* ------------------------------------------------------------ audit */
+    au_filter: {
+      t: 'Filters',
+      d: 'By area, person, time and text. The rows change as you type; the download takes the rows shown.'
+    },
+    au_source: {
+      t: 'Record',
+      d: 'Recorded: written by the engine. Every proposal, decision and direct change to a governed setting, with who ' +
+         'and when, and the last recompute. Example: an illustration of the other events the deployed product records ' +
+         '(licence, data, rules, access, system).'
     },
 
     /* ------------------------------------------------------------ licence */
@@ -36,9 +130,9 @@ window.__ADMIN_NOTES__ = function (F) {
          'never blocked. Simulated.'
     },
     lic_status: {
-      t: 'Status and validity',
-      d: 'The current stage, when the licence runs to and how long is left. The days remaining are worked out by the ' +
-         'export, never on the page. When a stage pauses something, the reason is shown here.'
+      t: 'Status line',
+      d: 'The stage, days remaining and whether the signature verified, in one line. The days remaining are worked out ' +
+         'by the export, never on the page. When a stage pauses something, the reason is shown under it.'
     },
     lic_refresh: {
       t: 'Refresh',
@@ -55,11 +149,6 @@ window.__ADMIN_NOTES__ = function (F) {
       t: 'Entitlements',
       d: 'What the licence covers: product, modules, environments and named users. Simulated.'
     },
-    lic_sig: {
-      t: 'Signature',
-      d: 'Every licence file is signed by Azentio and verified offline, so it cannot be edited to extend the term. ' +
-         'The fingerprint identifies which key signed it.'
-    },
     lic_rem: {
       t: 'Renewal reminders',
       d: 'Who is told, and how many days before expiry, so a renewal is never a surprise. Sent by the bank\'s own mail relay.'
@@ -67,14 +156,9 @@ window.__ADMIN_NOTES__ = function (F) {
 
     /* ------------------------------------------------------------ data source */
     ds_admin: {
-      t: 'Data source',
-      d: 'Where the applications come from. The demo runs on a generated population; the deployed product reads a file ' +
-         'or connects to the bank\'s own database. What the data looks like is on Settings.'
-    },
-    ds_src: {
-      t: 'Source',
-      d: 'Current dataset: what the analysis runs on now. The other four are simulated: a file upload, and read-only ' +
-         'connections to Oracle, PostgreSQL and MySQL.'
+      t: 'Source in use',
+      d: 'What the analysis runs on now, counted from the applicant table. The demo runs on a generated population; ' +
+         'the deployed product reads a file or connects to the bank\'s own database.'
     },
     ds_form: {
       t: 'Connection',
@@ -102,8 +186,8 @@ window.__ADMIN_NOTES__ = function (F) {
     /* ------------------------------------------------------------ mapping and rules */
     mp_admin: {
       t: 'Field mapping',
-      d: 'Which source column supplies each field the rules read. Everyone who works with data sees the result, ' +
-         'read-only, on Settings; only an administrator edits it.'
+      d: 'Whether the data in use supplies every field the rules read. Mapping a new source\'s columns is a step of ' +
+         'connecting it, so it is no longer a separate editor. Everyone who works with data sees the fields on Settings.'
     },
     mp_state: {
       t: 'Fields in use',
@@ -111,9 +195,10 @@ window.__ADMIN_NOTES__ = function (F) {
          'This is the real state, and it is why the analysis runs.'
     },
     mp_example: {
-      t: 'Example bank layout',
-      d: 'An illustration of mapping a new source with its own column names, and what happens when some required fields ' +
-         'are not mapped. It is not the client\'s schema, which has not arrived, and it does not touch the data in use. Simulated.'
+      t: 'Example mapping',
+      d: 'Step four of connecting a source: which source column supplies each field. Shown with an illustrative bank ' +
+         'layout where some required fields are not mapped, so the refusal can be seen. It is not the client\'s schema, ' +
+         'which has not arrived, and it does not touch the data in use. Simulated.'
     },
     rp_upload: {
       t: 'Load a rule workbook',
@@ -145,10 +230,10 @@ window.__ADMIN_NOTES__ = function (F) {
          'were read differently, and it is better found here than by a customer.'
     },
     gv_head: {
-      t: 'Platform, access and security',
-      d: 'Deployment, sign-in, roles, data protection and the language model. The deployed product runs inside the bank\'s ' +
-         'estate with no outbound internet, and the language model only translates a question into an engine call; it ' +
-         'never computes a figure. Simulated.'
+      t: 'Platform and security',
+      d: 'Deployment, data protection, the language model and regional settings. The deployed product runs inside the ' +
+         'bank\'s estate with no outbound internet, and the language model only translates a question into an engine ' +
+         'call; it never computes a figure. Sign-in and roles moved to Users & access. Simulated.'
     },
     vr_head: {
       t: 'Versions and updates',
@@ -156,10 +241,10 @@ window.__ADMIN_NOTES__ = function (F) {
          'and do not overwrite the bank\'s configuration. Simulated.'
     },
     dg_head: {
-      t: 'Diagnostics and export',
-      d: 'A support bundle with no applicant data, for reporting a problem to Azentio when there is no remote access, and ' +
-         'exports of configuration. Results exports belong on the analysis screens. Export works in every licence ' +
-         'state. Simulated.'
+      t: 'Support bundle and exports',
+      d: 'A support bundle with no applicant data, for reporting a problem to Azentio when there is no remote access, ' +
+         'and exports of configuration and the audit log. Results exports belong on the analysis screens. Export works ' +
+         'in every licence state. Simulated.'
     }
   };
 };

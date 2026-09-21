@@ -499,6 +499,74 @@ def build_connectors() -> dict:
     }
 
 
+def _stamp(as_of: dt.date, days_ago: int, hh: int, mm: int) -> str:
+    return (dt.datetime.combine(as_of - dt.timedelta(days=days_ago), dt.time(hh, mm))
+            .strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+
+def build_audit(as_of: dt.date) -> list[dict]:
+    """Example events outside the governed settings, which the engine records for real.
+
+    `kind` is what the audit log filters on. Changes to the risk appetite and the replay
+    assumptions are not here: the page reads them from the settings history."""
+    rows = [
+        (0, 7, 40, "Faisal Al-Otaibi", "Licence", "Checked for a renewed licence: none found"),
+        (0, 6, 5, "Noura Al-Qahtani", "Analysis", "Ran the simulator: bureau score cut-off 580"),
+        (1, 14, 30, "Faisal Al-Otaibi", "Rules", "Loaded rule pack: 4 workbooks"),
+        (1, 13, 5, "Omar Haddad", "Data", "Tested connection: Oracle, read-only account"),
+        (1, 9, 12, "Faisal Al-Otaibi", "Access", "Granted Risk approver to Huda Al-Shehri"),
+        (2, 11, 48, "Noura Al-Qahtani", "Analysis", "Exported the decline drivers for committee"),
+        (3, 8, 2, "System", "Data", "Nightly load: 1,204 new applications"),
+        (4, 15, 20, "Faisal Al-Otaibi", "Access", "Disabled the account of Tariq Mansour"),
+        (6, 10, 0, "System", "System", "Applied patch 1.3.2 to 1.4.0"),
+        (7, 16, 45, "Faisal Al-Otaibi", "System", "Created a support bundle for Azentio"),
+    ]
+    return [{"at": _stamp(as_of, d, h, m), "who": who, "kind": kind, "what": what}
+            for d, h, m, who, kind, what in rows]
+
+
+def build_access(as_of: dt.date) -> dict:
+    """Who has which role, and how sign-in reaches the product. Role names match the demo menu."""
+    users = [
+        ("Faisal Al-Otaibi", "Administrator", "Active", 0, 7, 40),
+        ("Noura Al-Qahtani", "Analyst", "Active", 0, 6, 5),
+        ("Khalid Al-Dosari", "Analyst", "Active", 2, 12, 10),
+        ("Huda Al-Shehri", "Risk approver", "Active", 1, 16, 2),
+        ("Saad Al-Mutairi", "Risk approver", "Active", 5, 9, 30),
+        ("Omar Haddad", "Administrator", "Active", 1, 13, 5),
+        ("Reem Al-Zahrani", "Business user", "Active", 3, 10, 15),
+        ("Majed Al-Ghamdi", "Business user", "Requested", None, 0, 0),
+        ("Tariq Mansour", "Analyst", "Disabled", 40, 11, 0),
+    ]
+    return {
+        "sso": {
+            "provider": "Bank directory, OpenID Connect",
+            "status": "Connected",
+            "synced": _stamp(as_of, 0, 5, 0),
+            "note": "Roles come from directory groups. A change in the directory applies at the next sign-in.",
+            "groups": [
+                {"group": "CSO-Business", "role": "Business user"},
+                {"group": "CSO-Analysts", "role": "Analyst"},
+                {"group": "CSO-RiskApprovers", "role": "Risk approver"},
+                {"group": "CSO-Admins", "role": "Administrator"},
+            ],
+            "session": "Server-side, 30-minute idle timeout",
+        },
+        "roles": [
+            {"role": "Business user", "may": "Reads the analysis screens and Settings."},
+            {"role": "Analyst", "may": "Also sees the data details, proposes risk-appetite changes and runs a recompute."},
+            {"role": "Risk approver", "may": "Approves or rejects proposed changes, sets the replay assumptions, "
+                                             "runs a recompute and reads the audit log."},
+            {"role": "Administrator", "may": "Licence, data sources, users and the audit log. Cannot change the "
+                                             "risk appetite."},
+        ],
+        "users": [{"name": n, "email": n.lower().replace("al-", "").replace(" ", ".") + "@client-bank.example",
+                   "role": r, "status": st,
+                   "last": _stamp(as_of, d, h, m) if d is not None else None}
+                  for n, r, st, d, h, m in users],
+    }
+
+
 def build_simulated(as_of: dt.date, real_fields: dict) -> dict:
     fields = [r["column"] for r in real_fields["columns"] if r["need"] != "Not requested"]
     # An example client layout. Illustrative: the real schema is not in yet, so no source name
@@ -568,10 +636,6 @@ def build_simulated(as_of: dt.date, real_fields: dict) -> dict:
             {"group": "Deployment", "items": [
                 {"key": "Environment", "value": "On-premise or private cloud"},
                 {"key": "Data residency", "value": "In-kingdom. No outbound internet."}]},
-            {"group": "Access", "items": [
-                {"key": "Sign-in", "value": "Single sign-on (OIDC or SAML)"},
-                {"key": "Roles", "value": "Analyst · Risk approver · Administrator"},
-                {"key": "Session", "value": "Server-side, 30-minute idle timeout"}]},
             {"group": "Data protection", "items": [
                 {"key": "Personal data", "value": "National ID and name masked; application ID hashed"},
                 {"key": "Secrets", "value": "Held in the bank's vault; only references stored here"},
@@ -587,13 +651,8 @@ def build_simulated(as_of: dt.date, real_fields: dict) -> dict:
             {"key": "Time zone", "value": "Asia/Riyadh"},
             {"key": "Date format", "value": "Gregorian, with Hijri alongside"},
         ],
-        "audit": [
-            {"when": "Today 09:12", "who": "Risk admin", "what": "Applied licence file"},
-            {"when": "Today 08:47", "who": "Analyst 2", "what": "Ran simulator: SIMAH cutoff 580"},
-            {"when": "Yesterday 17:30", "who": "Risk admin", "what": "Loaded rule pack (4 workbooks)"},
-            {"when": "Yesterday 16:05", "who": "Data engineer", "what": "Tested connection: Oracle (read-only)"},
-            {"when": "Mon 11:20", "who": "Risk admin", "what": "Changed bad-rate ceiling 12% to 11%"},
-        ],
+        "audit": build_audit(as_of),
+        "access": build_access(as_of),
         "versions": [
             {"key": "Application", "value": "1.4.0"},
             {"key": "Engine", "value": "2.2.1"},

@@ -64,6 +64,18 @@
         '<div class="val">' + esc(typeof p.value === 'string' ? p.value : fmtVal(p.value, p.fmt)) + '</div></div>';
     }).join('');
   }
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  /** An engine timestamp (ISO, UTC) as the pages print it. */
+  function when(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso || '');
+    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] + ', ' + m[4] + ':' + m[5] + ' UTC' : esc(iso || '—');
+  }
+  /** A governed setting's value in its own unit. */
+  function setVal(s, v) {
+    if (s.unit === 'bool') return v ? 'Yes' : 'No';
+    if (s.unit === 'rate') return (Math.round(v * 1000) / 10) + '%';
+    return Number(v).toFixed(2) + '×';
+  }
   /** The example rows of the applicant table. The section header carries the tag, so this repeats none. */
   function previewRows(F) {
     var P = F.dataset.preview;
@@ -77,7 +89,7 @@
   window.SettingsKit = {
     esc: esc, n0: n0, pct: pct, fmtVal: fmtVal, cell: cell, plural: plural, pv: pv, sim: sim, N: N,
     tile: tile, section: section, accordion: accordion, caveat: caveat, table: table, kv: kv, pvRows: pvRows,
-    previewRows: previewRows,
+    previewRows: previewRows, when: when, setVal: setVal,
     /** What a simulated action says when it is used. */
     UNAVAILABLE: 'Not available in this environment.'
   };

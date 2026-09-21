@@ -218,8 +218,9 @@ window.__SETTINGS_NOTES__ = function (F) {
     },
     au_head: {
       t: 'Audit log',
-      d: 'Who did what and when across the product: uploads, runs and access decisions. A preview. Changes to the risk ' +
-         'appetite and the replay assumptions are recorded for real, on Settings.'
+      d: 'Who did what and when, across the product, filtered in place and downloadable as shown. Changes to the ' +
+         'risk appetite and the replay assumptions, and the last recompute, are the engine\'s own records; the rest ' +
+         'are examples.'
     }
   };
 };

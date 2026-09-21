@@ -91,17 +91,7 @@
   function redraw() { window.PageShell.draw(true); }
 
   /* ================================================================ formatting */
-  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  /** '2026-09-21T10:04:00Z' → '21 Sep 2026, 10:04 UTC'. Formatting only. */
-  function when(iso) {
-    var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso || '');
-    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] + ', ' + m[4] + ':' + m[5] + ' UTC' : esc(iso || '—');
-  }
-  function val(s, v) {
-    if (s.unit === 'bool') return v ? 'Yes' : 'No';
-    if (s.unit === 'rate') return (Math.round(v * 1000) / 10) + '%';
-    return Number(v).toFixed(2) + '×';
-  }
+  var when = K.when, val = K.setVal;
   function setting(key) { return (S.gov ? S.gov.settings : []).filter(function (s) { return s.key === key; })[0]; }
   function group(g) { return (S.gov ? S.gov.settings : []).filter(function (s) { return s.group === g; }); }
   function impacts() {

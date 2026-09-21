@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 12:13 UTC",
+  "generated": "2026-09-21 12:38 UTC",
   "product": "TWQR",
   "synthetic": true,
   "note": "Rule set, dataset facts, field requirements and policy values are read from the engine. Everything under `simulated` is not."
@@ -761,8 +761,8 @@
    }
   ],
   "never_fire_count": 15,
-  "replay_seconds": 2.9,
-  "generated": "2026-09-21 12:13 UTC"
+  "replay_seconds": 2.7,
+  "generated": "2026-09-21 12:38 UTC"
  },
  "context": {
   "default_product": "TWQR",
@@ -1598,23 +1598,6 @@
     ]
    },
    {
-    "group": "Access",
-    "items": [
-     {
-      "key": "Sign-in",
-      "value": "Single sign-on (OIDC or SAML)"
-     },
-     {
-      "key": "Roles",
-      "value": "Analyst · Risk approver · Administrator"
-     },
-     {
-      "key": "Session",
-      "value": "Server-side, 30-minute idle timeout"
-     }
-    ]
-   },
-   {
     "group": "Data protection",
     "items": [
      {
@@ -1669,31 +1652,176 @@
   ],
   "audit": [
    {
-    "when": "Today 09:12",
-    "who": "Risk admin",
-    "what": "Applied licence file"
+    "at": "2026-09-21T07:40:00Z",
+    "who": "Faisal Al-Otaibi",
+    "kind": "Licence",
+    "what": "Checked for a renewed licence: none found"
    },
    {
-    "when": "Today 08:47",
-    "who": "Analyst 2",
-    "what": "Ran simulator: SIMAH cutoff 580"
+    "at": "2026-09-21T06:05:00Z",
+    "who": "Noura Al-Qahtani",
+    "kind": "Analysis",
+    "what": "Ran the simulator: bureau score cut-off 580"
    },
    {
-    "when": "Yesterday 17:30",
-    "who": "Risk admin",
-    "what": "Loaded rule pack (4 workbooks)"
+    "at": "2026-09-20T14:30:00Z",
+    "who": "Faisal Al-Otaibi",
+    "kind": "Rules",
+    "what": "Loaded rule pack: 4 workbooks"
    },
    {
-    "when": "Yesterday 16:05",
-    "who": "Data engineer",
-    "what": "Tested connection: Oracle (read-only)"
+    "at": "2026-09-20T13:05:00Z",
+    "who": "Omar Haddad",
+    "kind": "Data",
+    "what": "Tested connection: Oracle, read-only account"
    },
    {
-    "when": "Mon 11:20",
-    "who": "Risk admin",
-    "what": "Changed bad-rate ceiling 12% to 11%"
+    "at": "2026-09-20T09:12:00Z",
+    "who": "Faisal Al-Otaibi",
+    "kind": "Access",
+    "what": "Granted Risk approver to Huda Al-Shehri"
+   },
+   {
+    "at": "2026-09-19T11:48:00Z",
+    "who": "Noura Al-Qahtani",
+    "kind": "Analysis",
+    "what": "Exported the decline drivers for committee"
+   },
+   {
+    "at": "2026-09-18T08:02:00Z",
+    "who": "System",
+    "kind": "Data",
+    "what": "Nightly load: 1,204 new applications"
+   },
+   {
+    "at": "2026-09-17T15:20:00Z",
+    "who": "Faisal Al-Otaibi",
+    "kind": "Access",
+    "what": "Disabled the account of Tariq Mansour"
+   },
+   {
+    "at": "2026-09-15T10:00:00Z",
+    "who": "System",
+    "kind": "System",
+    "what": "Applied patch 1.3.2 to 1.4.0"
+   },
+   {
+    "at": "2026-09-14T16:45:00Z",
+    "who": "Faisal Al-Otaibi",
+    "kind": "System",
+    "what": "Created a support bundle for Azentio"
    }
   ],
+  "access": {
+   "sso": {
+    "provider": "Bank directory, OpenID Connect",
+    "status": "Connected",
+    "synced": "2026-09-21T05:00:00Z",
+    "note": "Roles come from directory groups. A change in the directory applies at the next sign-in.",
+    "groups": [
+     {
+      "group": "CSO-Business",
+      "role": "Business user"
+     },
+     {
+      "group": "CSO-Analysts",
+      "role": "Analyst"
+     },
+     {
+      "group": "CSO-RiskApprovers",
+      "role": "Risk approver"
+     },
+     {
+      "group": "CSO-Admins",
+      "role": "Administrator"
+     }
+    ],
+    "session": "Server-side, 30-minute idle timeout"
+   },
+   "roles": [
+    {
+     "role": "Business user",
+     "may": "Reads the analysis screens and Settings."
+    },
+    {
+     "role": "Analyst",
+     "may": "Also sees the data details, proposes risk-appetite changes and runs a recompute."
+    },
+    {
+     "role": "Risk approver",
+     "may": "Approves or rejects proposed changes, sets the replay assumptions, runs a recompute and reads the audit log."
+    },
+    {
+     "role": "Administrator",
+     "may": "Licence, data sources, users and the audit log. Cannot change the risk appetite."
+    }
+   ],
+   "users": [
+    {
+     "name": "Faisal Al-Otaibi",
+     "email": "faisal.otaibi@client-bank.example",
+     "role": "Administrator",
+     "status": "Active",
+     "last": "2026-09-21T07:40:00Z"
+    },
+    {
+     "name": "Noura Al-Qahtani",
+     "email": "noura.qahtani@client-bank.example",
+     "role": "Analyst",
+     "status": "Active",
+     "last": "2026-09-21T06:05:00Z"
+    },
+    {
+     "name": "Khalid Al-Dosari",
+     "email": "khalid.dosari@client-bank.example",
+     "role": "Analyst",
+     "status": "Active",
+     "last": "2026-09-19T12:10:00Z"
+    },
+    {
+     "name": "Huda Al-Shehri",
+     "email": "huda.shehri@client-bank.example",
+     "role": "Risk approver",
+     "status": "Active",
+     "last": "2026-09-20T16:02:00Z"
+    },
+    {
+     "name": "Saad Al-Mutairi",
+     "email": "saad.mutairi@client-bank.example",
+     "role": "Risk approver",
+     "status": "Active",
+     "last": "2026-09-16T09:30:00Z"
+    },
+    {
+     "name": "Omar Haddad",
+     "email": "omar.haddad@client-bank.example",
+     "role": "Administrator",
+     "status": "Active",
+     "last": "2026-09-20T13:05:00Z"
+    },
+    {
+     "name": "Reem Al-Zahrani",
+     "email": "reem.zahrani@client-bank.example",
+     "role": "Business user",
+     "status": "Active",
+     "last": "2026-09-18T10:15:00Z"
+    },
+    {
+     "name": "Majed Al-Ghamdi",
+     "email": "majed.ghamdi@client-bank.example",
+     "role": "Business user",
+     "status": "Requested",
+     "last": null
+    },
+    {
+     "name": "Tariq Mansour",
+     "email": "tariq.mansour@client-bank.example",
+     "role": "Analyst",
+     "status": "Disabled",
+     "last": "2026-08-12T11:00:00Z"
+    }
+   ]
+  },
   "versions": [
    {
     "key": "Application",

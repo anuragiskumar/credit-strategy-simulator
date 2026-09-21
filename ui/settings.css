@@ -136,6 +136,40 @@ table.t.su-compact td.su-mono { font-size: 11px; }
 .su-form { padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; }
 .su-form textarea.su-input { font-family: var(--ui); font-size: 12.5px; min-height: 64px; }
 
+/* ------------------------------------------------------------------ administration: overview */
+/* Attention is shown by weight and a word, never by hue: colour is kept for provenance. */
+.su-answer { margin: 0 0 16px; font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.su-answer b { color: var(--ink); font-weight: 600; }
+.su-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.su-card { min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+.su-card.is-attn { grid-column: 1 / -1; border: 1.5px solid var(--ink-2); }
+.su-card-h { display: flex; align-items: center; gap: 8px; min-height: 18px; }
+.su-need { font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: .09em; padding: 1px 6px;
+  border: 1px solid var(--ink-2); border-radius: 3px; color: var(--ink); }
+.su-card-v { margin-top: 8px; font-size: 13.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.su-card-s { display: block; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.su-card.is-big .su-card-v { margin-top: 6px; }
+.su-card-d { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); max-width: 75ch; }
+.su-card .su-row .btn { margin: 0; }
+
+/* ------------------------------------------------------------------ administration: connect a source */
+.su-stepper { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 18px; padding: 0; list-style: none; font-size: 12.5px; color: var(--faint); }
+.su-stepper li { display: flex; align-items: center; gap: 7px; }
+.su-stepper li span { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--line-hard);
+  border-radius: 50%; font-family: var(--mono); font-size: 10.5px; }
+.su-stepper li.is-done { color: var(--muted); }
+.su-stepper li[aria-current="step"] { color: var(--ink); font-weight: 600; }
+.su-stepper li[aria-current="step"] span { border-color: var(--ink); background: var(--ink); color: var(--surface); }
+.su-wizbody { min-width: 0; }
+.su-wizfoot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+
+/* ------------------------------------------------------------------ administration: audit and licence */
+.su-grid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.su-tech { margin-top: 18px; font-size: 13px; }
+.su-tech > summary { cursor: pointer; font-family: var(--mono); font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
+.su-tech[open] > summary { margin-bottom: 8px; }
+@media (max-width: 860px) { .su-grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* ------------------------------------------------------------------ accordions */
 .su-acc { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; margin-top: 18px; overflow: hidden; }
 .su-acc > summary {
@@ -162,7 +196,7 @@ table.t.su-compact td.su-mono { font-size: 11px; }
   .su-lic { grid-template-columns: minmax(0, 1fr); }
           }
 @media (max-width: 640px) {
-  .su-grid { grid-template-columns: minmax(0, 1fr); }
+  .su-grid, .su-grid4 { grid-template-columns: minmax(0, 1fr); }
   .su-big { font-size: 32px; }
   .su-setting-h { flex-wrap: wrap; }
   .su-kv { grid-template-columns: minmax(0, 1fr); }
