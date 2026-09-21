@@ -77,23 +77,19 @@ def build(cfg: dict, inv, *, quick: bool = False) -> dict:
     base = S.build_baseline(df, inv, cfg)
     outcome, res, model = base.outcome, base.res, base.model
 
-    drivers = A.decline_drivers(df, res, outcome, cfg, model=model)
+    drivers = A.decline_drivers(df, res, outcome, cfg, model=model,
+                                booked_bad_rate=base.booked_bad_rate)
     funnel = A.funnel(df, outcome)
 
     book_by = {}
     for slice_name in ("employer_segment", "sector", "channel", "nationality"):
-        book = A.portfolio(df, outcome, slice_name)
+        book = S.portfolio(base, slice_name)
         book_by[slice_name] = {
             "rows": _records(book, slice_name),
             "flags": clean(A.concentration_flags(book, cfg).to_dict("records")),
         }
-    bands = pd.cut(df["simah_score"], cfg["portfolio"]["score_bands"])
-    banded = df.assign(score_band=bands["simah_score"].astype(str)
-                       if isinstance(bands, pd.DataFrame) else bands.astype(str))
-    banded["score_band"] = banded["score_band"].fillna("no score")
     book_by["score_band"] = {
-        "rows": _records(A.portfolio(banded, outcome, "score_band"), "score_band"),
-        "flags": [],
+        "rows": _records(S.portfolio(base, "score_band"), "score_band"), "flags": [],
     }
 
     payload = {

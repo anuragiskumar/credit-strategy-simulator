@@ -63,7 +63,8 @@ def candidate_levers(base: S.Baseline, inv, cfg: dict,
     this one search — never switched off, and skipped by any cutoff move.
     """
     opt = cfg["optimise"]
-    drivers = A.decline_drivers(base.df, base.res, base.outcome, cfg, model=base.model)
+    drivers = A.decline_drivers(base.df, base.res, base.outcome, cfg, model=base.model,
+                                booked_bad_rate=base.booked_bad_rate)
     levers: list[S.Lever] = []
 
     eligible = drivers[drivers["relaxable"] & ~drivers["rule_id"].isin(frozen)

@@ -32,6 +32,16 @@ outcome:
     months_to_bad: [3, 12]     # a bad loan first reaches 90+ DPD in this range of months
     late_bad_share: 0.04       # goods that do reach 90+ DPD, but after the definition window
 
+# ---------------------------------------------------------------- analysis window (TODO A2)
+# Which applications are replayed. The bad rate never comes from this window: it comes from the
+# booked loans that have run the whole performance window (outcome.bad_definition.within_months,
+# or the window's own performance_months), wherever they sit in the file.
+analysis:
+  default_window:
+    last_months: 12
+  min_applicants: 1000         # a window with fewer is refused: rates on it are noise
+  cached_contexts: 8           # recent windows kept built, so switching back is instant
+
 # ---------------------------------------------------------------- population mix
 population:
   employer_segment_probs:

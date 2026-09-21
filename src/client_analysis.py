@@ -329,7 +329,8 @@ def funnel_rules(res, outcome: pd.DataFrame, cfg: dict,
 
 
 def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
-                    model=None, include_oracle: bool = False) -> pd.DataFrame:
+                    model=None, include_oracle: bool = False,
+                    booked_bad_rate: float | None = None) -> pd.DataFrame:
     """Which rule declines the most applicants, and how many it declines ON ITS OWN.
 
     "On its own" is the question Guru actually asked. Switching off a rule that always fires
@@ -340,6 +341,9 @@ def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
     the honest answer comes from the PD model and is refused outright for groups the booked
     population never covered. Pass `include_oracle=True` only on synthetic data, and only to
     show how close the honest estimate got.
+
+    `booked_bad_rate` is what a rule's risk is compared with. Pass the baseline's, which comes
+    from mature loans: in a recent application window hardly any booked loan has an outcome yet.
     """
     from src import client_risk
 
@@ -349,7 +353,8 @@ def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
     arr = block.to_numpy()
     only_one = arr.sum(axis=1) == 1
     lookup = res.rules.set_index("rule_id")
-    booked_bad = float(outcome.loc[outcome["booked"], "observed_bad"].mean())
+    booked_bad = (booked_bad_rate if booked_bad_rate is not None
+                  else float(outcome.loc[outcome["booked"], "observed_bad"].mean()))
 
     rows = []
     for j, rule_id in enumerate(block.columns):
@@ -406,22 +411,37 @@ def by_source(df: pd.DataFrame, outcome: pd.DataFrame, column: str) -> pd.DataFr
 
 
 def portfolio(df: pd.DataFrame, outcome: pd.DataFrame, by: str,
-              score_bands: list | None = None) -> pd.DataFrame:
-    """Booked book sliced by a segment, with performance — questions 5 and 6."""
+              score_bands: list | None = None,
+              perf: tuple[pd.DataFrame, pd.DataFrame] | None = None) -> pd.DataFrame:
+    """Booked book sliced by a segment, with performance — questions 5 and 6.
+
+    Volumes come from the window. The bad rate comes from `perf` (the mature cohort's applicants
+    and outcome) when given, because a window of recent business has almost no outcomes yet.
+    `observed` says how many loans each slice's bad rate rests on.
+    """
     booked = outcome["booked"]
     j = df[booked].join(outcome.loc[booked, ["observed_bad", "offered_amount"]])
     g = j.groupby(by, observed=True)
+    if perf is not None:
+        p_df, p_out = perf
+        risk = p_df[[by]].join(p_out[["observed_bad"]]).groupby(by, observed=True)["observed_bad"]
+    else:
+        risk = g["observed_bad"]
     out = pd.DataFrame({
         "booked": g.size(),
         "exposure": g["offered_amount"].sum().round(0),
-        # Over mature loans only: `observed` says how many that is, which can be far fewer
-        # than `booked` in a slice that is mostly recent business.
-        "observed": g["observed_bad"].count(),
-        "bad_rate": (100 * g["observed_bad"].mean()).round(2),
     })
+    out["observed"] = risk.count().reindex(out.index).fillna(0).astype(int)
+    out["bad_rate"] = (100 * risk.mean()).round(2).reindex(out.index)
     out["share_of_book"] = (100 * out["booked"] / out["booked"].sum()).round(1)
     out["share_of_exposure"] = (100 * out["exposure"] / out["exposure"].sum()).round(1)
     return out.sort_values("share_of_exposure", ascending=False)
+
+
+def with_score_band(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """The applicants with a `score_band` column for slicing, "no score" for a missing score."""
+    bands = pd.cut(df["simah_score"], cfg["portfolio"]["score_bands"]).astype(str)
+    return df.assign(score_band=bands.where(df["simah_score"].notna(), "no score"))
 
 
 def concentration_flags(book: pd.DataFrame, cfg: dict) -> pd.DataFrame:

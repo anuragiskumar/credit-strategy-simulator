@@ -45,7 +45,8 @@ def execute(call: client_llm.EngineCall, base: S.Baseline, inv, cfg: dict) -> di
         return {"stages": A.funnel(df, outcome).to_dict("records")}
 
     if intent in ("decline_drivers", "rules_not_earning_place"):
-        drivers = A.decline_drivers(df, res, outcome, cfg, model=base.model)
+        drivers = A.decline_drivers(df, res, outcome, cfg, model=base.model,
+                                    booked_bad_rate=base.booked_bad_rate)
         if intent == "decline_drivers":
             top = drivers.head(p["top"])
         else:
@@ -63,12 +64,12 @@ def execute(call: client_llm.EngineCall, base: S.Baseline, inv, cfg: dict) -> di
                 "rows": table.reset_index().to_dict("records")}
 
     if intent == "portfolio":
-        book = _portfolio_frame(df, outcome, cfg, p["slice"])
+        book = S.portfolio(base, p["slice"])
         return {"slice": p["slice"], "top": _top_row(book, p["slice"]),
                 "rows": book.reset_index().to_dict("records")}
 
     if intent == "concentration":
-        book = _portfolio_frame(df, outcome, cfg, p["slice"])
+        book = S.portfolio(base, p["slice"])
         return {"slice": p["slice"],
                 "flags": A.concentration_flags(book, cfg).to_dict("records")}
 
@@ -93,14 +94,6 @@ def execute(call: client_llm.EngineCall, base: S.Baseline, inv, cfg: dict) -> di
                 "best": options[0] if options else None, "options": options}
 
     raise client_llm.TranslationError(f"no executor for intent {intent!r}")
-
-
-def _portfolio_frame(df: pd.DataFrame, outcome: pd.DataFrame, cfg: dict, slice_name: str):
-    if slice_name != "score_band":
-        return A.portfolio(df, outcome, slice_name)
-    bands = pd.cut(df["simah_score"], cfg["portfolio"]["score_bands"]).astype(str)
-    banded = df.assign(score_band=bands.where(df["simah_score"].notna(), "no score"))
-    return A.portfolio(banded, outcome, "score_band")
 
 
 def ask(question: str, base: S.Baseline, inv, cfg: dict,

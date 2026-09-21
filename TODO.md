@@ -33,15 +33,15 @@ There are two windows, and both are missing:
 **Done when:** a real bank file with booked outcomes loads and runs without a `latent_bad` column.
 
 ### A2. Analysis window as an engine parameter — P0
-- [ ] One `AnalysisWindow {app_from, app_to, performance_months}` object, carried in config and on
+- [x] One `AnalysisWindow {app_from, app_to, performance_months}` object, carried in config and on
       every request.
-- [ ] Build a baseline (replay, outcome, PD model) per window. Cache recent windows, because a
+- [x] Build a baseline (replay, outcome, PD model) per window. Cache recent windows, because a
       baseline takes about 3 seconds to build.
-- [ ] Application mask: sets who is replayed, which drives the funnel, approval rate, drivers and
+- [x] Application mask: sets who is replayed, which drives the funnel, approval rate, drivers and
       swap sets.
-- [ ] Maturity mask: only booked loans older than `performance_months` feed the bad rate and PD
+- [x] Maturity mask: only booked loans older than `performance_months` feed the bad rate and PD
       training. Show immature loans as "not yet observable". They must not count as good.
-- [ ] Make the window part of each scenario's identity, and have every simulate and goal-seek
+- [x] Make the window part of each scenario's identity, and have every simulate and goal-seek
       result report the window it ran on.
 
 **Done when:** choosing "last 3 months" can't make the bad rate look better just because loans
@@ -61,8 +61,8 @@ haven't had time to go bad.
 - [ ] Fixture mode: precompute two or three windows so the offline demo can still show the control.
 
 ### A5. Tests — P0
-- [ ] Window boundaries (inclusive/exclusive, empty window).
-- [ ] Immature loans are excluded from the bad rate and from PD training.
+- [x] Window boundaries (inclusive/exclusive, empty window).
+- [x] Immature loans are excluded from the bad rate and from PD training.
 - [ ] The same window gives the same figures through the CLI, the API and the fixture export.
 
 ---

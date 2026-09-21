@@ -191,6 +191,27 @@ class ReplayResult:
         return self.hits[rule_id].to_numpy()
 
 
+def subset(res: ReplayResult, mask) -> ReplayResult:
+    """The same replay, restricted to some applicants.
+
+    A rule's verdict on one applicant depends on nobody else, so slicing a replay of everyone
+    is identical to replaying the slice, and costs nothing. That is what makes an analysis
+    window cheap: the file is replayed once and every window is a row mask over it.
+    """
+    mask = np.asarray(mask, dtype=bool)
+    hits = res.hits.loc[mask]
+    rules = res.rules.copy()
+    if not rules.empty:
+        rules["matched"] = [int(hits[r].sum()) if r in hits.columns else 0 for r in rules.rule_id]
+    return ReplayResult(hits=hits, rules=rules, unevaluable=list(res.unevaluable),
+                        compiled=res.compiled)
+
+
+def subset_frames(frames: dict[str, pd.DataFrame], mask) -> dict[str, pd.DataFrame]:
+    mask = np.asarray(mask, dtype=bool)
+    return {t: f.loc[mask] for t, f in frames.items()}
+
+
 def prepare_frames(df: pd.DataFrame, cfg: dict) -> dict[str, pd.DataFrame]:
     """Render the applicants into every decision table's dialect, once.
 

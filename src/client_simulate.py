@@ -302,13 +302,51 @@ def combine(*levers: Lever, label: str | None = None) -> Lever:
 
 
 @dataclass
-class Baseline:
+class FullReplay:
+    """The whole file, replayed once under the current rules. Windows are row masks over it."""
+    df: pd.DataFrame
+    frames: dict
+    res: client_replay.ReplayResult
+
+
+def full_replay(df: pd.DataFrame, inv, cfg: dict) -> FullReplay:
+    frames = client_replay.prepare_frames(df, cfg)
+    return FullReplay(df=df, frames=frames,
+                      res=client_replay.replay(df, inv, cfg, frames=frames))
+
+
+@dataclass
+class Cohort:
+    """The performance evidence: booked loans that have run the whole performance window.
+
+    Drawn from the whole file, not the application window. Recent applications have not had
+    time to go bad, so the bad rate, the PD model and every observed swap-out rate come from
+    here, wherever the application window sits.
+    """
     df: pd.DataFrame
     res: client_replay.ReplayResult
     outcome: pd.DataFrame
+    frames: dict
+
+    @property
+    def booked_from(self):
+        return pd.to_datetime(self.df["booking_date"]).min()
+
+    @property
+    def booked_to(self):
+        return pd.to_datetime(self.df["booking_date"]).max()
+
+
+@dataclass
+class Baseline:
+    df: pd.DataFrame                   # the application window's applicants
+    res: client_replay.ReplayResult
+    outcome: pd.DataFrame
     model: client_risk.PDModel
-    cfg: dict
+    cfg: dict                          # with the bad definition set to the window's months
     frames: dict = field(default_factory=dict)
+    perf: Cohort | None = None
+    window: object = None              # the resolved client_context.AnalysisWindow
 
     @property
     def approval_rate(self) -> float:
@@ -316,21 +354,75 @@ class Baseline:
 
     @property
     def booked_bad_rate(self) -> float:
-        """Over mature booked loans; NaN would mean none are old enough to judge."""
+        """Over mature booked loans only — the performance cohort, not the window."""
+        if self.perf is not None:
+            return float(self.perf.outcome["observed_bad"].mean())
         return float(self.outcome.loc[self.outcome["booked"], "observed_bad"].mean())
 
     @property
     def observed_loans(self) -> int:
         """How many booked loans the bad rate actually rests on."""
+        if self.perf is not None:
+            return int(len(self.perf.df))
         return int(self.outcome["observed_bad"].notna().sum())
 
+    def window_dict(self) -> dict | None:
+        """The window this baseline ran on, and the loans its risk figures rest on."""
+        if self.window is None:
+            return None
+        out = self.window.to_dict()
+        out["applicants"] = int(len(self.df))
+        if self.perf is not None:
+            out["mature_loans"] = self.observed_loans
+            out["mature_booked_from"] = self.perf.booked_from.strftime("%Y-%m-%d")
+            out["mature_booked_to"] = self.perf.booked_to.strftime("%Y-%m-%d")
+        return out
 
-def build_baseline(df: pd.DataFrame, inv, cfg: dict) -> Baseline:
-    frames = client_replay.prepare_frames(df, cfg)
-    res = client_replay.replay(df, inv, cfg, frames=frames)
-    outcome = A.stage_outcome(df, res, cfg)
-    return Baseline(df=df, res=res, outcome=outcome, model=client_risk.fit(df, outcome, cfg),
-                    cfg=cfg, frames=frames)
+
+def build_baseline(df: pd.DataFrame, inv, cfg: dict, *, window=None,
+                   full: FullReplay | None = None, perf_cache: dict | None = None) -> Baseline:
+    """The baseline for one analysis window. With no window, the whole file.
+
+    `full` and `perf_cache` let a caller that serves many windows (client_context.ContextCache)
+    replay the file once, and fit the PD model once per performance window.
+    """
+    from src import client_context as C
+
+    w = C.resolve(window, df, cfg)
+    cfg_w = C.cfg_for(cfg, w)
+    full = full or full_replay(df, inv, cfg)
+    mask = C.app_mask(full.df, w).to_numpy()
+
+    key = (cfg["product"], w.performance_months)
+    if perf_cache is not None and key in perf_cache:
+        outcome_all, model = perf_cache[key]
+    else:
+        outcome_all = A.stage_outcome(full.df, full.res, cfg_w)
+        C.check(w, int(mask.sum()), int(outcome_all["mature"].sum()), cfg_w)
+        model = client_risk.fit(full.df, outcome_all, cfg_w)
+        if perf_cache is not None:
+            perf_cache[key] = (outcome_all, model)
+    mature = outcome_all["mature"].to_numpy()
+    C.check(w, int(mask.sum()), int(mature.sum()), cfg_w)
+
+    perf = Cohort(df=full.df[mature], res=client_replay.subset(full.res, mature),
+                  outcome=outcome_all[mature],
+                  frames=client_replay.subset_frames(full.frames, mature))
+    return Baseline(df=full.df[mask], res=client_replay.subset(full.res, mask),
+                    outcome=outcome_all[mask], model=model, cfg=cfg_w,
+                    frames=client_replay.subset_frames(full.frames, mask),
+                    perf=perf, window=w)
+
+
+def portfolio(base: Baseline, by: str) -> pd.DataFrame:
+    """The window's book sliced by `by`, with each slice's bad rate from the mature cohort."""
+    df, perf = base.df, base.perf
+    pdf = perf.df if perf is not None else None
+    if by == "score_band":
+        df = A.with_score_band(df, base.cfg)
+        pdf = A.with_score_band(pdf, base.cfg) if pdf is not None else None
+    return A.portfolio(df, base.outcome, by,
+                       perf=(pdf, perf.outcome) if perf is not None else None)
 
 
 def simulate(base: Baseline, inv, lever: Lever) -> dict:
@@ -348,17 +440,21 @@ def simulate(base: Baseline, inv, lever: Lever) -> dict:
     risk_in = client_risk.predict_group(base.model, df, swap_in, cfg)
     risk_out = client_risk.predict_group(base.model, df, swap_out, cfg)
 
-    # Swap-outs are booked loans, so their performance is OBSERVED, not estimated. A
-    # tightening is judged on what those loans actually did.
+    # The observed side comes from the performance cohort: the same change replayed over the
+    # mature loans. Swap-outs in the window are mostly too recent to have an outcome, but
+    # mature loans the change would also have declined did, and a tightening is judged on
+    # what those loans actually did.
     n_out = int(swap_out.sum())
-    out_bad = (float(base.outcome.loc[swap_out, "observed_bad"].mean()) if n_out else None)
+    still, obs = _still_booked(base, inv, lever)
+    n_out_seen = int((~still).sum())
+    out_bad = float(obs[~still].mean()) if n_out and n_out_seen else None
 
     # Expected bad rate of the new book: those who stay, plus the estimated swap-ins. With no
     # swap-ins the new book is exactly the loans that stay, all observed — a tightening must
     # not report "unknown" just because nobody new was approved.
     stays = was & now
     n_stay, n_in = int(stays.sum()), int(swap_in.sum())
-    stay_bad = float(base.outcome.loc[stays, "observed_bad"].mean()) if n_stay else np.nan
+    stay_bad = float(obs[still].mean()) if n_stay and still.any() else np.nan
     if n_in == 0 and n_stay:
         new_bad, new_bad_known = stay_bad, True
     elif risk_in.get("known") and n_stay + n_in:
@@ -381,15 +477,32 @@ def simulate(base: Baseline, inv, lever: Lever) -> dict:
         "swap_in_risk": risk_in,
         "swap_out_risk": risk_out,
         "swap_out_observed_bad_rate": round(out_bad, 4) if out_bad is not None else None,
+        "swap_out_observed_loans": n_out_seen if n_out else 0,
         "booked_bad_rate_before": round(base.booked_bad_rate, 4),
         "expected_bad_rate_after": round(float(new_bad), 4) if new_bad_known else None,
         "expected_bad_rate_known": new_bad_known,
         "risk_verdict": _verdict(risk_in, base.booked_bad_rate, cfg, n_in=n_in, n_out=n_out,
                                  out_bad=out_bad),
+        "window": base.window_dict(),
         "_outcome": outcome,
         "_swap_in": swap_in,
         "_swap_out": swap_out,
     }
+
+
+def _still_booked(base: Baseline, inv, lever: Lever) -> tuple[np.ndarray, pd.Series]:
+    """Which mature loans a change keeps, and their observed outcomes."""
+    perf = base.perf
+    if perf is None:            # a baseline built without a cohort reads its own outcome
+        booked = base.outcome["booked"].to_numpy()
+        res = client_replay.replay(base.df, inv, base.cfg, overrides=lever.overrides,
+                                   frames=base.frames, base=base.res)
+        now = A.stage_outcome(base.df, res, base.cfg)["booked"].to_numpy()
+        return now[booked], base.outcome.loc[booked, "observed_bad"]
+    res = client_replay.replay(perf.df, inv, base.cfg, overrides=lever.overrides,
+                               frames=perf.frames, base=perf.res)
+    now = A.stage_outcome(perf.df, res, base.cfg)["booked"].to_numpy()
+    return now, perf.outcome["observed_bad"]
 
 
 def _verdict(risk_in: dict, booked_bad: float, cfg: dict, *, n_in: int = 1, n_out: int = 0,
@@ -397,9 +510,12 @@ def _verdict(risk_in: dict, booked_bad: float, cfg: dict, *, n_in: int = 1, n_ou
     if n_in == 0 and n_out == 0:
         return "no applicant changes outcome: other rules already decide everyone this touches"
     if n_in == 0:
-        ratio = (out_bad or 0.0) / max(booked_bad, 1e-9)
-        return (f"{n_out:,} booked loans would be declined; they repaid at an observed bad rate "
-                f"of {100 * (out_bad or 0):.1f}% against {100 * booked_bad:.1f}% for the book "
+        if out_bad is None:
+            return (f"{n_out:,} booked loans would be declined; none of the loans it would have "
+                    "declined is old enough to show how they repaid")
+        ratio = out_bad / max(booked_bad, 1e-9)
+        return (f"{n_out:,} booked loans would be declined; mature loans like them went bad at "
+                f"{100 * out_bad:.1f}% against {100 * booked_bad:.1f}% for the book "
                 f"({ratio:.1f}x)")
     if not risk_in.get("known"):
         return f"unknown — {risk_in.get('reason', 'cannot estimate')}"
