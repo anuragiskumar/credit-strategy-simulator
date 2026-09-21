@@ -1,0 +1,184 @@
+/* Layout for the Settings page of client.html. No new colours: everything is a token from tokens.css.
+ *
+ * Colour still encodes provenance and nothing else. Preview (simulated) content is marked by an
+ * achromatic dashed tag (.su-sim), never by hue, and it is not a fifth provenance kind.
+ * Every class here is prefixed `su-`, so it cannot collide with client.css. Loaded by
+ * client.html after client.css; the spec-note styles it needs are already in client.css.
+ */
+
+/* ------------------------------------------------------------------ simulated marker */
+.su-sim {
+  display: inline-flex; align-items: center; height: 17px; padding: 0 6px; vertical-align: middle;
+  border: 1px dashed var(--line-hard); border-radius: 3px; background: transparent; color: var(--muted);
+  font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .08em; white-space: nowrap;
+}
+.su-sim::before { content: ''; width: 5px; height: 5px; margin-inline-end: 5px; border: 1px dashed var(--muted); border-radius: 50%; }
+
+.su-lead { margin: 0 0 14px; font-family: var(--prose); font-size: 14px; line-height: 1.55; color: var(--muted); max-width: 70ch; }
+.su-sub { margin: 16px 0 8px; font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
+.su-sub:first-child { margin-top: 0; }
+.su-mono { font-family: var(--mono); font-size: 12px; }
+.su-faint { color: var(--faint); }
+.su-muted { color: var(--muted); }
+.su-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.su-gap { margin-top: 14px; }
+
+/* ------------------------------------------------------------------ readiness */
+.su-ready .tile .v { font-size: 20px; }
+.su-ready .tile .k { min-height: 26px; }
+
+/* ------------------------------------------------------------------ licence */
+.su-lic { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.su-licstate { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.su-lichead { margin: 4px 0 2px; font-family: var(--mono); font-size: 24px; font-weight: 500; letter-spacing: -.02em; line-height: 1.15; }
+.su-licmeta { margin: 0; font-size: 13px; color: var(--muted); }
+.su-licact { display: flex; align-items: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.su-licmsg { margin-top: 12px; font-size: 12.5px; color: var(--ink-2); min-height: 18px; }
+.su-refresh svg { display: block; }
+.su-refresh.is-busy svg { animation: su-spin .8s linear infinite; }
+@keyframes su-spin { to { transform: rotate(360deg); } }
+
+.su-kv { display: grid; grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); font-size: 13px; }
+.su-kv > div { padding: 7px 0; border-bottom: 1px solid var(--line-soft); min-width: 0; overflow-wrap: anywhere; }
+.su-kv > div:nth-last-child(-n+2) { border-bottom: 0; }
+.su-kv .k { color: var(--muted); padding-inline-end: 12px; }
+.su-kv .v { color: var(--ink); }
+.su-kv .v.fig { font-size: 12px; }
+
+.su-ladder { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0; padding: 0; list-style: none; }
+.su-rung { background: var(--surface); padding: 10px 12px 12px; min-width: 0; box-shadow: inset 0 -2px 0 transparent; }
+.su-rung[aria-current="step"] { background: var(--sunken); box-shadow: inset 0 -2px 0 var(--ink); }
+.su-rung b { display: block; font-size: 12.5px; font-weight: 600; }
+.su-rung[aria-current="step"] b::after { content: ' · now'; font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+.su-rung .from { display: block; margin: 2px 0 6px; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+.su-rung p { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+.su-always { display: flex; gap: 8px 22px; flex-wrap: wrap; margin: 10px 0 0; padding: 0; list-style: none; font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+.su-always li::before { content: '— '; color: var(--faint); }
+
+.su-dev { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line-hard); border-radius: 7px; font-size: 12px; color: var(--muted); display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; }
+.su-dev b { font-family: var(--mono); font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase; font-weight: 500; color: var(--faint); }
+
+/* ------------------------------------------------------------------ forms */
+.su-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+.su-field { display: grid; gap: 5px; min-width: 0; align-content: start; }
+.su-field.wide { grid-column: 1 / -1; }
+.su-field > label, .su-legend { font-size: 12px; font-weight: 500; color: var(--ink-2); }
+.su-field > label i { font-style: normal; color: var(--faint); font-weight: 400; }
+.su-input {
+  width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--line-hard); border-radius: 6px;
+  background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: 12px;
+}
+textarea.su-input { height: auto; min-height: 82px; padding: 8px 10px; resize: vertical; line-height: 1.45; }
+select.su-input { font-family: var(--ui); font-size: 12.5px; }
+.su-input::placeholder { color: var(--faint); }
+.su-input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.su-help { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+.su-help.warn { color: var(--ink-2); }
+.su-choice { display: grid; gap: 8px; }
+.su-radio { display: flex; gap: 9px; align-items: flex-start; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.su-radio:hover { border-color: var(--line-hard); }
+.su-radio input { margin: 2px 0 0; accent-color: var(--ink-2); }
+.su-radio b { display: block; font-size: 12.5px; font-weight: 600; }
+.su-radio span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+.su-radio:has(input:checked) { background: var(--sunken); border-color: var(--line-hard); }
+
+.su-drop {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px;
+  border: 1.5px dashed var(--line-hard); border-radius: 8px; background: var(--sunken);
+}
+.su-drop p { margin: 0; font-size: 12.5px; color: var(--muted); flex: 1 1 220px; }
+.su-drop p b { color: var(--ink-2); font-weight: 600; }
+.su-file { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+
+.su-steps { list-style: none; margin: 12px 0 0; padding: 0; font-size: 12.5px; }
+.su-steps li { display: grid; grid-template-columns: 18px minmax(130px, 200px) minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); align-items: baseline; }
+.su-steps li:last-child { border-bottom: 0; }
+.su-steps .mk { font-family: var(--mono); color: var(--ink-2); font-weight: 600; }
+.su-steps .ms { font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+.su-steps .lb { font-weight: 500; }
+.su-steps .dt { color: var(--muted); }
+.su-steps li.is-fail .lb { font-weight: 700; }
+.su-verdict { margin-top: 10px; font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+
+/* ------------------------------------------------------------------ tables */
+.su-scroll { max-height: 440px; overflow: auto; }
+.su-file-cell b { display: block; font-family: var(--mono); font-size: 11px; font-weight: 500; overflow-wrap: anywhere; }
+.su-file-cell span { display: block; font-family: var(--mono); font-size: 10px; color: var(--faint); margin-top: 2px; }
+.su-tag { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.su-tag.need-Required { color: var(--ink); font-weight: 600; }
+.su-unmapped { font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .04em; color: var(--ink); border: 1px solid var(--line-hard); border-radius: 3px; padding: 1px 5px; background: var(--sunken); }
+.su-nullbar { display: inline-block; height: 6px; background: var(--ink-2); border-radius: 2px; vertical-align: middle; opacity: .55; }
+
+table.t.su-compact th, table.t.su-compact td { padding: 7px 8px; }
+table.t.su-compact td.su-mono { font-size: 11px; }
+
+/* ------------------------------------------------------------------ policy */
+.su-policy { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
+.su-pv { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.su-pv:last-child { border-bottom: 0; }
+.su-pv > div:first-child { min-width: 0; flex: 1 1 55%; }
+.su-pv b { display: block; font-size: 12.5px; font-weight: 500; }
+.su-pv span { display: block; font-size: 11.5px; color: var(--muted); line-height: 1.45; margin-top: 1px; }
+/* A value may be a long list (score bands), so it wraps rather than squeezing the label. */
+.su-pv .val { flex: 0 1 auto; max-width: 45%; text-align: end; font-family: var(--mono); font-size: 14px; font-weight: 500; }
+
+/* ------------------------------------------------------------------ accordions */
+.su-acc { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; margin-top: 18px; overflow: hidden; }
+.su-acc > summary {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 15px; cursor: pointer;
+  list-style: none; user-select: none;
+}
+.su-acc > summary::-webkit-details-marker { display: none; }
+.su-acc > summary::before {
+  content: ''; width: 7px; height: 7px; border-inline-end: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg); transition: transform .15s; flex: 0 0 auto; margin-inline-end: 2px;
+}
+.su-acc[open] > summary::before { transform: rotate(45deg); }
+.su-acc > summary h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -.005em; }
+.su-acc > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.su-acc[open] > summary { border-bottom: 1px solid var(--line-soft); }
+.su-acc .panelbody { padding: 15px; }
+
+/* ------------------------------------------------------------------ administration group */
+/* One heading and one PREVIEW tag for every simulated accordion under it. */
+.su-group { display: flex; align-items: center; gap: 10px; margin: 36px 0 2px; padding-top: 18px; border-top: 1px solid var(--line); }
+.su-group h3 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.005em; }
+.su-group + .su-help { margin: 0 0 -4px; }
+.su-summ { font-size: 11px; }
+.su-list { margin: 6px 0 0; padding-inline-start: 18px; font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+.su-expr { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+
+/* ------------------------------------------------------------------ small screens */
+@media (max-width: 860px) {
+  .su-lic { grid-template-columns: minmax(0, 1fr); }
+  .su-ladder { grid-template-columns: minmax(0, 1fr); }
+  .su-rung { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 2px 10px; }
+  .su-rung .from { margin: 0; grid-column: 1; }
+  .su-rung b { grid-column: 1; }
+  .su-rung p { grid-column: 2; grid-row: 1 / span 2; }
+}
+@media (max-width: 640px) {
+  .su-grid { grid-template-columns: minmax(0, 1fr); }
+  .su-kv { grid-template-columns: minmax(0, 1fr); }
+  .su-kv .k { padding-bottom: 0; border-bottom: 0; }
+  .su-kv > div:nth-last-child(-n+2) { border-bottom: 1px solid var(--line-soft); }
+  .su-steps li { grid-template-columns: 18px minmax(0, 1fr) auto; }
+  .su-steps .dt { grid-column: 2 / -1; }
+  .su-lichead { font-size: 20px; }
+}
+
+/* The rail's "On this page" list marks the section in view. tokens.css only styles aria-current="page",
+   which the Settings item above it already holds, so these carry their own state. */
+#rail .navitem[data-jump] { padding-block: 5px; font-size: 12.5px; }
+#rail .navitem[data-jump][aria-current="true"] { background: var(--sunken); color: var(--ink); font-weight: 600; }
+
+/* ------------------------------------------------------------------ overflow guards */
+/* The licence chip can outgrow a phone's topbar, so it shortens instead of pushing the icons out. */
+#licchip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* A rule field can be a whole expression; `.rid` is nowrap in tokens.css, which is wrong inside prose. */
+.su-sec .caveat .rid, .su-sec .su-help .rid, .su-acc .su-help .rid { white-space: normal; overflow-wrap: anywhere; }
+/* The five-way source picker is wider than a phone; it scrolls within itself instead of the page. */
+.su-sec .seg { max-width: 100%; overflow-x: auto; }
+.su-sec .seg button { flex: 0 0 auto; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) { .su-refresh.is-busy svg { animation: none; } }

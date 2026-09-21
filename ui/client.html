@@ -6,6 +6,7 @@
 
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="client.css">
+<link rel="stylesheet" href="settings.css">
 
 <div class="app">
   <header class="topbar">
@@ -22,6 +23,7 @@
     <div class="topdiv hide-sm"></div>
     <button class="chip is-static" id="productchip" data-note="product"><span class="fig">TWQR</span></button>
     <button class="chip is-static hide-sm" id="ruleschip" data-note="rules">— rules replayed</button>
+    <button class="chip" id="licchip" data-note="lic_chip" title="Go to the licence"></button>
     <div class="spacer"></div>
     <button class="iconbtn" id="specbtn" aria-label="Spec notes" aria-pressed="false" title="Spec notes: number each item and explain it below">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -46,6 +48,9 @@
 <div class="scrim" id="scrim"></div>
 
 <script src="client_data.js"></script>
+<script src="settings_data.js"></script>
 <script src="client_notes.js"></script>
+<script src="settings_notes.js"></script>
 <script src="client_funnel_model.js"></script>
+<script src="settings.js"></script>
 <script src="client.js"></script>

@@ -39,6 +39,10 @@ turning a number into a string, a width, or an SVG coordinate.
 | `client.js` | Portfolio, Decline drivers, Simulator. Reads `window.__CLIENT__`, nothing else |
 | `client_export.py` | Produces `client_fixture.json` and `client_data.js` from the engine |
 | `client_notes.js` | Text of the spec notes: what each element on the three screens is and stands for |
+| `settings.js` | The fourth page, Settings. Reads `window.__SETTINGS__`, owns its own state and events, and exposes `window.SettingsScreen` for `client.js` to call |
+| `settings.css` | Layout for it. Every class is `su-` prefixed, and it is loaded after `client.css` |
+| `settings_notes.js` | Spec notes for it. Merged with `client_notes.js`, so no key may appear in both |
+| `settings_export.py` | Produces `settings.json` and `settings_data.js`. Separate from `client_export.py` so either can be rebuilt alone |
 
 `tokens.css` was extracted out of `index.html` so the client screens could reuse it rather than
 copy it. The two pages are separate only because they sit on different engines; they merge
@@ -53,6 +57,30 @@ python -m ui.client_export && python -m ui.serve
 Then <http://127.0.0.1:8777/client.html>. See `ENGINE.md` for what they show. The export takes
 about three minutes, most of it the two goal-seek runs; `--quick` skips the scenario grid and
 takes seconds when only the static parts changed.
+
+### Settings
+
+The fourth screen: licence, rule set, applicant data source, field mapping, policy values, run and
+data quality, and the platform items a deployed product needs.
+
+```bash
+python -m ui.settings_export      # seconds; independent of client_export
+```
+
+Part of it is real and part is simulated, and the screen says which. The rule set, dataset facts,
+field requirements, policy values and replay timing are read from the engine. Everything under
+the fixture's `simulated` key is not: the licence, the file upload, the Oracle, PostgreSQL and MySQL
+connectors, outcome definitions, access and security, versions, and diagnostics. That content carries a
+dashed **SIMULATED** tag, which is deliberately not a colour, and none of it changes a figure on any other
+screen. Nothing on the page leaves the browser or is stored, a chosen file is never read, and the demo
+password field is never read.
+
+Add `?dev=1` for presenter controls on the licence panel: step through Active, Expiring, Grace,
+Read-only, Suspended and Renewed, and stage a "renewed licence arrived" refresh. They are not shown on
+`localhost` alone, so a demo run from a laptop never displays them by accident.
+
+`client.js` reaches the page through four calls (`page`, `rail`, `after`, `init`) and merges its notes;
+`settings.js` and `settings_notes.js` must load before `client.js`, which boots at load.
 
 ### Spec notes
 
