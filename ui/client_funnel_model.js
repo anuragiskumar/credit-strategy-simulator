@@ -45,7 +45,8 @@
         nRules: d ? d.n_rules : 0, topN: d ? d.top_n : 0, topNPct: d ? d.top_n_pct : null,
         rules: d ? d.rules.map(function (x) {
           return { id: x.rule_id, code: x.policy_code, label: x.label, count: x.count,
-                   pctOfStage: x.pct_of_stage, relaxable: x.relaxable };
+                   pctOfStage: x.pct_of_stage, relaxable: x.relaxable,
+                   tests: x.tests || '', disagrees: !!x.description_disagrees };
         }) : []
       };
     });
@@ -119,8 +120,10 @@
 
   function geometry(m, opts) {
     var W = opts.width, narrow = !!opts.narrow;
-    var leftW = narrow ? 78 : 172, rightW = narrow ? 108 : 232, gap = narrow ? 6 : 16;
-    var midX = leftW + gap, midW = Math.max(40, W - leftW - rightW - 2 * gap);
+    // leakRun keeps clear space between the widest trapezoid and the labels, so every arrow
+    // has room for the same curve, including the first stage, whose edge is nearest the labels.
+    var leftW = narrow ? 78 : 172, rightW = narrow ? 104 : 232, gap = narrow ? 6 : 16, leakRun = narrow ? 30 : 64;
+    var midX = leftW + gap, midW = Math.max(40, W - leftW - rightW - gap - leakRun);
     var cx = midX + midW / 2, labelX = W - rightW;
     var bandH = narrow ? 26 : 30, connH = narrow ? 56 : 54, groupH = 18, pad = 4;
     var maxLost = Math.max.apply(null, m.stages.map(function (s) { return s.lost; }));
@@ -166,18 +169,19 @@
       });
       names.push({ id: s.id, label: s.label, sub: s.sublabel, y: y0 + connH / 2, kind: 'stage', group: s.group });
 
-      var ey = y0 + connH * 0.38, t = (ey - y) / (yb - y);
-      var ex = cx + (top.w / 2) * (1 - t) + (botW / 2) * t;
-      var ly = y0 + connH * 0.58, sw = swMin + (swMax - swMin) * (maxLost ? s.lost / maxLost : 0);
+      // Every arrow leaves the trapezoid's right edge at the middle of the stage's row and
+      // runs the same S-curve down to its label: one origin rule, one curve style.
+      var ey = y0 + connH * 0.42, t = (ey - y) / (yb - y), ly = ey + (narrow ? 8 : 10);
+      var ex = cx + (top.w / 2) * (1 - t) + (botW / 2) * t - 3;
+      var sw = swMin + (swMax - swMin) * (maxLost ? s.lost / maxLost : 0);
       var head = narrow ? Math.max(3, sw * 0.6) + 2 : Math.max(4, sw * 0.8) + 3;
-      var tip = labelX - (narrow ? 3 : 6), bx = tip - head * 1.3;
-      var mid = ex + (bx - ex) * 0.55;
+      var tip = labelX - (narrow ? 3 : 6), bx = tip - head * 1.3, k = (bx - ex) * 0.5;
       leaks.push({
         id: s.id, lossType: s.lossType, drillable: s.drillable, sw: sw,
-        d: 'M' + ex.toFixed(1) + ',' + ey.toFixed(1) + ' C' + mid.toFixed(1) + ',' + ey.toFixed(1) + ' ' +
-           mid.toFixed(1) + ',' + ly.toFixed(1) + ' ' + bx.toFixed(1) + ',' + ly.toFixed(1),
+        d: 'M' + ex.toFixed(1) + ',' + ey.toFixed(1) + ' C' + (ex + k).toFixed(1) + ',' + ey.toFixed(1) + ' ' +
+           (bx - k).toFixed(1) + ',' + ly.toFixed(1) + ' ' + bx.toFixed(1) + ',' + ly.toFixed(1),
         head: [[bx, ly - head], [tip, ly], [bx, ly + head]],
-        lx: labelX, ly: ly, x0: ex, y0: y0,
+        lx: labelX, ly: ly + 4, x0: ex, y0: y0, run: bx - ex,
         line1: '−' + s.lost.toLocaleString('en-US') + ' lost',
         line2: narrow ? s.pctLostOfReaching.toFixed(0) + '% of ' + s.entered.toLocaleString('en-US')
                       : s.pctLostOfReaching.toFixed(0) + '% of those reaching it'

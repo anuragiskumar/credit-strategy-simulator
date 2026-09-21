@@ -10,6 +10,8 @@ impact no real deployment could reproduce.
 """
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -154,7 +156,76 @@ def funnel_layout(cfg: dict) -> dict:
             "headline_top_n": int(fn["headline_top_n"]), "drill_top_n": int(fn["drill_top_n"])}
 
 
-def funnel_rules(res, outcome: pd.DataFrame, cfg: dict) -> list[dict]:
+_BETWEEN_OR = re.compile(r"\bbetween\s+(\d[\d,.]*)\s+or\s+(\d[\d,.]*)", re.I)
+_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+_OPEN_HIGH = 9_999_999          # the rule files' "no upper limit"
+
+
+def clean_description(text: str | None) -> str:
+    """The bank's rule text, with its one systematic slip fixed: "between 20 or 70"."""
+    return _BETWEEN_OR.sub(r"between \1 and \2", str(text or "")).strip()
+
+
+def _num(v) -> str:
+    f = float(v)
+    return f"{int(f):,}" if f.is_integer() else f"{f:,}"
+
+
+def _condition_text(c) -> str | None:
+    field = str(c.field).split(".")[-1].split("[")[0]
+    lo, hi = c.value_low, c.value_high
+    values = [v for v in str(c.value_set).split("|") if v and v != "nan"]
+    shown = ", ".join(values[:4]) + (f" +{len(values) - 4}" if len(values) > 4 else "")
+    op = c.operator
+    if op == "outside":
+        return f"{field} outside {_num(lo)}–{_num(hi)}"
+    if op == "between":
+        if float(hi) >= _OPEN_HIGH:
+            return f"{field} ≥ {_num(lo)}"
+        return f"{field} ≤ {_num(hi)}" if float(lo) == 0 else f"{field} {_num(lo)}–{_num(hi)}"
+    sym = {"lt": "<", "gt": ">", "lte": "≤", "gte": "≥"}.get(op)
+    if sym:
+        return f"{field} {sym} {_num(lo if pd.notna(lo) else hi)}"
+    if op == "in":
+        return f"{field} {shown}"
+    if op == "not_in":
+        return f"{field} not {shown}"
+    if op == "eq":
+        return f"{field} = {shown or _num(lo)}"
+    if op == "contains":
+        return f"{field} contains {shown}"
+    if op == "income_multiple_exceeded":
+        return f"{field} above an income multiple"
+    return None
+
+
+def rule_tests(conditions: pd.DataFrame, rule_id: str) -> tuple[str, set[float]]:
+    """What a rule actually tests, from its parsed conditions: thresholds first, then scope.
+
+    Also returns every number the conditions use, so a description quoting different numbers
+    can be caught.
+    """
+    c = conditions[conditions["rule_id"] == rule_id]
+    c = c.assign(_scope=(c["tunability"] == "scope").astype(int)).sort_values("_scope", kind="stable")
+    parts = [t for t in (_condition_text(r) for r in c.itertuples()) if t]
+    numbers: set[float] = set()
+    for r in c.itertuples():
+        for v in (r.value_low, r.value_high, *str(r.value_set).split("|")):
+            try:
+                numbers.add(float(v))
+            except (TypeError, ValueError):
+                pass
+    return " · ".join(parts), {n for n in numbers if n == n}
+
+
+def description_disagrees(description: str, numbers: set[float]) -> bool:
+    """True when the description quotes a number the rule's conditions never use."""
+    quoted = {float(n) for n in _NUMBER.findall(description.replace(",", ""))}
+    return bool(quoted) and bool(numbers) and not quoted <= numbers
+
+
+def funnel_rules(res, outcome: pd.DataFrame, cfg: dict,
+                 conditions: pd.DataFrame | None = None) -> list[dict]:
     """Per evaluation stage, how many applicants each rule caught FIRST: the funnel drill-down.
 
     Counted from `reason_rule`, one reason per applicant, so a stage's rules sum to its total
@@ -177,10 +248,14 @@ def funnel_rules(res, outcome: pd.DataFrame, cfg: dict) -> list[dict]:
                    "pct_of_stage": round(100 * count / total, 1) if total else 0.0}
             if rid in lookup.index:
                 r = lookup.loc[rid]
-                row.update(label=r["description"], policy_code=r["policy_code"],
-                           relaxable=bool(r["relaxable"]))
+                label = clean_description(r["description"]) or rid
+                tests, numbers = rule_tests(conditions, rid) if conditions is not None else ("", set())
+                row.update(label=label, policy_code=r["policy_code"], relaxable=bool(r["relaxable"]),
+                           tests=tests or None,
+                           description_disagrees=description_disagrees(label, numbers))
             else:
-                row.update(label=labels.get(rid, rid), policy_code=None, relaxable=None)
+                row.update(label=labels.get(rid, rid), policy_code=None, relaxable=None,
+                           tests=None, description_disagrees=False)
             rows.append(row)
         top = sum(c for _, c in ordered[:top_n])
         out.append({"stage": stage, "total": total, "counted": int(counts.sum()),

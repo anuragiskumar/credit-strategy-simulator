@@ -39,9 +39,12 @@
 @media (prefers-reduced-motion: reduce) { .fview, .fview.is-on { transition: none; } }
 
 /* ---------------------------------------------------------- bars view */
-.fbars { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 4px; }
-.frow { display: grid; grid-template-columns: 172px minmax(0, 1fr) 184px 26px; gap: 12px; align-items: center;
-        min-height: 36px; border-radius: 6px; }
+/* One grid for the whole view, which every row joins as a subgrid: the figure column is sized
+   once, to its widest content, so it never wraps and every row's columns line up. */
+.fbars { display: grid; grid-template-columns: 172px minmax(0, 1fr) max-content 26px; column-gap: 12px;
+         row-gap: 4px; padding: 2px 0 4px; }
+.fbars > * { grid-column: 1 / -1; }
+.frow { display: grid; grid-template-columns: subgrid; align-items: center; min-height: 36px; border-radius: 6px; }
 .frow .lbl { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .frow .lbl b { font-size: 12.5px; font-weight: 500; color: var(--ink); }
 .frow .lbl .why { font-size: 11px; color: var(--muted); }
@@ -55,6 +58,7 @@
 .frow .fig-r { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: end; font-family: var(--mono); }
 .frow .fig-r b { font-size: 13px; font-weight: 500; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
 .frow .fig-r > span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.frow .fig-r b { white-space: nowrap; }
 .frow.is-worst .lbl b, .frow.is-worst .fig-r b { font-weight: 700; color: var(--ink); }
 .frow.is-open { background: var(--sunken); box-shadow: 0 0 0 4px var(--sunken); }
 .frow .chev { display: flex; justify-content: center; }
@@ -119,28 +123,41 @@
              border-inline-start: 3px solid var(--loss-lender); }
 .fdrill-in.is-customer { border-inline-start-color: var(--loss-customer); }
 .fdrill-head { display: flex; align-items: baseline; gap: 10px; }
-.fdrill-head h4 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; }
+.fdrill-head h4 { margin: 0; font-size: 13px; font-weight: 600; border-radius: 4px; }
+.fdrill-head .fclose { margin-inline-start: auto; }
 .fdrill-head h4 span { font-weight: 400; color: var(--muted); }
 .fdrill-head h4:focus { outline: none; }
-.fdrill-head h4:focus-visible { outline: 2px solid var(--pred); outline-offset: 3px; }
+.fdrill-head h4:focus-visible { outline: 2px solid var(--pred); outline-offset: 2px; }
+/* Opened by pointer: focus still moves here for screen readers, but no ring is drawn. */
+.fdrill-head h4.is-quiet:focus-visible { outline: none; }
 .fclose { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 5px;
           width: 24px; height: 24px; cursor: pointer; font-size: 15px; line-height: 1; padding: 0; }
 .fclose:hover { color: var(--ink); border-color: var(--line-hard); }
 .fdrill-sub { margin: 4px 0 10px; font-size: 12px; color: var(--muted); }
 .fdrill-cols, .fdrill-list li { display: grid; grid-template-columns: minmax(0, 1fr) 84px 96px 110px; gap: 12px; align-items: center; }
+.fdrill-list li { align-items: start; }
+.fdrill-list li > .rc, .fdrill-list li > .rp { padding-top: 1px; }
+.fdrill-list li > .rb { margin-top: 6px; }
 .fdrill-cols { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
                padding-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
 .fdrill-cols span:nth-child(2), .fdrill-cols span:nth-child(3) { text-align: end; }
 .fdrill-list { list-style: none; margin: 0; padding: 0; }
 .fdrill-list li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
-.fdrill-list .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.fdrill-list .rn { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fdrill-list .rl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.fdrill-list .rsub { display: flex; flex-wrap: wrap; gap: 2px 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.fdrill-list .rid { color: var(--faint); }
+.fdrill-list .rdiff { color: var(--ink-2); border-bottom: 1px dotted var(--line-hard); cursor: help; }
 .fdrill-list .rn code { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-inline-end: 8px; }
 .fdrill-list .rc, .fdrill-list .rp { font-family: var(--mono); text-align: end; }
 .fdrill-list .rp { color: var(--muted); }
 .fdrill-list .rb { height: 7px; background: var(--sunken); border-radius: 2px; overflow: hidden; }
 .fdrill-list .rb i { display: block; height: 100%; background: var(--loss-lender); }
 .fdrill-in.is-customer .rb i { background: var(--loss-customer); }
-.fdrill-more { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.fmore { margin-top: 8px; border: 0; background: none; padding: 2px 0; cursor: pointer;
+         font-family: var(--ui); font-size: 12px; color: var(--ink-2); text-decoration: underline;
+         text-decoration-color: var(--line-hard); text-underline-offset: 3px; }
+.fmore:hover { color: var(--ink); text-decoration-color: currentColor; }
 
 .caveat.sans p { font-family: var(--ui); font-size: 13px; }
 
@@ -174,7 +191,7 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 
 @media (max-width: 760px) {
   /* Keep the "lost here" column on a phone: it is the only place the drop-out count appears. */
-  .frow { grid-template-columns: 84px minmax(0, 1fr) 84px 24px; gap: 8px; }
+  .fbars { grid-template-columns: 84px minmax(0, 1fr) max-content 24px; column-gap: 8px; }
   .frow .fig-r > span { font-size: 10px; }
   /* The START / BOOKED badge drops under its count rather than pushing it over the bar. */
   .frow .fig-r b { flex-direction: column; align-items: flex-end; gap: 3px; }

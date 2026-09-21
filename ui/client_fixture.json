@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 03:22 UTC",
+  "generated": "2026-09-21 03:41 UTC",
   "product": "TWQR",
   "applicants": 50000,
   "rules_replayed": 226,
@@ -167,9 +167,11 @@
      "rule_id": "yknBasicCheckValidation#016",
      "count": 6016,
      "pct_of_stage": 60.3,
-     "label": "Age is not between 20 or 70",
+     "label": "Age is not between 20 and 70",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 30–70 · employeesegment G, SG, PL",
+     "description_disagrees": true
     },
     {
      "rule_id": "yakeen-post-validation#004",
@@ -177,7 +179,9 @@
      "pct_of_stage": 24.1,
      "label": "Age is greater than 60",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age > 60 · employername not GOSI",
+     "description_disagrees": false
     },
     {
      "rule_id": "yakeen-post-validation#002",
@@ -185,23 +189,29 @@
      "pct_of_stage": 7.3,
      "label": "Age is less than 20",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age < 20",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#014",
      "count": 255,
      "pct_of_stage": 2.6,
-     "label": "Age is not between 20 or 60",
+     "label": "Age is not between 20 and 60",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 25–60 · employeesegment SE",
+     "description_disagrees": true
     },
     {
      "rule_id": "yknBasicCheckValidation#015",
      "count": 116,
      "pct_of_stage": 1.2,
-     "label": "Age is not between 20 or 70",
+     "label": "Age is not between 20 and 70",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 25–70 · employeesegment BSFPB",
+     "description_disagrees": true
     },
     {
      "rule_id": "yakeen-post-validation#003",
@@ -209,71 +219,89 @@
      "pct_of_stage": 1.0,
      "label": "Age is greater than 75",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age > 75 · employername GOSI",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#003",
      "count": 76,
      "pct_of_stage": 0.8,
-     "label": "Age is not between 20 or 44",
+     "label": "Age is not between 20 and 44",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–44 · employeesegment M · employeetype OLNP, NOP",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#006",
      "count": 63,
      "pct_of_stage": 0.6,
-     "label": "Age is not between 20 or 50",
+     "label": "Age is not between 20 and 50",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–50 · employeesegment M · employeetype NOS, OMNP, OLCP, NOF",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#005",
      "count": 59,
      "pct_of_stage": 0.6,
-     "label": "Age is not between 20 or 48",
+     "label": "Age is not between 20 and 48",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–48 · employeesegment M · employeetype NOV, OCNP, OMP",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#009",
      "count": 54,
      "pct_of_stage": 0.5,
-     "label": "Age is not between 20 or 42",
+     "label": "Age is not between 20 and 42",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–42 · employeesegment M · employeetype OLP",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#004",
      "count": 52,
      "pct_of_stage": 0.5,
-     "label": "Age is not between 20 or 46",
+     "label": "Age is not between 20 and 46",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–46 · employeesegment M · employeetype NOC, OCP",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#008",
      "count": 47,
      "pct_of_stage": 0.5,
-     "label": "Age is not between 20 or 52",
+     "label": "Age is not between 20 and 52",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–52 · employeesegment M · employeetype NOM, OLCNP, OCLP",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#007",
      "count": 4,
      "pct_of_stage": 0.0,
-     "label": "Age is not between 20 or 54",
+     "label": "Age is not between 20 and 54",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–54 · employeesegment M · employeetype OCLNP",
+     "description_disagrees": false
     },
     {
      "rule_id": "yknBasicCheckValidation#010",
      "count": 2,
      "pct_of_stage": 0.0,
-     "label": "Age is not between 20 or 56",
+     "label": "Age is not between 20 and 56",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "age outside 20–56 · employeesegment M · employeetype OBGNP, OMGP",
+     "description_disagrees": false
     }
    ]
   },
@@ -291,7 +319,9 @@
      "pct_of_stage": 35.2,
      "label": "CRIF SCORE <= 570 and SIMAH SCORE <=650",
      "policy_code": "PCAPL182",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≤ 650 · crifscore ≤ 570 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#015",
@@ -299,7 +329,9 @@
      "pct_of_stage": 14.3,
      "label": "Employer Keyword present and CRIF SCORE < 626 and SIMAH SCORE <= 700",
      "policy_code": "PCAPL189",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≤ 700 · crifscore ≤ 690 · employer_keyword_check Y",
+     "description_disagrees": true
     },
     {
      "rule_id": "simati_chk_IAF#004",
@@ -307,7 +339,9 @@
      "pct_of_stage": 8.0,
      "label": "PF - Minimum Customer Salary – for Civillian except Retired is 3500",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "totalincome < 3,500 · employername not GOSI, GOSI Taqdeer · employeesegment ST, SMG, PVTL, PVTSML · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#028",
@@ -315,7 +349,9 @@
      "pct_of_stage": 6.3,
      "label": "Minimum Income Non Saudi",
      "policy_code": "PCTW16",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · income < 5,000 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#010",
@@ -323,7 +359,9 @@
      "pct_of_stage": 5.2,
      "label": "PVTSML & Keyword CRIF SCORE <= 626 and SIMAH SCORE <600",
      "policy_code": "PCAPL192",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore < 600 · crifscore ≤ 626 · employer_keyword_check Y · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#008",
@@ -331,7 +369,9 @@
      "pct_of_stage": 4.6,
      "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE <600",
      "policy_code": "PCAPL190",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore < 600 · crifscore ≤ 605 · employer_keyword_check N · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#221",
@@ -339,7 +379,9 @@
      "pct_of_stage": 4.4,
      "label": "Tenure Non Saudi",
      "policy_code": "PCTW6",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · tenure outside 6–36 · customersegment ST, SMG, PVTL · program SMART",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#006",
@@ -347,7 +389,9 @@
      "pct_of_stage": 4.2,
      "label": "PF - Minimum Customer Salary – for Military is 10000",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "totalincome < 10,000 · employeesegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#006",
@@ -355,7 +399,9 @@
      "pct_of_stage": 3.1,
      "label": "Military CRIF SCORE <= 615 and SIMAH SCORE <600",
      "policy_code": "PCAPL188",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore < 600 · crifscore ≤ 615 · salarytobsf No · employername not GOSI Taqdeer · customersegment ST · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#222",
@@ -363,7 +409,9 @@
      "pct_of_stage": 1.4,
      "label": "Tenure Saudi",
      "policy_code": "PCTW5",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · tenure outside 6–60 · customersegment ST, SMG, PVTL · program SMART",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#189",
@@ -371,7 +419,9 @@
      "pct_of_stage": 1.3,
      "label": "Tenure Saudi",
      "policy_code": "PCTW11",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · tenure outside 6–60 · customersegment ST, SMG, PVTL · program PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#101",
@@ -379,7 +429,9 @@
      "pct_of_stage": 1.1,
      "label": "Customer Related to Politically Exposed person",
      "policy_code": "PCAPL179",
-     "relaxable": false
+     "relaxable": false,
+     "tests": "relatedtopep = 1",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#032",
@@ -387,7 +439,9 @@
      "pct_of_stage": 1.0,
      "label": "Pay Slip older than 2 months",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "durationinmonth > 2 · employeesegment ST",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#199",
@@ -395,7 +449,9 @@
      "pct_of_stage": 0.9,
      "label": "Tenure Saudi & Non Saudi",
      "policy_code": "PCTW38",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · tenure outside 6–60 · customersegment PVTSML · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#011",
@@ -403,7 +459,9 @@
      "pct_of_stage": 0.9,
      "label": "PVTSML & KeywordCRIF SCORE <= 571 and SIMAH SCORE >=600",
      "policy_code": "PCAPL193",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check Y · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#007",
@@ -411,7 +469,9 @@
      "pct_of_stage": 0.9,
      "label": "Military CRIF SCORE <= 588 and SIMAH SCORE >=600",
      "policy_code": "PCAPL189",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≥ 600 · crifscore ≤ 588 · salarytobsf No · employername not GOSI Taqdeer · customersegment ST · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#009",
@@ -419,7 +479,9 @@
      "pct_of_stage": 0.7,
      "label": "PVTSML CRIF SCORE <= 571 and SIMAH SCORE >=600",
      "policy_code": "PCAPL191",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check N · salarytobsf No · employername not GOSI Taqdeer · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#010",
@@ -427,7 +489,9 @@
      "pct_of_stage": 0.7,
      "label": "PF - Minimum Customer Salary – for Retired is 1980",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "totalincome < 1,980 · nationality SAU · employername GOSI, GOSI Taqdeer · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#223",
@@ -435,7 +499,9 @@
      "pct_of_stage": 0.7,
      "label": "Tenure Saudi & Non Saudi",
      "policy_code": "PCTW39",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · tenure outside 6–36 · customersegment PVTSML · program SMART",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#191",
@@ -443,7 +509,9 @@
      "pct_of_stage": 0.5,
      "label": "LOS Saudi",
      "policy_code": "PCTW13",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · monthcnt = 1 · customersegment ST, SMG, PVTL · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#100",
@@ -451,7 +519,9 @@
      "pct_of_stage": 0.5,
      "label": "Customer is Political Exposed Person",
      "policy_code": "PCAPL178",
-     "relaxable": false
+     "relaxable": false,
+     "tests": "politicallyexposedperson = 1",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#017",
@@ -459,7 +529,9 @@
      "pct_of_stage": 0.4,
      "label": "PF - Minimum Length of Service - Saudi for Employer segment (Gov, Semi Gov, PVTL) is 1 month",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · lengthofservice < 1 · employername not GOSI, GOSI Taqdeer · employeesegment ST, SMG, PVTL · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#011",
@@ -467,7 +539,9 @@
      "pct_of_stage": 0.3,
      "label": "PF - Minimum Length of Service - Saudi for Employer segment (PS) is 3 months",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · lengthofservice < 3 · employeesegment PVTSML · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#190",
@@ -475,7 +549,9 @@
      "pct_of_stage": 0.3,
      "label": "Tenure Non Saudi",
      "policy_code": "PCTW12",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · tenure outside 6–60 · customersegment ST, SMG, PVTL · program PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#099",
@@ -483,7 +559,9 @@
      "pct_of_stage": 0.3,
      "label": "Customer is under Diplomcatic Service",
      "policy_code": "PCAPL177",
-     "relaxable": false
+     "relaxable": false,
+     "tests": "diplomaticservice = 1",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#031",
@@ -491,7 +569,9 @@
      "pct_of_stage": 0.2,
      "label": "PF - Bank Staff not allowed",
      "policy_code": null,
-     "relaxable": false
+     "relaxable": false,
+     "tests": "employername Saudi Fransi for Finance Leasing Joint Stock (SFL), Saudi Fransi for Finance Leasing (SFL)",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#245",
@@ -499,7 +579,9 @@
      "pct_of_stage": 0.2,
      "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE <600",
      "policy_code": "PCAPL189",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore < 600 · crifscore ≤ 605 · employer_keyword_check N · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#238",
@@ -507,7 +589,9 @@
      "pct_of_stage": 0.2,
      "label": "LOS Saudi",
      "policy_code": "PCTW40",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · monthcnt = 3 · customersegment PVTSML · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#002",
@@ -515,7 +599,9 @@
      "pct_of_stage": 0.2,
      "label": "PF - Age is less than 21 for Saudi",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age < 21 · employeesegment ST, SMG, PVTL, PVTSML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#196",
@@ -523,7 +609,9 @@
      "pct_of_stage": 0.2,
      "label": "Tenure Saudi",
      "policy_code": "PCTW32",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · tenure outside 6–60 · customersegment ST · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#013",
@@ -531,7 +619,9 @@
      "pct_of_stage": 0.2,
      "label": "CRIF SCORE <= 570 and SIMAH SCORE <=650",
      "policy_code": "PCAPL183",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore > 650 · simahscorecarddescription not CLEAN, Intermediate · crifscore ≤ 570 · customersegment ST, SMG, PVTL, PVTSML · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#243",
@@ -539,7 +629,9 @@
      "pct_of_stage": 0.2,
      "label": "Military CRIF SCORE <= 615 and SIMAH SCORE <600",
      "policy_code": "PCAPL187",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore < 600 · crifscore ≤ 615 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment ST · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#014",
@@ -547,7 +639,9 @@
      "pct_of_stage": 0.2,
      "label": "Employer Keyword present and CRIF SCORE < 626 and SIMAH SCORE <= 600",
      "policy_code": "PCAPL185",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≤ 600 · crifscore ≤ 626 · employer_keyword_check Y · customersegment ST, SMG, PVTL",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#019",
@@ -555,7 +649,9 @@
      "pct_of_stage": 0.1,
      "label": "PF - Minimum Length of Service - Non Saudi for Employer segment (Gov, Semi Gov, PVTL) is 3 months",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · lengthofservice < 3 · employername not GOSI, GOSI Taqdeer · employeesegment ST, SMG, PVTL · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#192",
@@ -563,7 +659,9 @@
      "pct_of_stage": 0.1,
      "label": "LOS Non Saudi",
      "policy_code": "PCTW14",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · monthcnt = 3 · customersegment ST, SMG, PVTL · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#244",
@@ -571,7 +669,9 @@
      "pct_of_stage": 0.1,
      "label": "Military CRIF SCORE <= 588 and SIMAH SCORE >=600",
      "policy_code": "PCAPL188",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≥ 600 · crifscore ≤ 588 · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment ST · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#016",
@@ -579,7 +679,9 @@
      "pct_of_stage": 0.1,
      "label": "Finance Amount Saudi GOV-SEMI-PVTL",
      "policy_code": "PCTW3",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · loanamount < 3,000 · customersegment ST, SMG, PVTL · program SMART",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#024",
@@ -587,7 +689,9 @@
      "pct_of_stage": 0.1,
      "label": "Minimum Income Saudi",
      "policy_code": "PCTW43",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · income < 2,000 · customersegment PVTL · program SMART, PF · natureofemployment Retired",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#193",
@@ -595,7 +699,9 @@
      "pct_of_stage": 0.1,
      "label": "Customer Age (Hijri)",
      "policy_code": "PCTW20",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age = 21 · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#003",
@@ -603,7 +709,9 @@
      "pct_of_stage": 0.1,
      "label": "PF - Age is less than 23 for Non Saudi",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · age < 23 · employeesegment ST, SMG, PVTL, PVTSML",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#015",
@@ -611,7 +719,9 @@
      "pct_of_stage": 0.1,
      "label": "PF - Minimum Length of Service - Non Saudi for Employer segment (PS) is 6 months",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · lengthofservice < 6 · employeesegment PVTSML · typeofemployment CV",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#184",
@@ -619,7 +729,9 @@
      "pct_of_stage": 0.1,
      "label": "Age – Non-Officer Sargent (Non-Pilot)",
      "policy_code": "PCIJH82",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–42 · miltaryrank SCLIEUOP · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#203",
@@ -627,7 +739,9 @@
      "pct_of_stage": 0.1,
      "label": "Customer Age (Hijri)",
      "policy_code": "PCTW49",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age > 44 · miltaryrank ONP, NOSB · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#246",
@@ -635,7 +749,9 @@
      "pct_of_stage": 0.1,
      "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE >=600",
      "policy_code": "PCAPL190",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "simahcreditscore ≥ 600 · crifscore ≤ 571 · employer_keyword_check N · employername not GOSI Taqdeer, Banque Saudi Fransi · customersegment PVTSML · program SMART, PF · typeofemployment CV",
+     "description_disagrees": true
     },
     {
      "rule_id": "racAndPolicies#181",
@@ -643,7 +759,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Non-Officer Private & Private 1st Class (Non-Pilot)",
      "policy_code": "PCIJH79",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–44 · miltaryrank FRLIEONP · customersegment ST · typeofemployment ML",
+     "description_disagrees": true
     },
     {
      "rule_id": "racAndPolicies#017",
@@ -651,7 +769,9 @@
      "pct_of_stage": 0.0,
      "label": "Min. Finance Amount GOV-SEMI-PVTL-PVTS",
      "policy_code": "PCTW4",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "loanamount < 3,000 · customersegment ST, SMG, PVTL, PVTSML · program SMART",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#167",
@@ -659,7 +779,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer 1st & 2nd Lieutenant (Non-Pilot)",
      "policy_code": "PCIJH65",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–44 · miltaryrank SCLIEONP · customersegment ST · typeofemployment ML",
+     "description_disagrees": true
     },
     {
      "rule_id": "racAndPolicies#104",
@@ -667,7 +789,9 @@
      "pct_of_stage": 0.0,
      "label": "TRADITIONAL, PRIVATE SMALL,SAUDI,INCOME>10000,CRIF <588",
      "policy_code": "PCAPL184",
-     "relaxable": false
+     "relaxable": false,
+     "tests": "nationality SAU · income > 10,000 · crifscore < 588 · gender Female · customersegment PVTSML · program SMART, PF · sourcetype not digital",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#168",
@@ -675,7 +799,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer 1st & 2nd Lieutenant (Pilot)",
      "policy_code": "PCIJH66",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–42 · miltaryrank FRLIEUOP · customersegment ST · typeofemployment ML",
+     "description_disagrees": true
     },
     {
      "rule_id": "racAndPolicies#230",
@@ -683,7 +809,9 @@
      "pct_of_stage": 0.0,
      "label": "LOS Non Saudi",
      "policy_code": "PCTW41",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality not SAU · monthcnt = 6 · customersegment PVTSML · program SMART, PF",
+     "description_disagrees": false
     },
     {
      "rule_id": "simati_chk_IAF#008",
@@ -691,7 +819,9 @@
      "pct_of_stage": 0.0,
      "label": "PF - Minimum Length of Service – Military is 1 month",
      "policy_code": null,
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · lengthofservice < 1 · employeesegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#169",
@@ -699,7 +829,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer Captain (Non-Pilot)",
      "policy_code": "PCIJH67",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–50 · miltaryrank FCSGNOAS, SGTNOSB · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#170",
@@ -707,7 +839,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer Captain (Pilot)",
      "policy_code": "PCIJH68",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–46 · miltaryrank CAPOP, CORPNOSB · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#171",
@@ -715,7 +849,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer Major (Non-Pilot)",
      "policy_code": "PCIJH69",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–50 · miltaryrank LICOLOP · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#209",
@@ -723,7 +859,9 @@
      "pct_of_stage": 0.0,
      "label": "Customer Age (Hijri)",
      "policy_code": "PCTW55",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age > 42 · miltaryrank OP · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#180",
@@ -731,7 +869,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer Major General (Pilot)",
      "policy_code": "PCIJH78",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–48 · miltaryrank VSGTNOSB · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#183",
@@ -739,7 +879,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Non-Officer Vice Sargent (Non-Pilot)",
      "policy_code": "PCIJH81",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–48 · miltaryrank CAPONP · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#204",
@@ -747,7 +889,9 @@
      "pct_of_stage": 0.0,
      "label": "Customer Age (Hijri)",
      "policy_code": "PCTW50",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age > 46 · miltaryrank NOSB, OP · program SMART, PF · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#172",
@@ -755,7 +899,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer Major (Pilot)",
      "policy_code": "PCIJH70",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–48 · miltaryrank MAJOP · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#174",
@@ -763,7 +909,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Officer Lieutenant Colonel (Pilot)",
      "policy_code": "PCIJH72",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–50 · miltaryrank MAJONP · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     },
     {
      "rule_id": "racAndPolicies#182",
@@ -771,7 +919,9 @@
      "pct_of_stage": 0.0,
      "label": "Age – Non-Officer Corporal (Non-Pilot)",
      "policy_code": "PCIJH80",
-     "relaxable": true
+     "relaxable": true,
+     "tests": "nationality SAU · age outside 20–52 · miltaryrank MSSGNOAS · customersegment ST · typeofemployment ML",
+     "description_disagrees": false
     }
    ]
   },
@@ -789,7 +939,9 @@
      "pct_of_stage": 99.4,
      "label": "Offer below the acceptable share of the request",
      "policy_code": null,
-     "relaxable": null
+     "relaxable": null,
+     "tests": null,
+     "description_disagrees": false
     },
     {
      "rule_id": "elig.product_min",
@@ -797,7 +949,9 @@
      "pct_of_stage": 0.6,
      "label": "Offer below the product minimum amount",
      "policy_code": null,
-     "relaxable": null
+     "relaxable": null,
+     "tests": null,
+     "description_disagrees": false
     }
    ]
   },
@@ -815,7 +969,9 @@
      "pct_of_stage": 100.0,
      "label": "Customer went elsewhere",
      "policy_code": null,
-     "relaxable": null
+     "relaxable": null,
+     "tests": null,
+     "description_disagrees": false
     }
    ]
   }

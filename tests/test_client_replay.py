@@ -273,3 +273,31 @@ def test_no_rule_is_judged_on_a_handful_of_applicants(df, res, outcome, cfg, mod
     d = A.decline_drivers(df, res, outcome, cfg, model=model)
     judged = d[d["earns_its_place"].notna() & d["relaxable"]]
     assert (judged["declines_alone"] >= cfg["risk_model"]["min_group_size"]).all()
+
+
+def test_rule_descriptions_read_between_x_and_y():
+    assert A.clean_description("Age is not between 20 or 70") == "Age is not between 20 and 70"
+    assert A.clean_description("Income between 3,500 or 5,000 SAR") == "Income between 3,500 and 5,000 SAR"
+    assert A.clean_description("Age is greater than 60") == "Age is greater than 60"
+
+
+def test_the_drill_down_says_what_a_rule_tests_and_flags_a_description_that_disagrees(inv):
+    tests, numbers = A.rule_tests(inv.conditions, "yknBasicCheckValidation#016")
+    assert tests.startswith("age outside 30–70")          # the threshold first, then its scope
+    assert "employeesegment G, SG, PL" in tests
+    # The bank's text says 20; the rule tests 30. The screen must not repeat the text unflagged.
+    assert A.description_disagrees("Age is not between 20 and 70", numbers)
+    _, numbers = A.rule_tests(inv.conditions, "yakeen-post-validation#004")
+    assert not A.description_disagrees("Age is greater than 60", numbers)
+    assert not A.description_disagrees("No numbers here", numbers)
+
+
+def test_two_rules_with_the_same_description_are_told_apart(res, outcome, cfg, inv):
+    rules = next(b for b in A.funnel_rules(res, outcome, cfg, conditions=inv.conditions)
+                 if b["stage"] == "hard_reject")["rules"]
+    by_label: dict[str, list] = {}
+    for r in rules:
+        by_label.setdefault(r["label"], []).append(r)
+    for label, same in by_label.items():
+        if len(same) > 1:
+            assert len({(r["rule_id"], r["tests"]) for r in same}) == len(same), label

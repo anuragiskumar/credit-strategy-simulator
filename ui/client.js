@@ -15,7 +15,7 @@
 
   var F = window.__CLIENT__;
   var S = { page: 'portfolio', slice: 'employer_segment', toggle: 0, goal: 0, spec: false,
-            fview: 'funnel', fdrill: null };
+            fview: 'funnel', fdrill: null, fdrillAll: false };
 
   /* ------------------------------------------------------------- formatting */
   function esc(s) {
@@ -176,7 +176,9 @@
             '<i class="lost" style="left:' + w(s.stillIn) + ';width:calc(max(4px, ' + w(s.lost) + ') + 2px)"></i></div>' +
           '<div class="fig-r"><b>−' + n0(s.lost) + '</b>' +
             '<span>' + s.pctLostOfReaching.toFixed(0) + '% of ' + n0(s.entered) +
-            '<span class="hide-sm"> · ' + s.pctLostOfTotal.toFixed(0) + '% of all</span></span></div>' +
+            // "% of all" only adds something when fewer than all applicants reached the stage.
+            (s.entered === M.total ? '' :
+              '<span class="hide-sm"> · ' + s.pctLostOfTotal.toFixed(0) + '% of all</span>') + '</span></div>' +
           '<div class="chev">' + (s.drillable ? drillTrigger(s) : '') + '</div></div>';
       }).join('');
     }).join('');
@@ -253,13 +255,23 @@
   }
 
   /* The drill-down, shared by both views: one region below them, opened from either. */
+  var DISAGREE_TIP = 'The bank\'s description quotes different numbers from the conditions this rule ' +
+    'actually tests. The conditions are what is replayed, so they are what the counts reflect.';
+
   function drillHtml(M) {
     var s = S.fdrill ? stageById(M, S.fdrill) : null;
     if (!s) return '';
-    var top = s.rules.slice(0, M.drillTopN), more = s.nRules - top.length;
-    var rows = top.map(function (r) {
-      return '<li><span class="rn" title="' + esc(r.label) + '">' +
+    var all = S.fdrillAll && s.nRules > M.drillTopN;
+    var shown = all ? s.rules : s.rules.slice(0, M.drillTopN), more = s.nRules - M.drillTopN;
+    var rows = shown.map(function (r) {
+      // The rule ID is always shown: descriptions repeat (two rules both read "Age is not
+      // between 20 and 70"), and what separates them is the conditions on the second line.
+      var sub = (r.id !== r.label ? '<span class="rid">' + esc(r.id) + '</span>' : '') +
+        (r.tests ? '<span class="rtests">tests ' + esc(r.tests) + '</span>' : '') +
+        (r.disagrees ? '<span class="rdiff" title="' + esc(DISAGREE_TIP) + '">≠ description</span>' : '');
+      return '<li><span class="rn"><span class="rl" title="' + esc(r.label) + '">' +
           (r.code ? '<code>' + esc(r.code) + '</code>' : '') + esc(r.label) + '</span>' +
+          (sub ? '<span class="rsub">' + sub + '</span>' : '') + '</span>' +
         '<span class="rc">' + n0(r.count) + '</span>' +
         '<span class="rp">' + r.pctOfStage.toFixed(1) + '%</span>' +
         '<span class="rb" aria-hidden="true"><i style="width:' + r.pctOfStage + '%"></i></span></li>';
@@ -268,6 +280,11 @@
       ? caveat('warn', 'CHECK', 'These counts do not reconcile: ' +
           esc(s.issues.map(function (i) { return i.msg; }).join('; ')) + '.')
       : '';
+    var moreBtn = more > 0
+      ? '<button type="button" class="fmore" data-drill-more aria-expanded="' + all + '" aria-controls="fdrill-list">' +
+          (all ? 'Show the top ' + M.drillTopN + ' only' : '+' + n0(more) + ' more ' + (more === 1 ? 'rule' : 'rules')) +
+        '</button>'
+      : '';
     return '<div class="fdrill-in is-' + s.lossType + '">' +
       '<div class="fdrill-head"><h4 id="fdrill-h" tabindex="-1">' + esc(s.label) +
         ' <span>rules that caught applicants first</span></h4>' +
@@ -275,9 +292,7 @@
       '<p class="fdrill-sub">' + n0(s.lost) + ' lost here across ' + n0(s.nRules) + (s.nRules === 1 ? ' reason' : ' rules') +
         '. Each applicant is counted once, under the first rule that caught them.</p>' +
       '<div class="fdrill-cols" aria-hidden="true"><span>Rule</span><span>Applicants</span><span>Share of stage</span><span></span></div>' +
-      '<ol class="fdrill-list">' + rows + '</ol>' +
-      (more > 0 ? '<p class="fdrill-more">+' + n0(more) + ' more ' + (more === 1 ? 'rule' : 'rules') + '</p>' : '') +
-      issues + '</div>';
+      '<ol class="fdrill-list" id="fdrill-list">' + rows + '</ol>' + moreBtn + issues + '</div>';
   }
 
   function funnelPanelHtml() {
@@ -331,21 +346,32 @@
 
   function activeView(root) { return root.querySelector('.fview.is-on'); }
 
-  function setDrill(root, id, trigger) {
+  function calmMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function setDrill(root, id, trigger, viaKeyboard) {
     var closing = !id || S.fdrill === id;
     var was = S.fdrill;
     S.fdrill = closing ? null : id;
+    S.fdrillAll = false;
     root.querySelector('#fdrill').innerHTML = drillHtml(funnelModel());
     var host = root.querySelector('.ffunnelhost');
     if (host) drawFunnel(host);
     syncDrillTriggers(root);
     if (S.spec) applySpec();
     if (S.fdrill) {
+      // Focus moves to the heading either way; the ring shows only when a keyboard opened it.
       var h = root.querySelector('#fdrill-h');
-      if (h) h.focus({ preventScroll: true });
+      if (h) {
+        h.classList.toggle('is-quiet', !viaKeyboard);
+        h.addEventListener('blur', function () { h.classList.remove('is-quiet'); }, { once: true });
+        h.focus({ preventScroll: true });
+      }
       var region = root.querySelector('#fdrill');
-      var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      region.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+      requestAnimationFrame(function () {
+        region.scrollIntoView({ block: 'nearest', behavior: calmMotion() ? 'auto' : 'smooth' });
+      });
     } else {
       // Closing returns focus to whatever opened it, in the view that is showing now.
       var back = activeView(root).querySelector('[data-drill="' + (trigger || was) + '"]');
@@ -368,6 +394,14 @@
     if (S.spec) applySpec();
   }
 
+  function toggleAllRules(root) {
+    S.fdrillAll = !S.fdrillAll;
+    root.querySelector('#fdrill').innerHTML = drillHtml(funnelModel());
+    var b = root.querySelector('[data-drill-more]');
+    if (b) b.focus();
+    if (S.spec) applySpec();
+  }
+
   function mountFunnel(root) {
     var panelEl = root.querySelector('.fpanel');
     if (!panelEl) return;
@@ -377,14 +411,18 @@
       var v = e.target.closest('[data-fview]');
       if (v) { setView(panelEl, v.getAttribute('data-fview')); return; }
       if (e.target.closest('[data-drill-close]')) { setDrill(panelEl, null); return; }
+      if (e.target.closest('[data-drill-more]')) { toggleAllRules(panelEl); return; }
       var t = e.target.closest('[data-drill]');
-      if (t) setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'));
+      // A click with detail 0 came from the keyboard (Enter or Space on a button).
+      if (t) setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'), e.detail === 0);
     });
     panelEl.addEventListener('keydown', function (e) {
-      var t = e.target.closest && e.target.closest('g[data-drill]');
+      // One keyboard path for both views' triggers (chevron button or SVG arrow). preventDefault
+      // stops the button's own click, so it opens once.
+      var t = e.target.closest && e.target.closest('[data-drill]');
       if (t && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
-        setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'));
+        setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'), true);
         return;
       }
       if (e.key === 'Escape' && S.fdrill && e.target.closest('#fdrill')) setDrill(panelEl, null);

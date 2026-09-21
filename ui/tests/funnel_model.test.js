@@ -129,3 +129,18 @@ test('leak stroke grows with the loss and stays within its bounds', () => {
   for (const l of G.leaks) assert.ok(l.sw >= 2 && l.sw <= 12);
   assert.deepEqual(G.leaks.map((l) => l.lossType), M.stages.map((s) => s.lossType));
 });
+
+for (const [width, narrow, minRun] of [[900, false, 48], [311, true, 16]]) {
+  test(`every leak arrow starts on its trapezoid's right edge and has room to curve (${width}px)`, () => {
+    const M = FunnelModel.build(load()), G = FunnelModel.geometry(M, { width, narrow });
+    G.leaks.forEach((l, i) => {
+      const [, tr, br] = G.connectors[i].points;
+      const m = /^M([\d.]+),([\d.]+) C/.exec(l.d), x = +m[1], y = +m[2];
+      const t = (y - tr[1]) / (br[1] - tr[1]);
+      const edge = tr[0] + (br[0] - tr[0]) * t;
+      assert.ok(t > 0 && t < 1, `${l.id} starts within its row`);
+      assert.ok(x <= edge && x >= edge - 4, `${l.id} starts on the edge (${x} vs ${edge})`);
+      assert.ok(l.run >= minRun, `${l.id} run ${l.run}`);
+    });
+  });
+}
