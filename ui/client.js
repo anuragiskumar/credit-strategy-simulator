@@ -412,7 +412,7 @@
     var G = window.FunnelModel.geometry(M, { width: width, narrow: width < 560 });
     var GL = G.glass, cx = G.cx, last = G.bands.length - 1;
     var animating = FANIM.p !== null, p = animating ? FANIM.p : last + 1;
-    function at(k) { return clamp01(p - k); }   // stage k: 0 = applied, k = the band it leaves behind
+    function pour(k) { return clamp01(p - k); }   // stage k: 0 = applied, k = the band it leaves behind
     var svg = svgEl('svg', { width: G.width, height: G.height, viewBox: '0 0 ' + G.width + ' ' + G.height,
       'class': 'fsvg', role: 'group', 'aria-label': 'Funnel from ' + n0(M.total) + ' applicants to ' + n0(M.end.stillIn) + ' booked' });
     var defs = svgEl('defs');
@@ -425,7 +425,7 @@
       svg.appendChild(svgEl('line', { x1: 0, x2: G.leftW, y1: g.y + 6, y2: g.y + 6, 'class': 'f-gdiv' }));
     });
     G.names.forEach(function (n, i) {
-      var g = svgEl('g', animating ? { opacity: (0.32 + 0.68 * easeOut(at(Math.min(i, last)) * 2)).toFixed(2) } : {});
+      var g = svgEl('g', animating ? { opacity: (0.32 + 0.68 * easeOut(pour(Math.min(i, last)) * 2)).toFixed(2) } : {});
       g.appendChild(svgEl('text', { x: 0, y: n.y + (n.sub && !G.narrow ? -3 : 4), 'class': 'f-name is-' + n.kind }, n.label));
       if (n.sub && !G.narrow) g.appendChild(svgEl('text', { x: 0, y: n.y + 12, 'class': 'f-sub' }, n.sub));
       svg.appendChild(g);
@@ -452,21 +452,21 @@
     if (animating) {
       yFill = D[0].cy;
       for (var k = 1; k <= last; k++) {
-        var a = easeOut(span(at(k), 0, 0.7));
+        var a = easeOut(span(pour(k), 0, 0.7));
         if (a > 0) yFill = D[k - 1].cy + (D[k].cy - D[k - 1].cy) * a;
       }
     }
-    if (at(0) > 0) {
+    if (pour(0) > 0) {
       var ys = D.map(function (d) { return d.cy; }).filter(function (y) { return y < yFill; }).concat([yFill]);
       var liquid = ys.map(function (y) { return [cx - window.FunnelModel.liquidHalf(GL, y), y]; })
         .concat(ys.slice().reverse().map(function (y) { return [cx + window.FunnelModel.liquidHalf(GL, y), y]; }));
-      svg.appendChild(svgEl('polygon', { points: pts(liquid), 'class': 'f-liquid', opacity: easeOut(at(0)).toFixed(2) }));
+      svg.appendChild(svgEl('polygon', { points: pts(liquid), 'class': 'f-liquid', opacity: easeOut(pour(0)).toFixed(2) }));
     }
 
     // Discs: who is still in after each stage. The count runs down from the stage above.
     D.forEach(function (d, k) {
       var b = G.bands[k];
-      var a = k === 0 ? easeOut(at(0) * 1.3) : easeOut(span(at(k), 0.3, 1));
+      var a = k === 0 ? easeOut(pour(0) * 1.3) : easeOut(span(pour(k), 0.3, 1));
       if (a <= 0) return;
       var g = svgEl('g', animating ? { opacity: a.toFixed(2), transform: 'translate(0 ' + ((1 - a) * -14).toFixed(1) + ')' } : {});
       g.appendChild(svgEl('ellipse', { cx: cx, cy: d.cy + 3, rx: d.rx, ry: d.ry, 'class': 'f-disc-under' }));
@@ -475,9 +475,9 @@
         g.appendChild(svgEl('ellipse', { cx: cx, cy: d.cy - 1, rx: d.rx - 3, ry: d.ry - 2, 'class': 'f-disc-ring' }));
       }
       var text = b.text;
-      if (animating && at(k) < 1) {
-        var v = k === 0 ? M.total * easeOut(at(0))
-          : G.bands[k - 1].value - (G.bands[k - 1].value - b.value) * easeOut(span(at(k), 0.15, 0.9));
+      if (animating && pour(k) < 1) {
+        var v = k === 0 ? M.total * easeOut(pour(0))
+          : G.bands[k - 1].value - (G.bands[k - 1].value - b.value) * easeOut(span(pour(k), 0.15, 0.9));
         text = G.bandLabel(b.kind === 'end' ? 'mid' : b.kind, Math.round(v), (v / M.total) * 100);
       }
       var anchor = b.place === 'inside' ? 'middle' : b.place === 'right' ? 'start' : 'end';
@@ -502,7 +502,7 @@
     // Loss arrows leave through the wall. While pouring they grow out and their count runs up.
     G.leaks.forEach(function (l, i) {
       var s = stageById(M, l.id), open = S.fdrill === l.id;
-      var grow = animating ? span(at(i + 1), 0.1, 0.85) : 1;
+      var grow = animating ? span(pour(i + 1), 0.1, 0.85) : 1;
       if (grow <= 0) return;
       var g = svgEl('g', { 'class': 'f-leak is-' + l.lossType + (l.drillable ? ' is-drill' : '') + (open ? ' is-open' : '') });
       if (l.drillable) {
