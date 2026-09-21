@@ -402,7 +402,9 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 /* the busiest rules as switches */
 .simswitches { list-style: none; margin: 0 0 4px; padding: 0; }
 .simswitches li + li { border-top: 1px solid var(--line-soft); }
-.simtoggle { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: center; padding: 9px 0; cursor: pointer; }
+/* position: relative keeps the hidden checkbox inside the scrolling canvas. Without it the
+   checkbox is placed against the page, and focusing it scrolls the whole window. */
+.simtoggle { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: center; padding: 9px 0; cursor: pointer; }
 .simtoggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .simtoggle i { width: 32px; height: 18px; border-radius: 9px; background: var(--line-hard); position: relative; transition: background .15s; }
 .simtoggle i::after { content: ''; position: absolute; top: 2px; inset-inline-start: 2px; width: 14px; height: 14px; border-radius: 50%;
@@ -449,3 +451,5 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .simsticky ~ .simgrid .simside { position: static; }
 .simsticky > .specnum { position: absolute; top: 0; inset-inline-end: -10px; }
 .simkicker { margin: 0 0 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.simsticky .caveat { margin: 8px 0 0; }
+.simslider .simnote { margin-top: 4px; }

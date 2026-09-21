@@ -626,6 +626,8 @@
                values: sw.rows.map(function (r) { return r.cutoff; }) };
     });
   }
+  /** An engine started before score cutoffs existed does not list them, and refuses the change. */
+  function cutoffsAvailable() { return !SIM.live || !!(SIM.health && SIM.health.cutoffs); }
   function ceilingRate() { return SIM.health ? SIM.health.bad_rate_ceiling : F.meta.bad_rate_ceiling; }
 
   /* ---- the scenario: an ordered list of changes, at most one per threshold or cutoff */
@@ -636,6 +638,10 @@
   function precomputedCutoff(ch) {
     var sw = (F.sweeps || []).filter(function (s) { return s.field === ch.field && s.from === ch.from; })[0];
     return sw && sw.rows.filter(function (r) { return r.cutoff === ch.to; })[0];
+  }
+  function canTryStep(ch) {
+    if (ch.type === 'cutoff' && !cutoffsAvailable()) return false;
+    return SIM.live || canPrecompute(ch);
   }
   function canPrecompute(ch) {
     return ch.type === 'off' ? !!precomputed(ch.rule_id) : ch.type === 'cutoff' ? !!precomputedCutoff(ch) : false;
@@ -959,12 +965,12 @@
     var list = presets();
     if (!list.length) return '';
     return '<p class="simkicker"' + N('sim_presets') + '>Start from a story</p><div class="simpresets">' + list.map(function (p) {
-      var ok = SIM.live || (p.steps.length === 1 && canPrecompute(p.steps[0]));
+      var ok = p.steps.length > 0 && (SIM.live || p.steps.length === 1) && p.steps.every(canTryStep);
       var on = ok && SIM.steps.length === p.steps.length && JSON.stringify(SIM.steps) === JSON.stringify(p.steps);
       return '<button class="simpreset' + (on ? ' is-on' : '') + '" data-sim-preset="' + p.id + '"' +
         (ok && !SIM.pending ? '' : ' disabled') + ' aria-pressed="' + on + '">' +
         '<b>' + esc(p.t) + '</b><span>' + esc(p.d) + '</span>' +
-        (ok ? '' : '<em>needs the engine running</em>') + '</button>';
+        (ok ? '' : '<em>' + (SIM.live ? 'restart the engine to use this' : 'needs the engine running') + '</em>') + '</button>';
     }).join('') + '</div>';
   }
 
@@ -979,9 +985,11 @@
           (val === c.from ? ' <small>today</small>' : ' <small>today ' + num(c.from) + '</small>') + '</span></div>' +
         '<input type="range" min="0" max="' + (vals.length - 1) + '" step="1" value="' + idx + '" ' +
           'data-sim-cutoff="' + esc(c.field) + '" data-from="' + c.from + '" data-values="' + vals.join(',') + '"' +
-          (SIM.pending ? ' disabled' : '') + ' aria-label="' + esc(c.label) + '" style="--today:' + (today * 100 / Math.max(1, vals.length - 1)) + '%">' +
+          (SIM.pending || !cutoffsAvailable() ? ' disabled' : '') + ' aria-label="' + esc(c.label) + '" style="--today:' + (today * 100 / Math.max(1, vals.length - 1)) + '%">' +
         '<div class="ssends"><span>← looser · ' + num(vals[0]) + '</span><span>' + num(vals[vals.length - 1]) +
-          (vals[vals.length - 1] > c.from ? ' · stricter →' : '') + '</span></div></div>';
+          (vals[vals.length - 1] > c.from ? ' · stricter →' : '') + '</span></div>' +
+        (cutoffsAvailable() ? '' : '<p class="simnote">The engine running now started before cutoff sliders existed. ' +
+          'Restart it (<code>python -m ui.serve</code>) to use them.</p>') + '</div>';
     }).join('');
   }
 
@@ -1256,11 +1264,12 @@
     }).join('') + '</div>';
     var body = SIM.view === 'target' ? viewTarget() : SIM.view === 'try' ? viewTry() : viewRules();
     var scenario = SIM.view === 'target' ? '' :
-      '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() + outcomeDetails() + '</div>';
+      '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() +
+        (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') + outcomeDetails() + '</div>';
     return '<div class="pagehead simhead"><div><h2' + N('sim_head') + '>Simulator</h2>' +
       '<p>Change today\'s rules and see who moves, or name a target and let the engine find the way.</p></div>' +
       tabs + '</div>' + modeNote() +
-      (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') +
+      (SIM.error && SIM.view === 'target' ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') +
       scenario + body;
   }
 
@@ -1373,7 +1382,7 @@
     if (SIM.refocus && !SIM.pending) {
       var el = root.querySelector(SIM.refocus);
       SIM.refocus = null;
-      if (el) el.focus();
+      if (el) el.focus({ preventScroll: true });
     }
   }
 
