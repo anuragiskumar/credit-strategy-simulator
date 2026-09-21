@@ -453,3 +453,48 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .simkicker { margin: 0 0 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
 .simsticky .caveat { margin: 8px 0 0; }
 .simslider .simnote { margin-top: 4px; }
+
+/* ------------------------------------------------------------ goal-seek: waiting
+   The result's shape in grey while the search runs. Achromatic on purpose: chroma is provenance,
+   and nothing here is a number yet. The three stage lines take turns on a 9s loop. */
+.btn .spin { display: inline-block; width: 11px; height: 11px; margin-inline-end: 7px; vertical-align: -1px;
+             border: 1.5px solid currentColor; border-inline-end-color: transparent; border-radius: 50%;
+             animation: gw-spin .8s linear infinite; }
+.goalwait { margin-top: 16px; }
+.gwbar { height: 3px; border-radius: 2px; background: var(--sunken); overflow: hidden; position: relative; }
+.gwbar i { position: absolute; inset-block: 0; width: 34%; border-radius: 2px; background: var(--ink-2);
+           animation: gw-slide 1.4s cubic-bezier(.45, 0, .25, 1) infinite; }
+.gwstages { position: relative; height: 20px; margin: 10px 0 2px; font-size: 13px; color: var(--ink-2); }
+.gwstages span { position: absolute; inset-inline-start: 0; top: 0; white-space: nowrap; opacity: 0;
+                 animation: gw-stage 9s ease-in-out infinite; }
+.gwstages .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 1; animation: none; }
+.gwcard { border: 1px solid var(--line); border-inline-start: 3px solid var(--line-hard); border-radius: 8px;
+          padding: 16px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.sk { display: block; height: 10px; border-radius: 4px; position: relative; overflow: hidden; background: var(--sunken); }
+.sk.tall { height: 16px; }
+.sk.skbtn { height: 30px; margin-top: 6px; border-radius: 6px; }
+.sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+             background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, transparent), transparent);
+             animation: gw-shimmer 1.6s ease-in-out infinite; }
+.sk.w30 { width: 30%; } .sk.w40 { width: 40%; } .sk.w70 { width: 70%; } .sk.w80 { width: 80%; } .sk.w90 { width: 90%; }
+.gwchart { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 12px; }
+.gwchart svg { display: block; width: 100%; height: 220px; }
+.gwchart .gl { stroke: var(--line-soft); stroke-width: .3; vector-effect: non-scaling-stroke; }
+.gwchart .ceil { stroke: var(--line-hard); stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+.gwchart circle { fill: var(--ink-2); opacity: 0; animation: gw-dot 3.1s ease-out infinite; }
+.gwchart circle.today { fill: var(--faint); opacity: 1; animation: none; }
+.gwchart .scan { fill: var(--ink); opacity: .04; animation: gw-scan 3.1s linear infinite; }
+@keyframes gw-spin { to { transform: rotate(360deg); } }
+@keyframes gw-slide { 0% { inset-inline-start: -34%; } 100% { inset-inline-start: 100%; } }
+@keyframes gw-shimmer { to { transform: translateX(100%); } }
+@keyframes gw-stage { 0% { opacity: 0; transform: translateY(4px); } 4%, 30% { opacity: 1; transform: none; }
+                      34%, 100% { opacity: 0; transform: translateY(-4px); } }
+@keyframes gw-dot { 0% { opacity: 0; } 10% { opacity: .55; } 70% { opacity: .25; } 100% { opacity: 0; } }
+@keyframes gw-scan { from { transform: translateX(0); } to { transform: translateX(86px); } }
+@media (prefers-reduced-motion: reduce) {
+  .btn .spin, .gwbar i, .sk::after, .gwchart .scan { animation: none; }
+  .gwbar i { inset-inline-start: 0; width: 100%; opacity: .3; }
+  .gwchart circle { opacity: .35; animation: none; }
+  .gwstages span { animation: none; }
+  .gwstages span:first-child { opacity: 1; }
+}

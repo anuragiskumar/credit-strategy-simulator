@@ -1216,7 +1216,7 @@
       '<label class="simfield"' + N('goal_ceiling') + '><span>without the bad rate going above</span>' +
         '<span class="simunit"><input type="number" class="siminput" id="goalceiling" min="0" max="100" step="0.5" value="' + esc(g.ceiling) + '">%</span>' +
         '<small>today ' + pct(F.headline.booked_bad_rate, 2) + '</small></label>' +
-      '<button class="btn" data-goal-run' + (g.pending ? ' disabled' : '') + '>' + (g.pending ? 'Searching…' : 'Find the way') + '</button>' +
+      '<button class="btn" data-goal-run' + (g.pending ? ' disabled' : '') + '>' + (g.pending ? '<span class="spin" aria-hidden="true"></span>Searching…' : 'Find the way') + '</button>' +
       '</div>' +
       disclose('constraints', 'Constraints',
         '<div class="simfrozen"><span class="simedk"' + N('goal_frozen') + '>Rules the search may switch off. Click one to keep it on:</span> ' + chips +
@@ -1231,13 +1231,47 @@
       '<p class="simfoot"' + N('limit') + '>A shortlist for the risk committee, not a decision.</p>';
   }
 
+  /** While goal-seek runs: the shape of the answer, drawn in grey, and what the engine is doing.
+   * Pure CSS animation, no timers, so it costs nothing and stops the moment the result renders. */
+  function goalLoading() {
+    var gs = SIM.health.goal_search;
+    var tries = goalCandidates().length + gs.field_moves.length;
+    var stages = [
+      'Replaying ' + n0(F.meta.applicants) + ' applicants under each change',
+      'Combining ' + tries + ' possible changes, up to ' + gs.max_depth + ' at a time',
+      'Ranking what reaches ' + pct(SIM.goal.target / 100, 1) + ' by the extra bad rate it costs'
+    ];
+    // Scattered where a search would look: rightwards of today, spread in bad rate.
+    var dots = [[.22, .70], [.34, .58], [.30, .80], [.46, .64], [.52, .76], [.41, .46], [.63, .55],
+                [.58, .70], [.70, .40], [.74, .62], [.81, .52], [.66, .78], [.86, .34], [.90, .60]];
+    var svg = '<svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">' +
+      [15, 30, 45].map(function (y) { return '<line class="gl" x1="0" x2="100" y1="' + y + '" y2="' + y + '"/>'; }).join('') +
+      [25, 50, 75].map(function (x) { return '<line class="gl" y1="0" y2="60" x1="' + x + '" x2="' + x + '"/>'; }).join('') +
+      '<line class="ceil" x1="0" x2="100" y1="12" y2="12"/>' +
+      dots.map(function (d, i) {
+        return '<circle cx="' + d[0] * 100 + '" cy="' + d[1] * 60 + '" r="1.6" style="animation-delay:' + (i * 0.22).toFixed(2) + 's"/>';
+      }).join('') +
+      '<circle class="today" cx="12" cy="' + (0.78 * 60) + '" r="2"/>' +
+      '<rect class="scan" x="0" y="0" width="14" height="60"/></svg>';
+    return '<div class="goalwait" role="status" aria-live="polite">' +
+      '<div class="gwbar"><i></i></div>' +
+      '<div class="gwstages">' + stages.map(function (t, i) {
+        return '<span style="animation-delay:' + (i * 3) + 's">' + esc(t) + '…</span>';
+      }).join('') + '<span class="sr">Searching for options, this takes several seconds.</span></div>' +
+      '<div class="simgrid is-goal">' +
+        '<div class="gwcard"><i class="sk w30"></i><i class="sk w90 tall"></i><i class="sk w70 tall"></i>' +
+          '<i class="sk w80"></i><i class="sk w40 skbtn"></i></div>' +
+        '<div class="gwchart">' + svg + '</div>' +
+      '</div></div>';
+  }
+
   function viewTarget() {
     if (SIM.live) {
       var g = SIM.goal;
       return panel('How do we reach a target approval rate?', '',
         goalForm() +
         (g.error ? caveat('warn', 'REFUSED', esc(g.error)) : '') +
-        (g.pending ? '<p class="note simbusy">Searching combinations — this takes several seconds.</p>' : '') +
+        (g.pending ? goalLoading() : '') +
         (g.out && !g.pending ? goalResult(g.out) : ''), N('goal'));
     }
     if (SIM.live === null || !F.goal_seek.length) return '';
