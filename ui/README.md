@@ -88,6 +88,10 @@ goal-seek shows its two fixed targets. The screen says which mode it is in.
 | `GET /api/rules` | every decline rule, what each tests, whether it can be changed and why not |
 | `POST /api/simulate` | `{"changes": [{"type": "off", "rule_id": …} \| {"type": "threshold", "rule_id": …, "field": …, "value_low": …, "value_high": …}]}` |
 | `POST /api/goal-seek` | `{"target": 0.30, "ceiling": 0.11, "frozen": [rule_id, …]}` |
+| `GET /api/scenarios` | saved scenarios, newest first, and how many may be compared at once |
+| `POST /api/scenarios` | `{"name", "changes", "product", "window", "preset", "who"}`: re-runs the steps and keeps the engine's answer, with who saved it and when |
+| `POST /api/scenarios/compare` | `{"ids": […]}`: re-runs each in its own product and period, and says what has moved since it was saved |
+| `POST /api/scenarios/delete` | `{"id", "who"}`: off the list; the record of who saved and deleted it is kept |
 
 A refused change (a locked rule, a range back to front) comes back as HTTP 400 with the reason in
 words, and the screen keeps the previous scenario.

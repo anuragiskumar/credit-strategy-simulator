@@ -12,6 +12,10 @@ routes HTTP to it.
     GET  /api/rules        every decline rule, with what may be edited
     POST /api/simulate     {"changes": [...]}
     POST /api/goal-seek    {"target": 0.30, "ceiling": 0.11, "frozen": ["rule_id", ...]}
+    GET  /api/scenarios            saved scenarios (?product= narrows)
+    POST /api/scenarios            {"name", "changes", "product", "window", "preset", "who"}
+    POST /api/scenarios/compare    {"ids": [...]}
+    POST /api/scenarios/delete     {"id", "who"}
 
 Bound to 127.0.0.1 only. This is a single-user demo server, not a deployment.
 """
@@ -100,12 +104,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 eng = self._engine()
                 return eng and self._json(200, eng.view(self._window_query(),
                                                         self._product_query()))
+            if path == "/api/scenarios":
+                eng = self._engine()
+                return eng and self._json(200, eng.scenarios(self._product_query()))
             if path == "/api/rules":
                 eng = self._engine()
                 return eng and self._json(200, {"rules": eng.rules(self._window_query(),
                                                                    self._product_query())})
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
+        except Exception as e:                  # report, never hang the page
+            traceback.print_exc()
+            return self._json(500, {"error": f"engine error: {type(e).__name__}: {e}"})
         if path.startswith("/api/"):
             return self._json(404, {"error": f"no such endpoint {path}"})
         return super().do_GET()
@@ -133,6 +143,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, eng.goal_seek(body.get("target"), body.get("ceiling"),
                                                      body.get("frozen"), body.get("window"),
                                                      body.get("product")))
+            if path == "/api/scenarios":
+                return self._json(200, eng.save_scenario(body))
+            if path == "/api/scenarios/compare":
+                return self._json(200, eng.compare_scenarios(body.get("ids")))
+            if path == "/api/scenarios/delete":
+                return self._json(200, eng.delete_scenario(body.get("id"), body.get("who")))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         except Exception as e:                  # report, never hang the page

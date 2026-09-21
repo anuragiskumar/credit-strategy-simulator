@@ -111,7 +111,7 @@
         '<td>' + (flag ? '<span class="st-pill">' + esc(flag.flag) + '</span>' : '') + '</td></tr>';
     });
 
-    var portfolioPanel = panel('The booked book, sliced', sliceBtns,
+    var portfolioPanel = panel('The booked book, sliced', sliceBtns + csvBtn('portfolio'),
       table('<th>' + esc(key.replace(/_/g, ' ')) + '</th><th class="num"' + N('th_booked') + '>Booked</th>' +
             '<th' + N('th_exposure') + '>Exposure</th><th class="num"' + N('th_share') + '>Share</th>' +
             '<th class="num"' + N('th_bad') + '>Bad rate ' + pv('OBSERVED') + '</th>' +
@@ -360,7 +360,7 @@
       '<div class="fview' + (view === 'bars' ? ' is-on' : '') + '" data-view="bars"' + (view === 'bars' ? '' : ' inert aria-hidden="true"') + '>' +
         funnelBarsHtml(M) + '</div></div>';
 
-    return '<div class="fpanel">' + panel('Where applicants drop out', seg + pv('OBSERVED'),
+    return '<div class="fpanel">' + panel('Where applicants drop out', seg + pv('OBSERVED') + csvBtn('funnel', 'Stages CSV') + csvBtn('funnel-rules', 'Rules CSV'),
       lede + key + views +
       '<div id="fdrill" class="fdrill" role="region" aria-live="polite" aria-labelledby="fdrill-h"' + N('fdrill') + '>' +
         drillHtml(M) + '</div>' +
@@ -489,7 +489,7 @@
         '<td class="num">' + n0(r.declines) + '</td>' +
         '<td class="num">' + r.share_of_all_declines.toFixed(1) + '%</td></tr>';
     });
-    return panel('Declines by channel', pv('OBSERVED'),
+    return panel('Declines by channel', pv('OBSERVED') + csvBtn('channels'),
       table('<th>Channel</th><th class="num">Applicants</th><th class="num"' + N('th_ch_approval') + '>Approval</th>' +
             '<th' + N('th_ch_declines') + '>Declines</th><th class="num"' + N('th_ch_n') + '>n</th>' +
             '<th class="num"' + N('th_ch_share') + '>Share of declines</th>', rows), N('ch_panel'));
@@ -542,7 +542,7 @@
         '<td class="drreasons">' + l.reasons.map(function (r) { return esc(r.label) + ' <span class="fig">' + n0(r.count) + '</span>'; }).join('<br>') + '</td>' +
         '<td>' + where + '</td></tr>';
     });
-    return panel('Where applicants are lost', pv('OBSERVED'),
+    return panel('Where applicants are lost', pv('OBSERVED') + csvBtn('losses'),
       '<div class="drlosstab">' + table('<th>Stage</th><th class="num">Lost</th><th></th><th' + N('dr_reasons') + '>Biggest reasons</th><th></th>', rows) +
       '</div>', N('dr_losses'));
   }
@@ -641,7 +641,7 @@
         return '<tr><td><span class="drname">' + esc(r.label) + '</span><br><span class="rid">' + esc(r.rule_id) + '</span></td>' +
           '<td colspan="3" class="verdict">reads a value the applicant data does not supply</td></tr>';
       }, '<th>Rule</th><th colspan="3"></th>');
-    return '<div id="dr-groups">' + panel('Rules by verdict', pv('OBSERVED', 'COUNTS') + ' ' + pv('INFERRED', 'RISK'), body, N('dr_rank')) + '</div>';
+    return '<div id="dr-groups">' + panel('Rules by verdict', pv('OBSERVED', 'COUNTS') + ' ' + pv('INFERRED', 'RISK') + csvBtn('drivers'), body, N('dr_rank')) + '</div>';
   }
 
   function pageDrivers() {
@@ -689,10 +689,13 @@
   var SIM = {
     live: null,          // null while checking, then true (engine) or false (fixture only)
     health: null, rules: null,
-    view: 'target',      // 'target' | 'try' | 'rules'
+    view: 'target',      // 'target' | 'try' | 'rules' | 'saved'
     steps: [], out: null, pending: false, error: null, notice: null,
     q: '', filter: 'alone', picked: null,   // All rules: search, filter, the rule open in the detail
     shut: {}, more: {},  // stage groups closed, and stage groups showing every rule
+    // Saved scenarios (the engine keeps them): the list, the compare picks and result, the save form.
+    saved: null, savedLoading: false, savedErr: null, cmpPick: {}, cmp: null, cmpMax: 4, cmpPending: false, cmpErr: null,
+    saving: false, savePending: false, saveErr: null, draftName: '', savedAs: null, pendingOpen: null,
     open: {},            // which disclosures are open, so a re-render keeps them open
     refocus: null,       // selector to focus again after a re-render (a slider, a switch)
     goal: { target: 25, ceiling: null, frozen: [], out: null, pending: false, error: null }
@@ -934,7 +937,7 @@
     });
     return disclose('why', 'Why, and by channel',
       '<p class="simverdict"' + N('verdict_tag') + '>' + esc(t.verdict) + '</p>' +
-      (rows.length ? table('<th' + N('th_sw_channel') + '>Channel</th><th class="num">Newly approved</th>' +
+      (rows.length ? '<div class="simcsv">' + csvBtn('scenario-channels') + '</div>' + table('<th' + N('th_sw_channel') + '>Channel</th><th class="num">Newly approved</th>' +
         (tightens ? '<th class="num">Newly declined</th>' : ''), rows) : ''));
   }
 
@@ -1226,7 +1229,7 @@
         : '<p class="simempty">No rule matches' + (SIM.filter !== 'all'
             ? ' this filter. <button class="drlink" data-sim-filter="all">Show all rules</button></p>' : '.</p>'));
     var changed = SIM.rules.filter(function (r) { return stepsFor(r.rule_id).length; }).length;
-    return panel(n0(SIM.rules.length) + ' decline rules', changed ? '<span class="fig">' + changed + ' changed</span>' : '',
+    return panel(n0(SIM.rules.length) + ' decline rules', (changed ? '<span class="fig">' + changed + ' changed</span>' : '') + csvBtn('rules'),
       body, N('sim_rules'));
   }
 
@@ -1301,7 +1304,7 @@
   }
 
   function sweepPanels() {
-    return (F.sweeps || []).map(function (sw) {
+    return (F.sweeps || []).map(function (sw, si) {
       var cells = sw.rows.map(function (r, i) {
         return '<div class="s' + (r.note === 'current' ? ' is-current' : '') + '">' +
           '<div class="c"' + (i === 0 ? N('sweep_cell') : '') + '>' + esc(sw.field === 'simahcreditscore' ? 'SIMAH ' : 'CRIF ') + r.cutoff + '</div>' +
@@ -1310,7 +1313,7 @@
           (r.risk_known ? 'bad ' + pct(r.expected_bad_rate, 2) : '<span class="nodata">no estimate</span>') +
           '</div></div>';
       }).join('');
-      return panel(sw.label, pv('OBSERVED', 'APPROVAL') + ' ' + pv('INFERRED', 'RISK'),
+      return panel(sw.label, pv('OBSERVED', 'APPROVAL') + ' ' + pv('INFERRED', 'RISK') + csvBtn('sweep:' + si),
         '<div class="sweep">' + cells + '</div>', N('sweep'));
     }).join('');
   }
@@ -1376,7 +1379,8 @@
       '<p class="rhead"' + N('goal_reco') + '><b>' + esc(head) + '</b> ' + esc(joinWords(sentence)) + '.</p>' +
       '<p class="rfig">Approval <span class="fig c-obs">' + pct(o.approval_rate) + '</span> (' + ptsChange(o.approval_change_pp) + '), ' +
         '<span class="fig">' + n0(o.swap_in) + '</span> newly approved; ' + esc(bad) + '.</p>' +
-      (canApply ? '<button class="btn" data-goal-apply="0"' + N('goal_apply') + '>Try this as a scenario</button>' : '') +
+      '<div class="simacts">' + (canApply ? '<button class="btn" data-goal-apply="0"' + N('goal_apply') + '>Try this as a scenario</button>' : '') +
+        '<button class="btn ghost sm" data-goal-print="0"' + N('goal_print') + '>Print pack</button>' + csvBtn('goal', 'All options CSV') + '</div>' +
       '</div>';
   }
 
@@ -1393,7 +1397,8 @@
         '<p class="rfig">Approval ' + pct(o.approval_rate) + ' (' + ptsChange(o.approval_change_pp) + ') · ' +
           '<span' + (j === 0 ? N('opt_risk') : '') + '>bad rate ' + (o.risk_known ? pct(o.expected_bad_rate, 2) + ' (' + ptsChange(o.risk_cost_pp, 2) + ')' : 'no estimate') + '</span>' +
           ' · ' + n0(o.swap_in) + ' newly approved</p>' +
-        (SIM.live && o.changes && o.changes.length ? '<button class="btn ghost sm" data-goal-apply="' + i + '">Try this as a scenario</button>' : '') +
+        '<div class="simacts">' + (SIM.live && o.changes && o.changes.length ? '<button class="btn ghost sm" data-goal-apply="' + i + '">Try this as a scenario</button>' : '') +
+        '<button class="btn ghost sm" data-goal-print="' + i + '">Print pack</button></div>' +
         '</div>';
     }).join(''), N('goal_more'));
   }
@@ -1486,6 +1491,438 @@
     return panel('How do we reach a target approval rate?', chips, goalResult(F.goal_seek[S.goal]), N('goal'));
   }
 
+  /* ======================================== export: CSV and the committee pack (TODO B3)
+   * Both are built from the engine's payload, never scraped from the screen: a CSV carries the
+   * raw figures (rates as fractions, counts as whole numbers) and the pack prints figures the
+   * engine produced, with the provenance of each. A column of estimates says so in its header. */
+  var INF = 'INFERRED';
+
+  function ctxSlug(product, w) {
+    product = product || CTX.product; w = w || CTX.window;
+    return product + (w ? '_' + w.app_from + '_to_' + w.app_to : '');
+  }
+  function saveFile(name, text, type) {
+    var url = URL.createObjectURL(new Blob([text], { type: type }));
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  function csvCell(v) {
+    if (v === null || v === undefined) return '';
+    if (Array.isArray(v)) v = v.map(function (x) { return x !== null && typeof x === 'object' ? JSON.stringify(x) : x; }).join('; ');
+    else if (typeof v === 'object') v = JSON.stringify(v);
+    var s = String(v);
+    // A cell a spreadsheet would run as a formula is written as text.
+    if (/^[=+@\t\r]/.test(s) || (/^-/.test(s) && isNaN(Number(s)))) s = "'" + s;
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  /** Rows of objects as CSV: every key any row has, in first-seen order. BOM so Excel reads Arabic. */
+  function toCsv(rows, prov) {
+    var cols = [];
+    rows.forEach(function (r) { Object.keys(r).forEach(function (k) { if (cols.indexOf(k) < 0) cols.push(k); }); });
+    var lines = [cols.map(function (k) { return csvCell(prov && prov[k] ? k + ' [' + prov[k] + ']' : k); }).join(',')];
+    rows.forEach(function (r) { lines.push(cols.map(function (k) { return csvCell(r[k]); }).join(',')); });
+    return '\ufeff' + lines.join('\r\n') + '\r\n';
+  }
+  function copy(o, extra) {
+    var out = {};
+    Object.keys(o).forEach(function (k) { out[k] = o[k]; });
+    Object.keys(extra || {}).forEach(function (k) { out[k] = extra[k]; });
+    return out;
+  }
+  function currentGoal() { return SIM.live ? SIM.goal.out : (F.goal_seek || [])[S.goal]; }
+
+  /** Each table's CSV: a name and rows straight from the payload. */
+  function csvSpec(id) {
+    var parts = id.split(':'), kind = parts[0], arg = parts[1];
+    var ds = F.drivers_summary || {};
+    switch (kind) {
+      case 'portfolio': return { name: 'portfolio-by-' + S.slice, rows: F.portfolio[S.slice].rows };
+      case 'funnel': return { name: 'funnel-stages', rows: F.funnel };
+      case 'funnel-rules': return { name: 'funnel-rules', rows: [].concat.apply([], (F.funnel_rules || []).map(function (s) {
+        return s.rules.map(function (r) { return copy({ stage: s.stage, stage_total: s.total }, r); });
+      })) };
+      case 'channels': return { name: 'declines-by-channel', rows: F.by_channel };
+      case 'losses': return { name: 'where-applicants-are-lost', rows: (ds.losses || []).map(function (l) {
+        return copy(l, { reasons: l.reasons.map(function (r) { return r.label + ' (' + r.count + ')'; }) });
+      }) };
+      case 'drivers': return { name: 'decline-drivers', prov: { est_bad_rate_if_relaxed: INF },
+        rows: F.drivers.concat((ds.never_fire || []).map(function (r) { return copy(r, { verdict: 'never_fire' }); }),
+                               (ds.not_evaluated || []).map(function (r) { return copy(r, { verdict: 'not_evaluated' }); })) };
+      case 'rules': return { name: 'decline-rules', rows: (SIM.rules || []).map(function (r) {
+        var s = r.sentence || {};
+        return { rule_id: r.rule_id, label: r.label, stage: r.stage_label || r.stage, policy_code: r.policy_code,
+                 declines_when: s.when || r.tests, applies_to: s.applies_to, declines: r.declines,
+                 declines_alone: r.declines_alone, editable: r.editable, locked_because: r.reason,
+                 in_your_scenario: ruleStatus(r).t };
+      }) };
+      case 'scenario': return { name: 'scenario', prov: { expected_bad_rate: INF },
+        rows: SIM.out.steps.map(function (s, i) {
+          return { step: i + 1, change: stepText(SIM.steps[i]), approval_rate: s.approval_rate,
+                   approval_change_pp: s.approval_change_pp, added_pp: s.added_pp, newly_approved: s.swap_in,
+                   newly_declined: s.swap_out, expected_bad_rate: s.risk_known ? s.expected_bad_rate : null,
+                   risk_known: s.risk_known, verdict: s.verdict };
+        }) };
+      case 'scenario-channels': return { name: 'scenario-by-channel', rows: Object.keys(SIM.out.result.swap_in_by_channel || {}).map(function (k) {
+        return copy({ channel: k }, SIM.out.result.swap_in_by_channel[k]);
+      }) };
+      case 'sweep': var sw = F.sweeps[+arg];
+        return { name: sw.field + '-cutoff-sweep', prov: { expected_bad_rate: INF }, rows: sw.rows };
+      case 'goal': var g = currentGoal();
+        return { name: 'goal-seek-' + Math.round(g.target * 100) + 'pct', prov: { expected_bad_rate: INF, risk_cost_pp: INF },
+          rows: g.options.map(function (o) { return copy(o, { changes: optionWords(o) }); }) };
+      case 'saved': return { name: 'saved-scenarios', prov: { expected_bad_rate: INF }, rows: (SIM.saved || []).map(savedRow) };
+      case 'compare': return { name: 'scenario-comparison', prov: { expected_bad_rate: INF },
+        rows: SIM.cmp.scenarios.map(function (c) {
+          return copy(savedRow(c.scenario), c.now ? { approval_rate: c.now.approval_rate, approval_change_pp: c.now.approval_change_pp,
+            expected_bad_rate: c.now.risk_known ? c.now.expected_bad_rate : null, newly_approved: c.now.swap_in,
+            newly_declined: c.now.swap_out, moved_since_saved: c.drift.length ? c.drift : 'unchanged', error: c.error } : { error: c.error });
+        }) };
+    }
+    return null;
+  }
+  function savedRow(sc) {
+    var o = sc.outcome;
+    return { name: sc.name, product: sc.product, applications_from: sc.window.app_from, applications_to: sc.window.app_to,
+             performance_months: sc.window.performance_months, changes: sc.steps.map(function (s) { return s.text; }),
+             approval_rate: o.approval_rate, approval_change_pp: o.approval_change_pp,
+             expected_bad_rate: o.risk_known ? o.expected_bad_rate : null, newly_approved: o.swap_in,
+             newly_declined: o.swap_out, saved_by: sc.saved_by, saved_at: sc.saved_at };
+  }
+  function csvBtn(id, text) {
+    return '<button type="button" class="btn ghost sm csvbtn" data-csv="' + esc(id) + '"' + N('csv') + '>' + (text || 'CSV') + '</button>';
+  }
+  function downloadCsv(id) {
+    var spec = csvSpec(id);
+    if (!spec || !spec.rows) return;
+    saveFile(ctxSlug() + '_' + spec.name + '.csv', toCsv(spec.rows, spec.prov), 'text/csv;charset=utf-8');
+  }
+
+  /* ---- the committee pack: one printable page, saved as PDF from the print dialog */
+  function stamp(iso) {
+    var d = iso ? new Date(iso) : new Date();
+    if (isNaN(d)) return String(iso);
+    function two(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ', ' + two(d.getHours()) + ':' + two(d.getMinutes());
+  }
+  function tag(kind, text) { return '<span class="pp-tag">' + esc(text || kind) + '</span>'; }
+
+  /** Product, period, bad-rate basis and who prepared it: the context every figure belongs to. */
+  function packContext(product, w) {
+    var m = F.meta;
+    w = w || m.window;
+    var rows = [['Product', esc(product || m.product)]];
+    if (w) {
+      rows.push(['Applications replayed', esc(w.label || (w.app_from + ' – ' + w.app_to)) +
+        (w.applicants ? ' · ' + n0(w.applicants) + ' applications' : '')]);
+      if (w.mature_loans) rows.push(['Bad rate observed on', n0(w.mature_loans) + ' loans booked ' +
+        esc(monthYear(w.mature_booked_from)) + ' – ' + esc(monthYear(w.mature_booked_to)) +
+        ', each followed for ' + w.performance_months + ' months']);
+    }
+    rows.push(['Bad-rate limit', pct(ceilingRate(), 1)]);
+    rows.push(['Rules replayed', n0(m.rules_replayed) + ' rules, as the bank runs them today']);
+    rows.push(['Prepared', (window.Session.who() ? esc(window.Session.who()) + ', ' : '') + stamp() +
+      ' · engine data built ' + esc(m.generated)]);
+    return '<dl class="pp-meta">' + rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('') + '</dl>' +
+      (m.synthetic ? '<p class="pp-warn">Synthetic applicants, real rules: the figures are illustrative; the rules and the method are real.</p>' : '');
+  }
+
+  /** Today against the change, with the provenance of each figure. */
+  function packOutcome(t) {
+    var h = F.headline, ceil = ceilingRate();
+    var bad = t.risk_known
+      ? pct(t.expected_bad_rate, 2) + (t.expected_bad_rate > ceil ? ' (above the limit)' : '')
+      : 'no estimate';
+    var badTag = !t.risk_known ? tag('NOT_MODELLED', 'NOT MODELLED') : t.swap_in ? tag(INF) : tag('OBSERVED');
+    var rows = [
+      ['Approval rate', pct(h.approval_rate), pct(t.approval_rate) + ' (' + ptsChange(t.approval_change_pp) + ')', tag('OBSERVED')],
+      ['Bad rate', pct(h.booked_bad_rate, 2), bad, tag('OBSERVED') + ' → ' + badTag],
+      ['Newly approved', '', n0(t.swap_in) + ' applicants', tag('OBSERVED')]
+    ];
+    if (t.swap_out) rows.push(['Newly declined', '', n0(t.swap_out) + ' applicants' +
+      (t.swap_out_observed_bad_rate !== null && t.swap_out_observed_bad_rate !== undefined
+        ? ', bad rate ' + pct(t.swap_out_observed_bad_rate, 1) : ''), tag('OBSERVED')]);
+    return '<table class="pp-t"><thead><tr><th>Measure</th><th>Today</th><th>With the changes</th><th>Basis</th></tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td><b>' + r[2] + '</b></td><td>' + r[3] + '</td></tr>'; }).join('') +
+      '</tbody></table>' + (t.verdict ? '<p class="pp-note">Engine verdict: ' + esc(t.verdict) + '.</p>' : '');
+  }
+
+  function packKey() {
+    return '<section class="pp-key"><h2>How to read the figures</h2><dl>' +
+      '<div><dt>' + tag('OBSERVED') + '</dt><dd>Counted from the data: applications, declines, today\'s rules replayed on them, and the bad rate of loans the bank booked.</dd></div>' +
+      '<div><dt>' + tag(INF) + '</dt><dd>Estimated by reject inference: the bad rate of applicants the bank has never booked, from similar applicants it did book. Treat it as a forecast.</dd></div>' +
+      '<div><dt>' + tag('NOT_MODELLED', 'NOT MODELLED') + '</dt><dd>Left blank on purpose: the group sits outside anything the bank has booked, so any figure would be a guess.</dd></div>' +
+      '</dl><p class="pp-note">Every figure in this pack was produced by the Azentio engine; the page only lays them out.</p></section>';
+  }
+
+  function printPack(title, name, body) {
+    var host = document.getElementById('printpack');
+    if (!host) { host = document.createElement('div'); host.id = 'printpack'; document.body.appendChild(host); }
+    host.innerHTML = '<header class="pp-head"><div class="pp-brand">Azentio · Credit Strategy Optimiser</div>' +
+      '<h1>' + esc(title) + '</h1>' + (name ? '<p class="pp-name">' + esc(name) + '</p>' : '') + '</header>' + body + packKey();
+    var was = document.title;
+    document.title = ctxSlug() + ' ' + (name || title);
+    document.documentElement.classList.add('is-printing');
+    function done() {
+      document.documentElement.classList.remove('is-printing');
+      document.title = was;
+      window.removeEventListener('afterprint', done);
+    }
+    window.addEventListener('afterprint', done);
+    window.print();
+  }
+
+  function printScenario() {
+    var t = SIM.out && SIM.out.result;
+    if (!t) return;
+    var changes = SIM.out.steps.map(function (s, i) {
+      var st = SIM.steps[i], r = st.rule_id && ruleById(st.rule_id);
+      var sn = (r && r.sentence) || {};
+      return '<li><b>' + esc(stepText(st)) + '</b>' +
+        (sn.when ? '<br><span class="pp-note">The rule declines when ' + esc(sn.when) +
+          (sn.applies_to ? ', for applicants whose ' + esc(sn.applies_to) : '') + '.</span>' : '') +
+        '<br><span class="pp-note">Adds ' + ptsChange(s.added_pp) + ' approval · ' + n0(s.added_swap_in) + ' newly approved' +
+        (s.added_swap_out ? ' · ' + n0(s.added_swap_out) + ' newly declined' : '') + '</span></li>';
+    }).join('');
+    var ch = Object.keys(t.swap_in_by_channel || {});
+    var chans = ch.length ? '<h2>Newly approved, by channel ' + tag('OBSERVED') + '</h2><table class="pp-t"><thead><tr><th>Channel</th><th>Newly approved</th>' +
+      (t.swap_out ? '<th>Newly declined</th>' : '') + '</tr></thead><tbody>' + ch.map(function (k) {
+        var v = t.swap_in_by_channel[k];
+        return '<tr><td>' + esc(k) + '</td><td>' + n0(v.swap_in) + '</td>' + (t.swap_out ? '<td>' + n0(v.swap_out) + '</td>' : '') + '</tr>';
+      }).join('') + '</tbody></table>' : '';
+    printPack('Scenario for committee', savedName(), packContext() +
+      '<h2>The changes, in order</h2><ol class="pp-steps">' + changes + '</ol>' +
+      '<h2>What they do to the book</h2>' + packOutcome(t) + chans);
+  }
+
+  function printGoalOption(i) {
+    var res = currentGoal(), o = res && res.options[i];
+    if (!o) return;
+    var others = res.options.map(function (x) {
+      return '<tr' + (x === o ? ' class="is-this"' : '') + '><td>' + esc(String(x.option).charAt(0)) + '</td><td>' +
+        esc(joinWords(optionWords(x))) + '</td><td>' + pct(x.approval_rate) + '</td><td>' +
+        (x.risk_known ? pct(x.expected_bad_rate, 2) : 'no estimate') + '</td><td>' + n0(x.swap_in) + '</td></tr>';
+    }).join('');
+    printPack('Goal-seek option for committee', 'Option ' + String(o.option).charAt(0) + ': reach ' + pct(res.target, 1) + ' approval',
+      packContext() +
+      '<p class="pp-note">Asked for: approval of ' + pct(res.target, 1) + ' with the bad rate at most ' + pct(res.ceiling, 1) + '. ' +
+        (res.reached ? 'The search reached it.' : 'The search could not reach it; this is the closest.') + '</p>' +
+      '<h2>The changes</h2><ol class="pp-steps">' + optionWords(o).map(function (w) {
+        return '<li><b>' + esc(w.charAt(0).toUpperCase() + w.slice(1)) + '</b></li>'; }).join('') + '</ol>' +
+      '<h2>What they do to the book</h2>' + packOutcome(o) +
+      '<h2>Every option the search returned</h2><table class="pp-t"><thead><tr><th></th><th>Changes</th><th>Approval</th>' +
+        '<th>Bad rate ' + tag(INF) + '</th><th>Newly approved</th></tr></thead><tbody>' + others + '</tbody></table>');
+  }
+
+  function printComparison() {
+    var c = SIM.cmp;
+    if (!c) return;
+    printPack('Scenarios compared', c.scenarios.map(function (x) { return x.scenario.name; }).join(' · '),
+      packContext() + (c.same_context ? '' : '<p class="pp-warn">These scenarios were built on different products or periods, ' +
+        'so their figures are not measured on the same applications.</p>') + compareTable(true));
+  }
+
+  /* ======================================== saved scenarios (TODO B4)
+   * Kept by the engine, which re-runs the steps when a scenario is saved and again when it is
+   * compared, and records who saved it and when. The page lists, opens and compares; it never
+   * stores a figure of its own. */
+  function savedName() {
+    var s = SIM.savedAs;
+    return s && s.key === JSON.stringify(SIM.steps) ? s.name : '';
+  }
+
+  function loadSaved() {
+    if (!SIM.live || SIM.savedLoading) return;
+    SIM.savedLoading = true;
+    api('/api/scenarios').then(function (j) {
+      SIM.saved = j.scenarios; SIM.cmpMax = j.compare_max || 4; SIM.savedErr = null;
+      Object.keys(SIM.cmpPick).forEach(function (id) {
+        if (!SIM.saved.some(function (s) { return s.id === id; })) delete SIM.cmpPick[id];
+      });
+    }).catch(function (e) { SIM.savedErr = e.message; })
+      .then(function () { SIM.savedLoading = false; refreshSim(); });
+  }
+
+  function saveScenario(name) {
+    SIM.saveErr = null; SIM.savePending = true; refreshSim();
+    var steps = SIM.steps.slice();
+    api('/api/scenarios', ctxBody({ name: name, changes: steps, preset: CTX.preset, who: window.Session.who() || null }))
+      .then(function (sc) {
+        SIM.saving = false; SIM.saved = null;
+        SIM.savedAs = { name: sc.name, key: JSON.stringify(steps) };
+      }).catch(function (e) { SIM.saveErr = e.message; })
+      .then(function () { SIM.savePending = false; refreshSim(); });
+  }
+
+  function sameWindow(a, b) {
+    return !!a && !!b && a.app_from === b.app_from && a.app_to === b.app_to && +a.performance_months === +b.performance_months;
+  }
+
+  /** Open a saved scenario: its own product and period first, then its steps, re-run. */
+  function openSaved(sc) {
+    SIM.view = 'try'; SIM.cmp = null;
+    if (sc.product === CTX.product && sameWindow(sc.window, CTX.window)) {
+      propose(sc.changes.slice(), function (ok) { openedNotice(sc, ok); });
+      return;
+    }
+    SIM.pendingOpen = sc;
+    setContext({ product: sc.product, preset: sc.preset, window: sc.window });
+  }
+  function openedNotice(sc, ok) {
+    if (ok) SIM.savedAs = { name: sc.name, key: JSON.stringify(sc.changes) };
+    SIM.notice = ok
+      ? { tag: 'OPENED', html: '“' + esc(sc.name) + '” re-run on ' + esc(sc.window.label || 'its period') + '. Every figure below is from this run.' }
+      : { tag: 'NOT OPENED', html: '“' + esc(sc.name) + '” no longer runs: ' + esc(SIM.error || 'the engine refused it') + '.' };
+    if (!ok) SIM.error = null;
+  }
+
+  function scenarioActions() {
+    var t = SIM.out && SIM.out.result;
+    if (!t) return '';
+    var name = savedName();
+    var save = !SIM.live ? '' : SIM.saving
+      ? '<span class="simsave"><input type="text" class="siminput" id="simname" maxlength="80" placeholder="Name this scenario" ' +
+          'aria-label="Scenario name" value="' + esc(SIM.draftName || '') + '">' +
+        '<button class="btn sm" data-sim-save-go' + (SIM.savePending ? ' disabled' : '') + '>Save</button>' +
+        '<button class="btn ghost sm" data-sim-save-cancel>Cancel</button></span>'
+      : '<button class="btn ghost sm" data-sim-save' + N('sim_save') + '>' + (name ? 'Save as new…' : 'Save scenario…') + '</button>';
+    return '<div class="simacts">' +
+      (name ? '<span class="simsaved">Saved as <b>' + esc(name) + '</b></span>' : '') + save +
+      '<button class="btn ghost sm" data-sim-print' + N('sim_print') + '>Print pack</button>' + csvBtn('scenario') +
+      (SIM.saveErr ? '<span class="simerr" role="alert">' + esc(SIM.saveErr) + '</span>' : '') + '</div>';
+  }
+
+  function savedFig(o) {
+    return '<td class="num">' + pct(o.approval_rate) + '<br><small>' + ptsChange(o.approval_change_pp) + '</small></td>' +
+      '<td class="num">' + (o.risk_known ? '<span class="' + (o.swap_in ? 'c-inf' : 'c-obs') + '">' + pct(o.expected_bad_rate, 2) + '</span>'
+                                          : '<span class="c-nm">no estimate</span>') + '</td>' +
+      '<td class="num">' + n0(o.swap_in) + '</td>';
+  }
+
+  function viewSaved() {
+    if (!SIM.live) return panel('Saved scenarios', '', '<p class="note">Saved scenarios are kept by the engine. ' +
+      'Start it (<code>python -m ui.serve</code>) to save, open and compare them.</p>');
+    if (SIM.saved === null) { loadSaved(); return panel('Saved scenarios', '', '<p class="note">Loading…</p>'); }
+    if (SIM.savedErr) return panel('Saved scenarios', '', caveat('warn', 'REFUSED', esc(SIM.savedErr)));
+    var picked = Object.keys(SIM.cmpPick).length;
+    var rows = SIM.saved.map(function (sc) {
+      return '<tr><td class="savpick"><input type="checkbox" data-sim-cmp="' + esc(sc.id) + '"' + (SIM.cmpPick[sc.id] ? ' checked' : '') +
+          ' aria-label="Compare ' + esc(sc.name) + '"></td>' +
+        '<td><b class="savname">' + esc(sc.name) + '</b><ul class="savsteps">' +
+          sc.steps.map(function (s) { return '<li>' + esc(s.text) + '</li>'; }).join('') + '</ul></td>' +
+        '<td>' + esc(sc.product) + '<br><small>' + esc(sc.window.label || '') + '</small></td>' +
+        savedFig(sc.outcome) +
+        '<td><small>' + esc(sc.saved_by || 'unnamed') + '<br>' + esc(stamp(sc.saved_at)) + '</small></td>' +
+        '<td class="savacts"><button class="drlink" data-sim-open-saved="' + esc(sc.id) + '">Open</button>' +
+          '<button class="drlink" data-sim-del-saved="' + esc(sc.id) + '">Delete</button></td></tr>';
+    });
+    var canCmp = picked >= 2 && picked <= SIM.cmpMax;
+    var head = (SIM.saved.length ? csvBtn('saved') : '') +
+      '<button class="btn sm" data-sim-compare' + (canCmp && !SIM.cmpPending ? '' : ' disabled') + N('sim_compare') + '>' +
+        (SIM.cmpPending ? 'Re-running…' : 'Compare' + (picked ? ' ' + picked : '')) + '</button>';
+    var body = SIM.saved.length
+      ? '<p class="simnote">Tick 2 to ' + SIM.cmpMax + ' to compare them side by side. The figures here are as saved; comparing re-runs them.</p>' +
+        '<div class="savtab">' + table('<th></th><th>Scenario</th><th>Product · period</th><th class="num">Approval</th>' +
+          '<th class="num">Bad rate</th><th class="num">Newly approved</th><th>Saved by</th><th></th>', rows) + '</div>'
+      : '<p class="note">Nothing saved yet. Build a scenario under Try a change or All rules, then Save scenario.</p>';
+    return panel('Saved scenarios', head, (SIM.cmpErr ? caveat('warn', 'REFUSED', esc(SIM.cmpErr)) : '') + body, N('sim_saved')) +
+      (SIM.cmp ? panel('Side by side', '<button class="btn ghost sm" data-sim-print-cmp>Print pack</button>' + csvBtn('compare'),
+        (SIM.cmp.same_context ? '' : caveat('warn', 'DIFFERENT BASES', 'These scenarios were built on different products or periods, ' +
+          'so their figures are not measured on the same applications.')) + compareTable(false), N('sim_cmp_table')) : '');
+  }
+
+  /** One column per scenario, re-run now. `forPrint` drops the screen-only colour classes. */
+  function compareTable(forPrint) {
+    var cols = SIM.cmp.scenarios;
+    function cmpRow(label, fn) {
+      return '<tr><th scope="row">' + label + '</th>' + cols.map(function (c) { return '<td>' + fn(c) + '</td>'; }).join('') + '</tr>';
+    }
+    function now(fn) { return function (c) { return c.now ? fn(c.now) : '<span class="nodata">—</span>'; }; }
+    var body = [
+      cmpRow('Product · period', function (c) { return esc(c.scenario.product) + '<br><small>' + esc(c.scenario.window.label || '') + '</small>'; }),
+      cmpRow('Changes', function (c) { return '<ol class="savsteps">' + c.scenario.steps.map(function (s) { return '<li>' + esc(s.text) + '</li>'; }).join('') + '</ol>'; }),
+      cmpRow('Approval ' + (forPrint ? tag('OBSERVED') : pv('OBSERVED')), now(function (o) { return '<b>' + pct(o.approval_rate) + '</b> (' + ptsChange(o.approval_change_pp) + ')'; })),
+      cmpRow('Bad rate ' + (forPrint ? tag(INF) : pv(INF)), now(function (o) {
+        return o.risk_known ? '<b' + (forPrint ? '' : ' class="' + (o.swap_in ? 'c-inf' : 'c-obs') + '"') + '>' + pct(o.expected_bad_rate, 2) + '</b>' +
+          (o.expected_bad_rate > ceilingRate() ? ' above the limit' : '') : 'no estimate';
+      })),
+      cmpRow('Newly approved', now(function (o) { return n0(o.swap_in); })),
+      cmpRow('Newly declined', now(function (o) { return n0(o.swap_out); })),
+      cmpRow('Engine verdict', now(function (o) { return esc(o.verdict || ''); })),
+      cmpRow('Since it was saved', function (c) {
+        if (c.error) return '<span class="simerr">' + esc(c.error) + '</span>';
+        return c.drift.length ? '<span class="simerr">Moved: ' + esc(c.drift.join(', ')) + '</span>' : 'Unchanged';
+      }),
+      cmpRow('Saved by', function (c) { return esc(c.scenario.saved_by || 'unnamed') + '<br><small>' + esc(stamp(c.scenario.saved_at)) + '</small>'; })
+    ];
+    return '<div class="' + (forPrint ? '' : 'tablewrap ') + 'cmptab"><table class="' + (forPrint ? 'pp-t' : 't') + '"><thead><tr><th></th>' +
+      cols.map(function (c) { return '<th>' + esc(c.scenario.name) + '</th>'; }).join('') + '</tr></thead><tbody>' + body.join('') + '</tbody></table></div>';
+  }
+
+  function runCompare() {
+    var ids = SIM.saved.filter(function (s) { return SIM.cmpPick[s.id]; }).map(function (s) { return s.id; });
+    SIM.cmpPending = true; SIM.cmpErr = null; refreshSim();
+    api('/api/scenarios/compare', { ids: ids }).then(function (out) { SIM.cmp = out; })
+      .catch(function (e) { SIM.cmpErr = e.message; })
+      .then(function () { SIM.cmpPending = false; refreshSim(); });
+  }
+
+  function deleteSaved(sc) {
+    if (!window.confirm('Delete “' + sc.name + '”? It leaves the list; the record of who saved and deleted it is kept.')) return;
+    api('/api/scenarios/delete', { id: sc.id, who: window.Session.who() || null })
+      .then(function () { SIM.saved = null; SIM.cmp = null; delete SIM.cmpPick[sc.id]; })
+      .catch(function (e) { SIM.savedErr = e.message; })
+      .then(function () { refreshSim(); });
+  }
+
+  function wireSaved(root) {
+    root.querySelectorAll('[data-sim-save]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        SIM.saving = true; SIM.saveErr = null; SIM.draftName = '';
+        SIM.refocus = '#simname'; go('simulator', true);
+      });
+    });
+    var name = root.querySelector('#simname');
+    if (name) {
+      name.addEventListener('input', function () { SIM.draftName = name.value; });
+      name.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') root.querySelector('[data-sim-save-go]').click();
+        if (e.key === 'Escape') root.querySelector('[data-sim-save-cancel]').click();
+      });
+    }
+    root.querySelectorAll('[data-sim-save-go]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = (SIM.draftName || '').trim();
+        if (!v) { SIM.saveErr = 'Give the scenario a name.'; SIM.refocus = '#simname'; go('simulator', true); return; }
+        saveScenario(v);
+      });
+    });
+    root.querySelectorAll('[data-sim-save-cancel]').forEach(function (b) {
+      b.addEventListener('click', function () { SIM.saving = false; SIM.saveErr = null; go('simulator', true); });
+    });
+    root.querySelectorAll('[data-sim-print]').forEach(function (b) { b.addEventListener('click', printScenario); });
+    root.querySelectorAll('[data-sim-print-cmp]').forEach(function (b) { b.addEventListener('click', printComparison); });
+    root.querySelectorAll('[data-goal-print]').forEach(function (b) {
+      b.addEventListener('click', function () { printGoalOption(+b.getAttribute('data-goal-print')); });
+    });
+    root.querySelectorAll('[data-sim-cmp]').forEach(function (b) {
+      b.addEventListener('change', function () {
+        if (b.checked) SIM.cmpPick[b.getAttribute('data-sim-cmp')] = true; else delete SIM.cmpPick[b.getAttribute('data-sim-cmp')];
+        SIM.refocus = '[data-sim-cmp="' + b.getAttribute('data-sim-cmp') + '"]';
+        go('simulator', true);
+      });
+    });
+    root.querySelectorAll('[data-sim-compare]').forEach(function (b) { b.addEventListener('click', runCompare); });
+    function byId(id) { return (SIM.saved || []).filter(function (s) { return s.id === id; })[0]; }
+    root.querySelectorAll('[data-sim-open-saved]').forEach(function (b) {
+      b.addEventListener('click', function () { var sc = byId(b.getAttribute('data-sim-open-saved')); if (sc) openSaved(sc); });
+    });
+    root.querySelectorAll('[data-sim-del-saved]').forEach(function (b) {
+      b.addEventListener('click', function () { var sc = byId(b.getAttribute('data-sim-del-saved')); if (sc) deleteSaved(sc); });
+    });
+  }
+
   function modeNote() {
     if (SIM.live === null) return '<p class="simmode"' + N('sim_mode') + '>Connecting to the engine…</p>';
     if (SIM.live) return '';
@@ -1493,16 +1930,17 @@
       'Start the engine (<code>python -m ui.serve</code>) to stack changes and set your own target.</p>';
   }
 
-  var VIEWS = [['target', 'Set a target'], ['try', 'Try a change'], ['rules', 'All rules']];
+  var VIEWS = [['target', 'Set a target'], ['try', 'Try a change'], ['rules', 'All rules'], ['saved', 'Saved']];
 
   function pageSimulator() {
     var tabs = '<div class="fseg simviews" role="tablist"' + N('sim_views') + '>' + VIEWS.map(function (v) {
       return '<button role="tab" data-sim-view="' + v[0] + '" aria-pressed="' + (SIM.view === v[0]) + '" aria-selected="' +
         (SIM.view === v[0]) + '">' + v[1] + '</button>';
     }).join('') + '</div>';
-    var body = SIM.view === 'target' ? viewTarget() : SIM.view === 'try' ? viewTry() : viewRules();
-    var scenario = SIM.view === 'target' ? '' :
-      '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() +
+    var body = SIM.view === 'target' ? viewTarget() : SIM.view === 'try' ? viewTry() :
+      SIM.view === 'saved' ? viewSaved() : viewRules();
+    var scenario = SIM.view === 'target' || SIM.view === 'saved' ? '' :
+      '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() + scenarioActions() +
         (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') + outcomeDetails() + '</div>';
     return '<div class="pagehead simhead"><div><h2' + N('sim_head') + '>Simulator</h2>' +
       '<p>Change today\'s rules and see who moves, or name a target and let the engine find the way.</p>' +
@@ -1534,6 +1972,7 @@
   });
 
   function wireSimulator(root) {
+    wireSaved(root);
     root.querySelectorAll('[data-sim-view]').forEach(function (b) {
       b.addEventListener('click', function () { SIM.view = b.getAttribute('data-sim-view'); go('simulator', true); });
     });
@@ -1715,6 +2154,9 @@
   }
 
   function wire(root) {
+    root.querySelectorAll('[data-csv]').forEach(function (b) {
+      b.addEventListener('click', function () { downloadCsv(b.getAttribute('data-csv')); });
+    });
     root.querySelectorAll('[data-slice]').forEach(function (b) {
       b.addEventListener('click', function () { S.slice = b.getAttribute('data-slice'); go(S.page, true); });
     });
@@ -2040,6 +2482,12 @@
     }).then(function (j) {
       if (!j || seq !== CTX.seq) return;
       SIM.rules = j.rules;
+      if (SIM.pendingOpen) {
+        var sc = SIM.pendingOpen;
+        SIM.pendingOpen = null;
+        propose(sc.changes.slice(), function (ok) { openedNotice(sc, ok); });
+        return;
+      }
       if (!had.length) { refreshSim(); return; }
       if (!sameProduct) {
         SIM.notice = { tag: 'SCENARIO CLEARED', html: 'Your changes were cleared: ' + esc(CTX.product) + ' has its own rules.' };

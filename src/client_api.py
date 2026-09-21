@@ -28,7 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src import client_analysis as A, client_optimise as O, client_simulate as S
+from src import client_analysis as A, client_optimise as O, client_scenarios as SC, client_simulate as S
 from src.client_replay import locked_rules
 
 MAX_CHANGES = 12
@@ -235,6 +235,27 @@ def simulate_changes(base: S.Baseline, inv, changes: list) -> dict:
     return {"steps": steps, "result": steps[-1]}
 
 
+def describe_change(base: S.Baseline, inv, change: dict) -> str:
+    """One change in the words a committee paper uses, with the rule's business name.
+
+    Kept with a saved scenario, so it still reads correctly once the page has moved on to
+    another product whose rule list does not have that rule.
+    """
+    labels = base.cfg.get("field_labels") or {}
+    kind, rid = change.get("type"), change.get("rule_id")
+    c = base.res.compiled.get(rid) if rid else None
+    name = (A.clean_description(c.description) if c is not None else None) or rid
+    field = str(change.get("field") or "")
+    fname = labels.get(field.split(".")[-1], field.split(".")[-1])
+    if kind == "off":
+        return f"Switch off “{name}”"
+    if kind == "cutoff":
+        lo, to = _as_float(change.get("from")), _as_float(change.get("to"))
+        return f"{'Lower' if to < lo else 'Raise'} the {fname} cutoff from {lo:g} to {to:g}"
+    lo, hi = _as_float(change.get("value_low")), _as_float(change.get("value_high"))
+    return f"“{name}”: {fname} to {lo:g}" + (f"–{hi:g}" if hi is not None else "")
+
+
 def run_goal_seek(base: S.Baseline, inv, target, ceiling=None, frozen=None) -> dict:
     """Goal-seek to the person's own target, under their own bad-rate ceiling."""
     t = _as_float(target)
@@ -319,6 +340,7 @@ class Engine:
     base: S.Baseline
     inv: object
     cache: object = None               # client_context.ContextCache
+    store: object = None               # client_scenarios.ScenarioStore; None: saving is off
 
     def __post_init__(self):
         self._lock = threading.Lock()
@@ -334,7 +356,8 @@ class Engine:
         inv = build_inventory(cfg["replay"]["rules_folder"])
         df = pd.read_parquet(resolve_path(cfg["data_path"]))
         cache = C.ContextCache(df, inv, cfg)
-        return cls(base=cache.baseline(), inv=inv, cache=cache)
+        store = SC.ScenarioStore(resolve_path(cfg["scenarios"]["path"])) if cfg.get("scenarios") else None
+        return cls(base=cache.baseline(), inv=inv, cache=cache, store=store)
 
     def baseline(self, window=None, product=None) -> S.Baseline:
         """The baseline for a request's product and window, or a refusal in words."""
@@ -414,3 +437,69 @@ class Engine:
             out = run_goal_seek(base, self.inv, target, ceiling, frozen)
             out.update(window=base.window_dict(), product=base.cfg["product"])
             return out
+
+    # ------------------------------------------------------------------ saved scenarios
+    def _store(self):
+        if self.store is None:
+            raise ApiError("saving scenarios is not configured on this engine", 501)
+        return self.store
+
+    def scenarios(self, product=None) -> dict:
+        return {"scenarios": self._store().list(product),
+                "compare_max": int((self.base.cfg.get("scenarios") or {}).get("compare_max", 4))}
+
+    def save_scenario(self, body: dict) -> dict:
+        """Re-run the steps in their context and keep the engine's answer, with who and when."""
+        store = self._store()
+        changes = body.get("changes")
+        with self._lock:
+            base = self.baseline(body.get("window"), body.get("product"))
+            run = simulate_changes(base, self.inv, changes)
+            record = {
+                "name": body.get("name"), "product": base.cfg["product"],
+                "preset": body.get("preset") if isinstance(body.get("preset"), str) else None,
+                "window": base.window_dict() or {}, "changes": changes,
+                "steps": [{"text": describe_change(base, self.inv, ch),
+                           "added_pp": st["added_pp"], "added_swap_in": st["added_swap_in"],
+                           "added_swap_out": st["added_swap_out"]}
+                          for ch, st in zip(changes, run["steps"])],
+                "outcome": SC.outcome(run["result"]),
+                "saved_by": str(body.get("who") or "").strip() or None,
+            }
+        try:
+            return store.add(record)
+        except SC.ScenarioError as e:
+            raise ApiError(str(e), e.status) from None
+
+    def delete_scenario(self, sid, who=None) -> dict:
+        try:
+            return self._store().delete(str(sid), str(who or "").strip())
+        except SC.ScenarioError as e:
+            raise ApiError(str(e), e.status) from None
+
+    def compare_scenarios(self, ids) -> dict:
+        """Each scenario re-run now, in its own context, beside what it gave when saved."""
+        store = self._store()
+        cap = int((self.base.cfg.get("scenarios") or {}).get("compare_max", 4))
+        if not isinstance(ids, list) or not 2 <= len(ids) <= cap:
+            raise ApiError(f"pick between 2 and {cap} saved scenarios to compare")
+        rows = []
+        for sid in ids:
+            try:
+                sc = store.get(str(sid))
+            except SC.ScenarioError as e:
+                raise ApiError(str(e), e.status) from None
+            now, error = None, None
+            # An engine without a context cache serves one product and window, the scenario's own.
+            where = (sc["window"], sc["product"]) if self.cache is not None else (None, None)
+            try:
+                now = SC.outcome(self.simulate(sc["changes"], *where)["result"])
+            except ApiError as e:
+                error = f"it no longer runs: {e}"
+            rows.append({"scenario": sc, "now": now, "error": error,
+                         "drift": SC.drift(sc["outcome"], now) if now else []})
+        return {"scenarios": rows,
+                "same_context": len({(r["scenario"]["product"], r["scenario"]["window"].get("app_from"),
+                                      r["scenario"]["window"].get("app_to"),
+                                      r["scenario"]["window"].get("performance_months"))
+                                     for r in rows}) == 1}

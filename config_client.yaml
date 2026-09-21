@@ -400,6 +400,11 @@ drivers:
   # the booked book. Below it, the rule is costing approvals without buying safety.
   earns_place_multiple: 1.15
 
+# Saved Simulator scenarios: one JSON file, kept out of git with the rest of data/.
+scenarios:
+  path: data/scenarios.json
+  compare_max: 4                 # how many scenarios the compare view puts side by side
+
 # How a rule's fields read in a sentence ("Declines when SIMAH score is 650 or below").
 # A field not listed reads as its name in the rule files.
 field_labels:

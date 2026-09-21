@@ -281,10 +281,49 @@ window.__NOTES__ = function (F) {
          'percentage.'
     },
     sim_views: {
-      t: 'Three views',
+      t: 'Four views',
       d: 'Set a target answers "how do we reach X% approval?". Try a change answers "what if?" with a few ' +
          'ready-made stories, the two score cutoffs and the busiest rules. All rules is the analyst\'s ' +
-         'workbench: every rule, every threshold. Try a change and All rules share one scenario.'
+         'workbench: every rule, every threshold. Try a change and All rules share one scenario. Saved lists ' +
+         'the scenarios people have kept, and compares them side by side.'
+    },
+    csv: {
+      t: 'CSV download',
+      d: 'The table\'s rows as the engine produced them, not as the screen formats them: rates as fractions, ' +
+         'counts as whole numbers, every column the engine sends. A column of estimates carries [INFERRED] in its ' +
+         'header; the rest are counted. The file name carries the product and the applications replayed.'
+    },
+    sim_save: {
+      t: 'Save scenario',
+      d: 'Keeps the steps with a name, the product and the period. The engine re-runs them as it saves, so the ' +
+         'figures kept are its own, and records who saved it and when. Names are unique per product.'
+    },
+    sim_print: {
+      t: 'Print pack',
+      d: 'One page for the committee: the product and period, how the bad rate was observed, each change in ' +
+         'order with the rule it touches in words, the outcome against today with the provenance of every ' +
+         'figure, and who prepared it. Save it as PDF from the print dialog.'
+    },
+    goal_print: {
+      t: 'Print this option',
+      d: 'The committee pack for one goal-seek option: what was asked for, the option\'s changes and outcome, ' +
+         'and every other option the search returned, so the paper shows what was chosen against what.'
+    },
+    sim_saved: {
+      t: 'Saved scenarios',
+      d: 'Every scenario saved on this engine, newest first, with its figures as they were when saved and who ' +
+         'saved it. Open re-runs it in its own product and period. Delete takes it off the list but keeps the ' +
+         'record of who saved and deleted it.'
+    },
+    sim_compare: {
+      t: 'Compare',
+      d: 'Re-runs the ticked scenarios now, each in its own product and period, and lays them side by side. ' +
+         'If the answer has moved since a scenario was saved (new data, a new rule pack) the comparison says so.'
+    },
+    sim_cmp_table: {
+      t: 'Side by side',
+      d: 'One column per scenario, all figures from the fresh re-run. Scenarios built on different products or ' +
+         'periods are flagged: their figures are not measured on the same applications.'
     },
     sim_outcome: {
       t: 'The outcome bar',

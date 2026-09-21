@@ -342,9 +342,14 @@ def test_the_funnel_panel_uses_a_true_minus_sign():
 def test_every_engine_call_from_the_page_carries_the_product_and_period():
     """A call without the context would answer for the default period while the screen shows another."""
     js = (UI / "client.js").read_text(encoding="utf-8")
-    calls = re.findall(r"api\('(/api/[a-z-]+)'([^)]*)", js)
+    calls = re.findall(r"api\('(/api/[a-z-/]+)'([^)]*)", js)
     assert calls, "no engine calls found"
+    # A saved scenario carries its own product and period, so listing, comparing and deleting
+    # saved scenarios are the calls that must not take the screen's context. Saving one does.
+    own_context = {"/api/scenarios/compare", "/api/scenarios/delete"}
     for path, rest in calls:
+        if path in own_context or (path == "/api/scenarios" and not rest.strip()):
+            continue
         assert "ctxQuery(" in rest or "ctxBody(" in rest, f"{path} is sent without the context"
 
 

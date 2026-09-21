@@ -696,3 +696,61 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
   .drtab table.t td[colspan]::before { content: none; }
   .drtab .drcta { text-align: end; align-self: end; }
 }
+
+/* ---- export (B3) and saved scenarios (B4) */
+.panelhead .csvbtn { margin-inline-start: 6px; padding: 3px 9px; font-size: 11.5px; }
+.simcsv { display: flex; justify-content: flex-end; margin: 6px 0; }
+.simacts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.simsticky .simacts { margin: 8px 0 0; }
+.simsave { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.simsave .siminput { font-family: var(--ui); width: 240px; max-width: 100%; }
+.simsaved { font-size: 12.5px; color: var(--muted); }
+.simsaved b { color: var(--ink); }
+.simerr { font-size: 12px; color: var(--ink); font-weight: 600; }
+.savtab table.t td { vertical-align: top; }
+.savpick { width: 1%; }
+.savpick input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--ink-2); }
+.savname { font-size: 13px; color: var(--ink); }
+.savsteps { margin: 4px 0 0; padding-inline-start: 18px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.savacts { white-space: nowrap; text-align: end; }
+.savacts .drlink + .drlink { margin-inline-start: 12px; }
+.cmptab table.t th[scope="row"] { font-weight: 500; color: var(--muted); white-space: nowrap; width: 1%; }
+.cmptab table.t td { vertical-align: top; }
+.cmptab .savsteps { color: var(--ink-2); }
+@media (max-width: 640px) {
+  .savtab th:nth-child(3), .savtab td:nth-child(3), .savtab th:nth-child(7), .savtab td:nth-child(7) { display: none; }
+}
+
+/* The committee pack: built on demand into #printpack and shown only when printing. */
+#printpack { display: none; }
+@media print {
+  html.is-printing body > *:not(#printpack) { display: none !important; }
+  html.is-printing, html.is-printing body { background: #fff !important; height: auto; overflow: visible; }
+  html.is-printing #printpack { display: block; }
+  @page { size: A4; margin: 16mm 14mm; }
+}
+#printpack { color: #111; background: #fff; font: 10.5pt/1.45 var(--ui); }
+#printpack * { color: #111; background: none; }
+#printpack h1 { font-size: 18pt; margin: 2mm 0 1mm; font-weight: 600; }
+#printpack h2 { font-size: 11.5pt; margin: 6mm 0 2mm; font-weight: 600; break-after: avoid; }
+#printpack .pp-brand { font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; color: #555; }
+#printpack .pp-name { margin: 0; font-size: 12pt; color: #333; }
+#printpack .pp-head { border-bottom: 1.5pt solid #111; padding-bottom: 3mm; margin-bottom: 4mm; }
+#printpack .pp-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 8mm; margin: 0; }
+#printpack .pp-meta dt { font-size: 8pt; color: #555; text-transform: uppercase; letter-spacing: .04em; }
+#printpack .pp-meta dd { margin: 0; }
+#printpack .pp-warn { margin: 3mm 0 0; padding: 2mm 3mm; border: .75pt solid #111; font-size: 9.5pt; }
+#printpack .pp-note { font-size: 9pt; color: #444; }
+#printpack .pp-steps { margin: 0; padding-inline-start: 6mm; }
+#printpack .pp-steps li { margin-bottom: 2mm; break-inside: avoid; }
+#printpack .pp-t { width: 100%; border-collapse: collapse; font-size: 9.5pt; break-inside: avoid; }
+#printpack .pp-t th, #printpack .pp-t td { text-align: start; padding: 1.5mm 2mm; border-bottom: .5pt solid #bbb; vertical-align: top; }
+#printpack .pp-t thead th { border-bottom: 1pt solid #111; font-size: 8.5pt; color: #333; }
+#printpack .pp-t tr.is-this td { font-weight: 600; }
+#printpack .pp-t small { color: #555; }
+#printpack .savsteps { padding-inline-start: 4mm; margin: 0; }
+#printpack .pp-tag { font-family: var(--mono); font-size: 7.5pt; letter-spacing: .04em; border: .5pt solid #111; padding: 0 1mm; white-space: nowrap; }
+#printpack .pp-key { margin-top: 8mm; border-top: .75pt solid #111; break-inside: avoid; }
+#printpack .pp-key dl { margin: 0; }
+#printpack .pp-key dl > div { display: grid; grid-template-columns: 30mm 1fr; gap: 3mm; margin-bottom: 1.5mm; font-size: 9pt; }
+#printpack .pp-key dd { margin: 0; }

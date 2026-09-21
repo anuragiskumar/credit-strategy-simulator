@@ -82,15 +82,16 @@ The brief lists vintage and roll-rate analysis as step 2. None of it is built.
 
 ### B3. Export — P1
 Leadership approves policy changes, so they need something to take into the committee meeting.
-- [ ] CSV download for each table.
-- [ ] PDF or print pack for a scenario or goal-seek option: the changes, the outcome, the
+- [x] CSV download for each table.
+- [x] PDF or print pack for a scenario or goal-seek option: the changes, the outcome, the
       provenance and the analysis window.
 
 ### B4. Save, name and compare scenarios — P1
 Today a Simulator scenario is lost on reload. Only the page name is kept in the URL hash.
-- [ ] Save a scenario with a name (steps, product, window).
-- [ ] Compare two or more saved scenarios side by side.
-- [ ] Record who saved what, and when (fits with the ABAC / admin work).
+- [x] Save a scenario with a name (steps, product, window).
+- [x] Compare two or more saved scenarios side by side.
+- [x] Record who saved what, and when (fits with the ABAC / admin work). Until the server
+      authenticates people, "who" is the name the page sends; the ABAC identity goes in that field.
 
 ### B5. Data "as of" date — P2
 `meta.generated` exists but isn't shown, and real data has no extract date.
