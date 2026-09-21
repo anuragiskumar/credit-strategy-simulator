@@ -160,6 +160,8 @@ def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
     payload = {
         "meta": {
             "generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
+            # The extract date: nothing after it is observed, so every figure is "as of" it.
+            "data_as_of": f"{A.bad_definition(cfg)['as_of']:%Y-%m-%d}",
             "product": cfg["product"],
             "applicants": int(len(df)),
             "window": clean(base.window_dict()),

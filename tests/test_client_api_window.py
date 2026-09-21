@@ -143,3 +143,15 @@ def test_http_refuses_a_bad_window_with_a_400_in_words(server):
     assert status == 400 and "the data covers" in err["error"]
     status, err = _call(f"{server}/api/health?app_from=2026-06-01&app_to=2026-01-01")
     assert status == 400 and "after it ends" in err["error"]
+
+
+# --------------------------------------------------------------------------- as of (TODO B5)
+def test_a_view_says_what_data_it_reads_and_when_its_figures_were_computed(engine):
+    assert engine.view()["meta"]["data_as_of"] == str(load_client_config()["outcome"]["as_of"])
+    was = engine.computed_at
+    engine.computed_at = "2026-09-21T08:05:00Z"
+    try:
+        # Built when first asked for, but its figures are as old as the engine's last load.
+        assert engine.view()["meta"]["generated"] == "2026-09-21 08:05 UTC"
+    finally:
+        engine.computed_at = was

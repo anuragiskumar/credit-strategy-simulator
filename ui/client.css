@@ -653,6 +653,7 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
   color: var(--muted); letter-spacing: .01em;
 }
 .periodline b { color: var(--ink-2); font-weight: 600; }
+.periodline .asof { display: block; color: var(--faint); }
 @media (max-width: 640px) {
   .ctxmenu { position: fixed; inset-inline: 16px; top: 52px; width: auto; }
 }

@@ -31,6 +31,13 @@ window.__NOTES__ = function (F) {
          'decline drivers and every scenario. It does not set the bad rate: recent loans have not had time ' +
          'to go bad, so the bad rate always comes from loans old enough to judge (see the period line).'
     },
+    as_of: {
+      t: 'Data as of',
+      d: 'The extract date: the last day the data records. Nothing after it is observed, so a loan that went bad ' +
+         'later still counts as good here. Read from config outcome.as_of' + (m.data_as_of ? ' (' + m.data_as_of + ')' : '') +
+         '. Figures built is when the engine computed these figures: its last load or recompute when it is ' +
+         'running, otherwise when this page\'s data file was exported.'
+    },
     period_line: {
       t: 'What these figures cover',
       d: 'Counts and rates come from the applications in the period. The bad rate and the risk model come ' +

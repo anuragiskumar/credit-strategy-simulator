@@ -99,7 +99,10 @@ Today a Simulator scenario is lost on reload. Only the page name is kept in the 
 
 ### B5. Data "as of" date — P2
 `meta.generated` exists but isn't shown, and real data has no extract date.
-- [ ] Show the data extract date and the fixture build time in the UI.
+- [x] Show the data extract date and the fixture build time in the UI.
+      _Done: under the period line on every analysis screen and in the committee export: "Data as of
+      31 Aug 2026 (config outcome.as_of) · figures built …". With the engine running, built is its
+      last load or recompute, not when the view was asked for._
 
 ### B6. Global filters — P2
 Slicing only works in the Portfolio table.

@@ -425,7 +425,11 @@ class Engine:
                    base.window.key if base.window is not None else None)
             if key not in self._rules:
                 self._rules[key] = build_view(base, self.inv, quick=True)
-            return self._rules[key]
+            view = self._rules[key]
+            # A view is built when first asked for; its figures are as old as the engine's load.
+            if self.computed_at:
+                view["meta"]["generated"] = self.computed_at[:10] + " " + self.computed_at[11:16] + " UTC"
+            return view
 
     def rules(self, window=None, product=None) -> list[dict]:
         with self._lock:

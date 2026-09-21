@@ -133,7 +133,6 @@
    * application month, and vintage curves by booking month or quarter. Every figure is the
    * engine's (payload `over_time`); a month or a point it gives no rate is drawn as a gap and
    * says why, so the recent months can never look safer than the loans behind them. */
-  function dayMonthYear(iso) { var d = String(iso).split('-'); return +d[2] + ' ' + MONTHS[+d[1] - 1] + ' ' + d[0]; }
   function shortMonth(label) { return String(label).replace(/ 20(\d\d)$/, ' ’$1'); }
 
   function trendChart(T) {
@@ -2012,8 +2011,8 @@
     }
     rows.push(['Bad-rate limit', pct(ceilingRate(), 1)]);
     rows.push(['Rules replayed', n0(m.rules_replayed) + ' rules, as the bank runs them today']);
-    rows.push(['Prepared', (window.Session.who() ? esc(window.Session.who()) + ', ' : '') + stamp() +
-      ' · engine data built ' + esc(m.generated)]);
+    rows.push(['Data', esc(asOfText())]);
+    rows.push(['Prepared', (window.Session.who() ? esc(window.Session.who()) + ', ' : '') + stamp()]);
     return '<dl class="pp-meta">' + rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('') + '</dl>' +
       (m.synthetic ? '<p class="pp-warn">Synthetic applicants, real rules: the figures are illustrative; the rules and the method are real.</p>' : '');
   }
@@ -2682,6 +2681,16 @@
     var d = String(iso).split('-');
     return MONTHS[+d[1] - 1] + ' ' + d[0];
   }
+  /** "2026-08-31" or "2026-09-21 12:36 UTC" as the page prints a date: 31 Aug 2026, 12:36 UTC. */
+  function dayMonthYear(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}))?/.exec(iso || '');
+    return m ? (+m[3]) + ' ' + MONTHS[+m[2] - 1] + ' ' + m[1] + (m[4] ? ', ' + m[4] + ' UTC' : '') : '—';
+  }
+  /** How current the figures are: the extract they read, and when the engine computed them. */
+  function asOfText() {
+    var m = F.meta;
+    return (m.data_as_of ? 'Data as of ' + dayMonthYear(m.data_as_of) + ' · ' : '') + 'figures built ' + dayMonthYear(m.generated);
+  }
   function defaultMonths() { return MENU ? MENU.outcome.within_months : (CTX.window ? CTX.window.performance_months : 12); }
 
   function periodLine() {
@@ -2694,7 +2703,7 @@
       (MENU && w.performance_months !== MENU.outcome.within_months
         ? '. <b class="warnword">Not comparable with the declared ' + MENU.outcome.within_months +
           '-month bad definition</b>: a shorter window counts fewer loans as bad'
-        : '') + '</p>';
+        : '') + '<span class="asof"' + N('as_of') + '>' + esc(asOfText()) + '</span></p>';
   }
 
   function renderChrome() {

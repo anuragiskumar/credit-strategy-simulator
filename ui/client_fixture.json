@@ -1,6 +1,7 @@
 {
  "meta": {
-  "generated": "2026-09-21 11:44 UTC",
+  "generated": "2026-09-21 12:50 UTC",
+  "data_as_of": "2026-08-31",
   "product": "TWQR",
   "applicants": 25157,
   "window": {
@@ -9963,7 +9964,8 @@
  "contexts": {
   "TWQR:last_6m": {
    "meta": {
-    "generated": "2026-09-21 11:44 UTC",
+    "generated": "2026-09-21 12:50 UTC",
+    "data_as_of": "2026-08-31",
     "product": "TWQR",
     "applicants": 12630,
     "window": {
@@ -19827,7 +19829,8 @@
   },
   "TWQR:all": {
    "meta": {
-    "generated": "2026-09-21 11:45 UTC",
+    "generated": "2026-09-21 12:51 UTC",
+    "data_as_of": "2026-08-31",
     "product": "TWQR",
     "applicants": 50000,
     "window": {
@@ -29844,7 +29847,8 @@
   },
   "IJMB:last_6m": {
    "meta": {
-    "generated": "2026-09-21 11:45 UTC",
+    "generated": "2026-09-21 12:51 UTC",
+    "data_as_of": "2026-08-31",
     "product": "IJMB",
     "applicants": 5083,
     "window": {
@@ -39494,7 +39498,8 @@
   },
   "IJMB:last_12m": {
    "meta": {
-    "generated": "2026-09-21 11:45 UTC",
+    "generated": "2026-09-21 12:51 UTC",
+    "data_as_of": "2026-08-31",
     "product": "IJMB",
     "applicants": 10081,
     "window": {
@@ -49327,7 +49332,8 @@
   },
   "IJMB:all": {
    "meta": {
-    "generated": "2026-09-21 11:46 UTC",
+    "generated": "2026-09-21 12:51 UTC",
+    "data_as_of": "2026-08-31",
     "product": "IJMB",
     "applicants": 20000,
     "window": {

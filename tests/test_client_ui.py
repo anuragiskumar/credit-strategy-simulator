@@ -357,3 +357,14 @@ def test_the_period_and_product_controls_are_in_the_top_bar():
     html = (UI / "client.html").read_text(encoding="utf-8")
     for el in ('id="productchip"', 'id="periodchip"', 'id="ctxmenu"'):
         assert el in html, el
+
+
+def test_every_analysis_screen_says_how_current_its_data_is():
+    """TODO B5: the extract date and when the figures were built, on the period line and in the export."""
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    period = js[js.index("function periodLine("):js.index("function renderChrome(")]
+    assert "asOfText()" in period and "N('as_of')" in period
+    pack = js[js.index("function packContext("):js.index("function packOutcome(")]
+    assert "asOfText()" in pack and "engine data built" not in pack
+    body = js[js.index("function asOfText("):js.index("function defaultMonths(")]
+    assert "m.data_as_of" in body and "m.generated" in body
