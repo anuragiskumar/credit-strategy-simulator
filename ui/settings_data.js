@@ -1,6 +1,6 @@
 window.__SETTINGS__ = {
  "meta": {
-  "generated": "2026-09-21 12:38 UTC",
+  "generated": "2026-09-21 13:17 UTC",
   "product": "TWQR",
   "synthetic": true,
   "note": "Rule set, dataset facts, field requirements and policy values are read from the engine. Everything under `simulated` is not."
@@ -116,14 +116,17 @@ window.__SETTINGS__ = {
   "nulls": [
    {
     "column": "military_rank",
+    "label": "Military rank",
     "share": 0.9209
    },
    {
     "column": "military_employee_type",
+    "label": "Military employee type",
     "share": 0.9209
    },
    {
     "column": "simah_score",
+    "label": "SIMAH score",
     "share": 0.1644
    }
   ],
@@ -206,6 +209,7 @@ window.__SETTINGS__ = {
   "columns": [
    {
     "column": "employer_segment",
+    "label": "Employer segment",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -215,6 +219,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "nationality",
+    "label": "Nationality",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -224,6 +229,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "program",
+    "label": "Programme",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -233,6 +239,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "requested_amount",
+    "label": "Requested amount",
     "dtype": "float64",
     "nullable": false,
     "role": "rule input",
@@ -242,6 +249,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "simah_score",
+    "label": "SIMAH score",
     "dtype": "float64",
     "nullable": true,
     "role": "rule input",
@@ -251,6 +259,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "employment_type",
+    "label": "Employment type",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -260,6 +269,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "monthly_income",
+    "label": "Monthly income",
     "dtype": "float64",
     "nullable": false,
     "role": "rule input",
@@ -269,6 +279,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "age",
+    "label": "Age",
     "dtype": "int64",
     "nullable": false,
     "role": "rule input",
@@ -278,6 +289,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "employer_name",
+    "label": "Employer",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -287,6 +299,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "military_rank",
+    "label": "Military rank",
     "dtype": "string",
     "nullable": true,
     "role": "rule input",
@@ -296,6 +309,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "crif_score",
+    "label": "CRIF score",
     "dtype": "float64",
     "nullable": false,
     "role": "rule input",
@@ -305,6 +319,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "is_pensioner",
+    "label": "Pensioner",
     "dtype": "bool",
     "nullable": false,
     "role": "rule input",
@@ -314,6 +329,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "simah_scorecard",
+    "label": "SIMAH scorecard",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -323,6 +339,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "length_of_service_months",
+    "label": "Length of service (months)",
     "dtype": "int64",
     "nullable": false,
     "role": "rule input",
@@ -332,6 +349,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "customer_type",
+    "label": "Customer type (new or existing)",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -341,6 +359,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "salary_to_bsf",
+    "label": "Salary to BSF",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -350,6 +369,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "military_employee_type",
+    "label": "Military employee type",
     "dtype": "string",
     "nullable": true,
     "role": "rule input",
@@ -359,6 +379,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "tenure_months",
+    "label": "Tenure (months)",
     "dtype": "int64",
     "nullable": false,
     "role": "rule input",
@@ -368,6 +389,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "channel",
+    "label": "Channel",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -377,6 +399,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "diplomatic_service",
+    "label": "Diplomatic service",
     "dtype": "bool",
     "nullable": false,
     "role": "rule input",
@@ -386,6 +409,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "gender",
+    "label": "Gender",
     "dtype": "string",
     "nullable": false,
     "role": "rule input",
@@ -395,6 +419,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "is_pep",
+    "label": "Politically exposed person",
     "dtype": "bool",
     "nullable": false,
     "role": "rule input",
@@ -404,6 +429,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "payslip_age_months",
+    "label": "Payslip age (months)",
     "dtype": "int64",
     "nullable": false,
     "role": "rule input",
@@ -413,6 +439,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "related_to_pep",
+    "label": "Related to a PEP",
     "dtype": "bool",
     "nullable": false,
     "role": "rule input",
@@ -422,6 +449,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "walked_away",
+    "label": "Walked away",
     "dtype": "bool",
     "nullable": false,
     "role": "outcome",
@@ -431,6 +459,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "agent_id",
+    "label": "Agent",
     "dtype": "string",
     "nullable": false,
     "role": "analysis",
@@ -440,6 +469,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "app_date",
+    "label": "Application date",
     "dtype": "datetime64[ns]",
     "nullable": false,
     "role": "analysis",
@@ -449,6 +479,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "application_id",
+    "label": "Application ID",
     "dtype": "string",
     "nullable": false,
     "role": "analysis",
@@ -458,6 +489,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "bad_date",
+    "label": "Date gone bad",
     "dtype": "datetime64[ns]",
     "nullable": true,
     "role": "analysis",
@@ -467,6 +499,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "booking_date",
+    "label": "Booking date",
     "dtype": "datetime64[ns]",
     "nullable": true,
     "role": "analysis",
@@ -476,6 +509,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "downpayment_pct",
+    "label": "Down payment %",
     "dtype": "float64",
     "nullable": false,
     "role": "analysis",
@@ -485,6 +519,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "is_saudi",
+    "label": "Saudi national",
     "dtype": "bool",
     "nullable": false,
     "role": "analysis",
@@ -494,6 +529,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "product",
+    "label": "Product",
     "dtype": "string",
     "nullable": false,
     "role": "analysis",
@@ -503,6 +539,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "sector",
+    "label": "Sector",
     "dtype": "string",
     "nullable": false,
     "role": "analysis",
@@ -512,6 +549,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "source_code",
+    "label": "Source code",
     "dtype": "string",
     "nullable": false,
     "role": "analysis",
@@ -521,6 +559,7 @@ window.__SETTINGS__ = {
    },
    {
     "column": "latent_bad",
+    "label": "True outcome (synthetic only)",
     "dtype": "bool",
     "nullable": false,
     "role": "synthetic only",
@@ -726,6 +765,12 @@ window.__SETTINGS__ = {
   "unevaluable": [
    "racAndPolicies#261"
   ],
+  "unevaluable_rules": [
+   {
+    "rule_id": "racAndPolicies#261",
+    "description": "Manually simah obligation has been changed."
+   }
+  ],
   "never_fire": [
    {
     "rule_id": "racAndPolicies#002",
@@ -762,7 +807,7 @@ window.__SETTINGS__ = {
   ],
   "never_fire_count": 15,
   "replay_seconds": 2.7,
-  "generated": "2026-09-21 12:38 UTC"
+  "generated": "2026-09-21 13:17 UTC"
  },
  "context": {
   "default_product": "TWQR",

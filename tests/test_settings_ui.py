@@ -559,3 +559,34 @@ def test_the_policy_values_are_the_configs_values():
     gov = {p["key"]: p for p in _fixture()["governed"]["settings"]}
     assert gov["bad_rate_ceiling"]["configured"] == cfg["optimise"]["max_bad_rate"]
     assert gov["missing_value_matches"]["configured"] == cfg["replay"]["condition_on_missing_value_matches"]
+
+
+# --------------------------------------------------------------------------- TODO C5
+def test_every_column_has_a_business_name_and_settings_leads_with_it():
+    from src import client_schema
+    assert set(client_schema.LABELS) == set(client_schema.COLUMNS)
+    F = _fixture()
+    assert all(c["label"] for c in F["fields"]["columns"]) and all(n["label"] for n in F["dataset"]["nulls"])
+    assert {r["rule_id"] for r in F["run"]["unevaluable_rules"]} == set(F["run"]["unevaluable"])
+    js = _code("settings.js")
+    assert "esc(n.label || n.column) + ' <span class=\"rid\">'" in js
+    assert "esc(r.label || r.column) + ' <span class=\"rid\">'" in js
+
+
+def test_the_dataset_size_is_shown_once_in_administration():
+    """C5: the applicant count and dates live in Administration → Data. Data health and the
+    overview card point at them rather than repeat them."""
+    health = _code("settings.js")
+    health = health[health.index("function secHealth("):health.index("function secMapping(")]
+    assert "D.rows" not in health and "D.date_from" not in health
+    admin = _code("admin.js")
+    cards = admin[admin.index("function cards("):admin.index("function secOverview(")]
+    assert "D.rows" not in cards and "D.date_from" not in cards
+    assert "{ key: 'Applicants', value: n0(D.rows) }" in admin
+
+
+def test_administration_asks_the_engine_once_the_viewer_becomes_an_admin():
+    """The demo bar switches role on an open page; the overview must not keep the file's figures."""
+    js = _code("admin.js")
+    assert "window.Session.onChange(function () { if (can('admin.view') && !S.asked) load(); });" in js
+    assert "S.asked = true;" in js[js.index("function load("):js.index("function load(") + 200]

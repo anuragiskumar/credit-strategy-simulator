@@ -150,7 +150,7 @@ def build_dataset(cfg: dict, df: pd.DataFrame | None) -> dict:
         "date_to": _date(df["app_date"].max().date()),
         "window_days": int(cfg["app_date_days"]),
         "schema_problems": problems,
-        "nulls": [{"column": c, "share": round(float(s), 4)} for c, s in nulls.items()
+        "nulls": [{"column": c, "label": client_schema.LABELS.get(c, c), "share": round(float(s), 4)} for c, s in nulls.items()
                   if s > 0 and c not in client_schema.PERFORMANCE],
         "preview": {"columns": PREVIEW_COLUMNS, "rows": clean_rows(preview)},
     }
@@ -191,7 +191,7 @@ def build_fields(compiled, df: pd.DataFrame | None) -> dict:
         else:
             role, need = "analysis", "Recommended"
         rows.append({
-            "column": col, "dtype": dtype,
+            "column": col, "label": client_schema.LABELS.get(col, col), "dtype": dtype,
             "nullable": col in client_schema.NULLABLE,
             "role": role, "need": need, "rules": n,
             "null_share": round(float(nulls[col]), 4) if col in nulls else None,
@@ -333,6 +333,8 @@ def build_run(cfg: dict, df: pd.DataFrame | None, inv, compiled) -> dict:
         "rules_in_scope": len(compiled),
         "rules_replayed": int(len(res.rules)),
         "unevaluable": list(res.unevaluable),
+        "unevaluable_rules": [{"rule_id": c.rule_id, "description": (c.description or "")[:90]}
+                              for c in compiled if c.rule_id in set(res.unevaluable)],
         "never_fire": [{"rule_id": r.rule_id,
                         "description": (r.description or "")[:90]}
                        for r in never.head(8).itertuples()],

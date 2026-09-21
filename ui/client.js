@@ -53,6 +53,16 @@
 
   /** Marks an element as having a spec note; numbering and footnotes are applied by applySpec(). */
   function N(key) { return ' data-note="' + key + '"'; }
+  /* A slice value's business name ("Direct sales agents", not "dsa"), from config via the engine.
+   * An engine code (GOV, SAU) stays beside it, secondary, for anyone who knows the codes. */
+  function valueName(slice, code) {
+    var m = ((F.meta || {}).value_labels || {})[slice] || {};
+    return m[code] !== undefined ? m[code] : String(code);
+  }
+  function valueCell(slice, code) {
+    var name = valueName(slice, code);
+    return esc(name) + (name !== String(code) && /^[A-Z0-9_]+$/.test(code) ? ' <span class="rid">' + esc(code) + '</span>' : '');
+  }
 
   function tile(key, value, detail, cls, note) {
     return '<div class="tile ' + (cls || '') + '"><div class="k"' + (note || '') + '>' + key + '</div>' +
@@ -103,7 +113,7 @@
     var maxExp = Math.max.apply(null, book.rows.map(function (r) { return r.exposure || 0; }));
     var rows = book.rows.map(function (r) {
       var flag = (book.flags || []).filter(function (f) { return String(f.slice) === String(r[key]); })[0];
-      return '<tr><td>' + esc(r[key]) + '</td>' +
+      return '<tr><td>' + valueCell(key, r[key]) + '</td>' +
         '<td class="num">' + n0(r.booked) + '</td>' +
         '<td style="width:120px">' + bar(r.exposure, maxExp) + '</td>' +
         '<td class="num">' + pct(r.share_of_exposure / 100) + '</td>' +
@@ -115,13 +125,7 @@
       table('<th>' + esc(key.replace(/_/g, ' ')) + '</th><th class="num"' + N('th_booked') + '>Booked</th>' +
             '<th' + N('th_exposure') + '>Exposure</th><th class="num"' + N('th_share') + '>Share</th>' +
             '<th class="num"' + N('th_bad') + '>Bad rate ' + pv('OBSERVED') + '</th>' +
-            '<th' + N('th_flag') + '>Flag</th>', rows) +
-      ((book.flags || []).length
-        ? caveat('warn', 'CONC',
-            'Concentration measured against an even split across slices. ' +
-            esc((book.flags || []).map(function (f) { return f.slice + ' (' + f.flag + ')'; }).join(', ')) + '.',
-            N('conc'))
-        : ''), N('slice'));
+            '<th' + N('th_flag') + '>Flag</th>', rows), N('slice'));
 
     return '<div class="pagehead"><h2' + N('pf_head') + '>Portfolio</h2>' +
       '<p>What the current strategy books, and what that book is made of.</p>' + periodLine() + '</div>' +
@@ -282,10 +286,8 @@
     var body, lastJudged = T.months.filter(function (r) { return r.bad_rate !== null; }).pop();
     if (view === 'month') {
       var waiting = T.months.filter(function (r) { return r.bad_rate === null; }).length;
-      body = '<p class="trlead"' + N('trend_lead') + '>Each month’s applications replayed against today’s rules, and the bad rate of the loans they became. ' +
-        'A month gets a bad rate once ' + pct(T.min_mature_share, 0) + ' of its loans have run ' + T.performance_months + ' months by the extract date (' +
-        esc(dayMonthYear(T.as_of)) + ')' + (lastJudged ? '; the latest judged is ' + esc(lastJudged.label) : '') + '.' +
-        (waiting ? ' The ' + waiting + ' months after it are too recent to judge, which is why the bad rate on this page comes from older loans.' : '') + '</p>' +
+      body = '<p class="trlead"' + N('trend_lead') + '>' + (lastJudged ? 'Latest month with a bad rate: <b>' + esc(lastJudged.label) + '</b>.' : 'No month has a bad rate yet.') +
+        (waiting ? ' The ' + waiting + ' months after it are too recent to judge.' : '') + '</p>' +
         trendChart(T) +
         '<details class="trmore"><summary>The months, as a table</summary>' + trendTable(T) + '</details>';
     } else {
@@ -294,14 +296,12 @@
         return '<button class="chip" data-vby="' + k + '"' + (by === k ? ' aria-current="true"' : '') + '>By ' + k + '</button>';
       }).join(' ');
       body = '<div class="trsub">' + gran + '</div>' +
-        '<p class="trlead"' + N('vintage_lead') + '>Every loan the bank booked, grouped by when it was booked: the share that had reached ' +
-        (MENU ? MENU.outcome.dpd + '+ DPD' : 'the bad definition') + ' after each month on book. A line stops at the last month every loan in it has run; ' +
-        'at ' + V.definition_months + ' months it is that cohort’s bad rate. A later line above an earlier one is a book getting worse.</p>' +
+        '<p class="trlead"' + N('vintage_lead') + '>Share of each booking cohort gone bad, by months on book. A later line above an earlier one is a book getting worse.</p>' +
         vintageChart(V) +
         '<details class="trmore"><summary>The cohorts, as a table</summary>' + vintageTable(V) + '</details>';
     }
     return panel('Over time', tabs + (view === 'month' ? csvBtn('trend') : csvBtn('vintage')), body +
-      caveat('', 'ROLL', 'Roll rates are not shown: ' + esc(T.roll_rate.reason) + '.', N('roll_rate')), N('over_time'));
+      '<details class="trmore"' + N('roll_rate') + '><summary>Why no roll rates</summary><p class="note">' + esc(T.roll_rate.reason) + '.</p></details>', N('over_time'));
   }
 
   /* ------------------------------------------------ where applicants drop out
@@ -699,7 +699,7 @@
 
   function funnelPanelHtml() {
     var M = funnelModel(), h = M.headline, view = S.fview;
-    var lede = '<p class="flede">' +
+    var lede = '<p class="flede">' + pv('OBSERVED') + ' ' +
       '<b>' + n0(h.booked) + '</b> of ' + n0(h.total) + ' applicants are booked (' + h.bookedPct.toFixed(1) + '%). ' +
       '<b>' + esc(h.worst.label) + '</b> removes the most: ' + n0(h.worst.lost) + ' people, ' +
       h.worst.pctLostOfReaching.toFixed(0) + '% of those who reach it.' +
@@ -723,13 +723,10 @@
       '<div class="fview' + (view === 'bars' ? ' is-on' : '') + '" data-view="bars"' + (view === 'bars' ? '' : ' inert aria-hidden="true"') + '>' +
         funnelBarsHtml(M) + '</div></div>';
 
-    return '<div class="fpanel">' + panel('Where applicants drop out', seg + pv('OBSERVED') + csvBtn('funnel', 'Stages CSV') + csvBtn('funnel-rules', 'Rules CSV'),
+    return '<div class="fpanel">' + panel('Where applicants drop out', seg + csvBtn('funnel', 'Stages CSV') + csvBtn('funnel-rules', 'Rules CSV'),
       lede + key + views +
       '<div id="fdrill" class="fdrill" role="region" aria-live="polite" aria-labelledby="fdrill-h"' + N('fdrill') + '>' +
-        drillHtml(M) + '</div>' +
-      caveat('sans', 'NOTE',
-        'Every stage here is derived by replaying the rules, never assigned. The reason ' +
-        'attached to each declined applicant is the rule that actually caught them.'), N('funnel')) + '</div>';
+        drillHtml(M) + '</div>', N('funnel')) + '</div>';
   }
 
   /* Wiring. The view switch and the drill-down update the panel in place, never re-rendering
@@ -864,15 +861,15 @@
   function sourcePanel() {
     var maxD = Math.max.apply(null, F.by_channel.map(function (r) { return r.declines; }));
     var rows = F.by_channel.map(function (r) {
-      return '<tr><td>' + esc(r.channel) + '</td>' +
+      return '<tr><td>' + valueCell('channel', r.channel) + '</td>' +
         '<td class="num">' + n0(r.applicants) + '</td>' +
         '<td class="num">' + r.approval_rate.toFixed(1) + '%</td>' +
         '<td style="width:130px">' + bar(r.declines, maxD) + '</td>' +
         '<td class="num">' + n0(r.declines) + '</td>' +
         '<td class="num">' + r.share_of_all_declines.toFixed(1) + '%</td></tr>';
     });
-    return panel('Declines by channel', pv('OBSERVED') + csvBtn('channels'),
-      table('<th>Channel</th><th class="num">Applicants</th><th class="num"' + N('th_ch_approval') + '>Approval</th>' +
+    return panel('Declines by channel', csvBtn('channels'),
+      table('<th>Channel</th><th class="num">Applicants</th><th class="num"' + N('th_ch_approval') + '>Approval ' + pv('OBSERVED') + '</th>' +
             '<th' + N('th_ch_declines') + '>Declines</th><th class="num"' + N('th_ch_n') + '>n</th>' +
             '<th class="num"' + N('th_ch_share') + '>Share of declines</th>', rows), N('ch_panel'));
   }
@@ -924,8 +921,8 @@
         '<td class="drreasons">' + l.reasons.map(function (r) { return esc(r.label) + ' <span class="fig">' + n0(r.count) + '</span>'; }).join('<br>') + '</td>' +
         '<td>' + where + '</td></tr>';
     });
-    return panel('Where applicants are lost', pv('OBSERVED') + csvBtn('losses'),
-      '<div class="drlosstab">' + table('<th>Stage</th><th class="num">Lost</th><th></th><th' + N('dr_reasons') + '>Biggest reasons</th><th></th>', rows) +
+    return panel('Where applicants are lost', csvBtn('losses'),
+      '<div class="drlosstab">' + table('<th>Stage</th><th class="num">Lost ' + pv('OBSERVED') + '</th><th></th><th' + N('dr_reasons') + '>Biggest reasons</th><th></th>', rows) +
       '</div>', N('dr_losses'));
   }
 
@@ -968,10 +965,10 @@
       g += '<g class="drnone"><title>' + esc(r.label + ' · ' + n0(r.approvals_gained) + ' approvals · no estimate: ' + (r.risk_note || '')) + '</title>' +
            '<line x1="' + Xs(r.approvals_gained || 0) + '" x2="' + Xs(r.approvals_gained || 0) + '" y1="' + sy + '" y2="' + (sy + STRIP) + '"/></g>';
     });
-    return panel('What each rule would give, and at what risk', pv('OBSERVED', 'APPROVALS') + ' ' + pv('INFERRED', 'RISK'),
+    return panel('What each rule would give, and at what risk', '',
       '<div class="simchart drchart"><svg viewBox="0 0 ' + W + ' ' + (H + STRIP + 12) + '" role="img" aria-label="Approvals each rule would add ' +
         'against the estimated bad rate of those applicants">' + g + '</svg></div>' +
-      '<p class="simnote">Dots below the line are approvals the rule costs without buying safety. Rules with no estimate sit on the hatched strip.</p>',
+      '<p class="simnote">Approvals ' + pv('OBSERVED') + ' · bad rate ' + pv('INFERRED') + '. Dots below the line are approvals the rule costs without buying safety; rules with no estimate sit on the hatched strip.</p>',
       N('dr_chart'));
   }
 
@@ -1005,7 +1002,7 @@
   }
 
   function drGroups() {
-    var head = '<th' + N('th_rule') + '>Rule</th><th class="num"' + N('th_gain') + '>Approvals gained if loosened ' +
+    var head = '<th' + N('th_rule') + '>Rule</th><th class="num"' + N('th_gain') + '>Approvals gained if loosened ' + pv('OBSERVED') + ' ' +
       info('Switching off a rule whose declines are all shared with another rule frees nobody: the other rule still catches them. ' +
            'So this counts only the applicants no other rule declines, and only those who would then be booked.') + '</th>' +
       '<th' + N('th_relaxed') + '>Bad rate if loosened ' +
@@ -1023,7 +1020,7 @@
         return '<tr><td><span class="drname">' + esc(r.label) + '</span><br><span class="rid">' + esc(r.rule_id) + '</span></td>' +
           '<td colspan="3" class="verdict">reads a value the applicant data does not supply</td></tr>';
       }, '<th>Rule</th><th colspan="3"></th>');
-    return '<div id="dr-groups">' + panel('Rules by verdict', pv('OBSERVED', 'COUNTS') + ' ' + pv('INFERRED', 'RISK') + csvBtn('drivers'), body, N('dr_rank')) + '</div>';
+    return '<div id="dr-groups">' + panel('Rules by verdict', csvBtn('drivers'), body, N('dr_rank')) + '</div>';
   }
 
   function pageDrivers() {
@@ -1109,12 +1106,27 @@
           SIM.rules = j.rules; SIM.live = true; SIM.steps = []; SIM.out = null;
           refreshSim();
           renderCtx();
-          if (custom) setContext(custom);
+          if (custom) setContext(custom); else confirmFigures();
         });
       }
       if (h.loading && (tries || 0) < 60) { setTimeout(function () { connectEngine((tries || 0) + 1, custom); }, 1500); return; }
       engineUnavailable();
     }).catch(engineUnavailable);
+  }
+  /* The page opens on its data file. With the engine running, ask it for the same view: when the
+   * figures match, only "figures built" changes (to the engine's time, the one Settings shows), in
+   * place, so a presenter mid-way through the funnel loses nothing; when they differ (a recompute
+   * since the file was exported), the engine's figures replace the file's. */
+  function confirmFigures() {
+    var seq = CTX.seq;
+    api('/api/view' + ctxQuery()).then(function (v) {
+      if (seq !== CTX.seq) return;                        // the viewer has moved on
+      var same = JSON.stringify(v.headline) === JSON.stringify(F.headline) &&
+        JSON.stringify(v.funnel) === JSON.stringify(F.funnel);
+      if (!same) { applyPayload(v, { product: CTX.product, preset: CTX.preset, window: CTX.window }); return; }
+      F.meta.generated = v.meta.generated;
+      document.querySelectorAll('.periodline .asof').forEach(function (el) { el.firstChild.nodeValue = asOfText(); });
+    }).catch(function () { /* the file's figures stand, and say when they were built */ });
   }
   function engineUnavailable() {
     SIM.live = false;
@@ -1314,7 +1326,7 @@
     var tightens = t.swap_out > 0;
     var rows = chans.map(function (k) {
       var v = t.swap_in_by_channel[k];
-      return '<tr><td>' + esc(k) + '</td><td class="num">' + n0(v.swap_in) + '</td>' +
+      return '<tr><td>' + valueCell('channel', k) + '</td><td class="num">' + n0(v.swap_in) + '</td>' +
         (tightens ? '<td class="num">' + n0(v.swap_out) + '</td>' : '') + '</tr>';
     });
     return disclose('why', 'Why, and by channel',
@@ -1695,8 +1707,8 @@
           (r.risk_known ? 'bad ' + pct(r.expected_bad_rate, 2) : '<span class="nodata">no estimate</span>') +
           '</div></div>';
       }).join('');
-      return panel(sw.label, pv('OBSERVED', 'APPROVAL') + ' ' + pv('INFERRED', 'RISK') + csvBtn('sweep:' + si),
-        '<div class="sweep">' + cells + '</div>', N('sweep'));
+      return panel(sw.label, csvBtn('sweep:' + si),
+        '<div class="sweep">' + cells + '</div><p class="simnote">Approval ' + pv('OBSERVED') + ' · bad rate ' + pv('INFERRED') + '</p>', N('sweep'));
     }).join('');
   }
 
@@ -1920,7 +1932,8 @@
     var parts = id.split(':'), kind = parts[0], arg = parts[1];
     var ds = F.drivers_summary || {};
     switch (kind) {
-      case 'portfolio': return { name: 'portfolio-by-' + S.slice, rows: F.portfolio[S.slice].rows };
+      case 'portfolio': return { name: 'portfolio-by-' + S.slice, rows: F.portfolio[S.slice].rows.map(function (r) {
+        var o = {}; o[S.slice] = r[S.slice]; o.name = valueName(S.slice, r[S.slice]); return copy(o, r); }) };
       case 'funnel': return { name: 'funnel-stages', rows: F.funnel };
       case 'funnel-rules': return { name: 'funnel-rules', rows: [].concat.apply([], (F.funnel_rules || []).map(function (s) {
         return s.rules.map(function (r) { return copy({ stage: s.stage, stage_total: s.total }, r); });
@@ -1932,7 +1945,8 @@
           return c.points.length ? c.points.map(function (q) { return copy(base, { months_on_book: q[0], share_gone_bad: q[1] }); })
                                  : [copy(base, { months_on_book: null, share_gone_bad: null, reason: c.reason })];
         })) };
-      case 'channels': return { name: 'declines-by-channel', rows: F.by_channel };
+      case 'channels': return { name: 'declines-by-channel', rows: F.by_channel.map(function (r) {
+        return copy({ channel: r.channel, name: valueName('channel', r.channel) }, r); }) };
       case 'losses': return { name: 'where-applicants-are-lost', rows: (ds.losses || []).map(function (l) {
         return copy(l, { reasons: l.reasons.map(function (r) { return r.label + ' (' + r.count + ')'; }) });
       }) };
@@ -1954,7 +1968,7 @@
                    risk_known: s.risk_known, verdict: s.verdict };
         }) };
       case 'scenario-channels': return { name: 'scenario-by-channel', rows: Object.keys(SIM.out.result.swap_in_by_channel || {}).map(function (k) {
-        return copy({ channel: k }, SIM.out.result.swap_in_by_channel[k]);
+        return copy({ channel: k, name: valueName('channel', k) }, SIM.out.result.swap_in_by_channel[k]);
       }) };
       case 'sweep': var sw = F.sweeps[+arg];
         return { name: sw.field + '-cutoff-sweep', prov: { expected_bad_rate: INF }, rows: sw.rows };
@@ -2078,7 +2092,7 @@
     var chans = ch.length ? '<h2>Newly approved, by channel ' + tag('OBSERVED') + '</h2><table class="pp-t"><thead><tr><th>Channel</th><th>Newly approved</th>' +
       (t.swap_out ? '<th>Newly declined</th>' : '') + '</tr></thead><tbody>' + ch.map(function (k) {
         var v = t.swap_in_by_channel[k];
-        return '<tr><td>' + esc(k) + '</td><td>' + n0(v.swap_in) + '</td>' + (t.swap_out ? '<td>' + n0(v.swap_out) + '</td>' : '') + '</tr>';
+        return '<tr><td>' + esc(valueName('channel', k)) + '</td><td>' + n0(v.swap_in) + '</td>' + (t.swap_out ? '<td>' + n0(v.swap_out) + '</td>' : '') + '</tr>';
       }).join('') + '</tbody></table>' : '';
     printPack('Scenario for committee', savedName(), packContext() +
       '<h2>The changes, in order</h2><ol class="pp-steps">' + changes + '</ol>' +
@@ -2723,11 +2737,6 @@
     }
     pc.setAttribute('aria-expanded', CTX.open ? 'true' : 'false');
     document.getElementById('ruleschip').textContent = F.meta.rules_replayed + ' rules replayed';
-    document.getElementById('demostriptext').textContent =
-      F.meta.applicants.toLocaleString('en-US') + ' generated applicants · ' +
-      (F.meta.window ? F.meta.window.label + ' · ' : '') +
-      F.meta.rules_replayed + ' real rules replayed · figures are illustrative, ' +
-      'the rules and the method are real';
   }
 
   function menuHtml() {

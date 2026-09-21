@@ -17,6 +17,14 @@
 .su-lead { margin: 0 0 14px; font-family: var(--prose); font-size: 14px; line-height: 1.55; color: var(--muted); max-width: 70ch; }
 .su-sub { margin: 16px 0 8px; font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); }
 .su-sub:first-child { margin-top: 0; }
+/* Detail on demand inside a section: a quiet summary line that opens in place. */
+.su-more > summary { cursor: pointer; list-style: none; font-family: var(--mono); font-size: 9.5px; font-weight: 500;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--muted); padding: 4px 0; }
+.su-more > summary::-webkit-details-marker { display: none; }
+.su-more > summary::before { content: '+'; display: inline-block; width: 1.2em; }
+.su-more[open] > summary::before { content: '−'; }
+.su-more > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.su-more[open] > .su-grid { margin-top: 10px; }
 .su-mono { font-family: var(--mono); font-size: 12px; }
 .su-faint { color: var(--faint); }
 .su-muted { color: var(--muted); }

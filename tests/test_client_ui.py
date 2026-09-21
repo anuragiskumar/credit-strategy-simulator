@@ -368,3 +368,79 @@ def test_every_analysis_screen_says_how_current_its_data_is():
     assert "asOfText()" in pack and "engine data built" not in pack
     body = js[js.index("function asOfText("):js.index("function defaultMonths(")]
     assert "m.data_as_of" in body and "m.generated" in body
+
+
+# --------------------------------------------------------------------------- TODO C5
+def test_every_slice_value_on_screen_has_a_business_name():
+    """C5: "Direct sales agents", not "dsa". Every value the Portfolio table or a channel split
+    shows has a name from config, and a score band reads as a range."""
+    view = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    labels = view["meta"]["value_labels"]
+    for slice_name, book in view["portfolio"].items():
+        for r in book["rows"]:
+            code = r[slice_name]
+            assert code in labels[slice_name], f"{slice_name} {code!r} has no business name"
+            assert labels[slice_name][code] != code or slice_name == "score_band"
+    for r in view["by_channel"]:
+        assert r["channel"] in labels["channel"]
+    assert "(" not in "".join(labels["score_band"].values()), "score bands read as ranges, not intervals"
+
+
+def test_band_labels_read_as_ranges():
+    from src.client_view import band_label
+    assert band_label("(0.0, 500.0]") == "500 or below"
+    assert band_label("(650.0, 700.0]") == "651–700"
+    assert band_label("no score") == "No score"
+
+
+def test_slice_values_lead_with_the_name_and_keep_the_code():
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    port = js[js.index("function pagePortfolio("):js.index("function shortMonth(")]
+    assert "valueCell(key, r[key])" in port and "esc(r[key])" not in port
+    assert "valueCell('channel', r.channel)" in js
+    csv = js[js.index("function csvSpec("):js.index("function csvSpec(") + 3000]
+    assert "name: valueName('channel', r.channel)" in csv, "the CSV carries the code and the name"
+
+
+@pytest.mark.parametrize("name", ["client.js", "settings.js", "admin.js"])
+def test_provenance_pills_sit_on_figures_not_on_section_headers(name):
+    """C5: a pill says how a figure is known, so it goes where the figure is: a tile, a column,
+    a chart key. A panel or section header carries none."""
+    js = (UI / name).read_text(encoding="utf-8")
+    heads = re.findall(r"(?:panel|section|accordion)\((?:'[^']*'|[^,]+), (?:'[^']*', )?([^\n]*)", js)
+    offenders = [h[:80] for h in heads if h.lstrip().startswith("pv(") or "+ pv(" in h.split(",")[0]]
+    assert not offenders, offenders
+    assert "right: pv(" not in js, "overview cards carry no pill in their header"
+
+
+def test_the_demo_strip_says_what_it_is_for_and_repeats_no_figure():
+    """C5: the applicant count and period live on the period line and in Administration → Data,
+    not in the strip on every page."""
+    for page in ("client.html", "settings.html", "admin.html"):
+        html = (UI / page).read_text(encoding="utf-8")
+        strip = re.search(r'id="demostriptext">([^<]*)<', html)
+        assert strip and strip[1].startswith("The rules and the method are real"), page
+        assert not re.search(r"\d", strip[1]), page
+    for js in ("client.js", "page_shell.js"):
+        assert "demostriptext" not in (UI / js).read_text(encoding="utf-8"), js
+
+
+def test_no_explanatory_paragraph_in_the_default_portfolio_view():
+    """C5: answer, evidence, detail on demand. The method moves to the spec notes."""
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    port = js[js.index("function overTimePanel("):js.index("function funnelPanelHtml(") + 4000]
+    assert "caveat('', 'ROLL'" not in js and "caveat('warn', 'CONC'" not in js
+    assert "caveat('sans', 'NOTE'" not in js
+    assert "Why no roll rates" in port
+
+
+def test_with_the_engine_running_figures_built_is_the_engines_time_without_a_redraw():
+    """C5, one fact in one place: Settings and Administration show the engine's compute time, so
+    the analysis screens must too. When the engine's figures match the file's, only the words
+    change, in place, so a presenter part-way through the funnel keeps it."""
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    body = js[js.index("function confirmFigures("):js.index("function engineUnavailable(")]
+    assert "api('/api/view' + ctxQuery())" in body and "seq !== CTX.seq" in body
+    assert "F.meta.generated = v.meta.generated" in body and "firstChild.nodeValue = asOfText()" in body
+    assert "go(" not in body, "a matching view must not redraw the page"
+    assert "if (custom) setContext(custom); else confirmFigures();" in js

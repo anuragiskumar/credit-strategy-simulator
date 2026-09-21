@@ -170,9 +170,6 @@
 
   function start(page) {
     P = page;
-    document.getElementById('demostriptext').textContent =
-      K.n0(F.dataset.rows) + ' generated applicants · ' + K.n0(F.run.rules_replayed) +
-      ' real rules replayed · figures are illustrative, the rules and the method are real';
     document.getElementById('productchip').innerHTML = '<span class="fig">' + esc(F.meta.product) + '</span>';
 
     document.getElementById('specbtn').addEventListener('click', function () { spec = !spec; applySpec(); });

@@ -222,11 +222,21 @@ has access, and does anything need me?"
       filters in place and downloads what is shown. Users & access and the source flow are preview._
 
 ### C5. Patterns across all screens — P2
-- [ ] One layout for every page: the answer (tiles or a sentence) → the evidence (one chart or
+- [x] One layout for every page: the answer (tiles or a sentence) → the evidence (one chart or
       table) → detail on demand. No explanatory paragraphs in the default view.
-- [ ] Business names everywhere; engine IDs secondary.
-- [ ] Provenance pills only where a figure appears, not on section headers.
-- [ ] Each fact lives in one place. Applicant count and period currently appear on Settings,
+      _Portfolio lost four: the funnel's method note and the Over time method moved to spec notes,
+      roll rates went behind "Why no roll rates", and the concentration caveat went (the Flag
+      column says it). Settings' product and period chooser sits behind "Change product or period"._
+- [x] Business names everywhere; engine IDs secondary.
+      _Segment, sector, channel and nationality read by name from `value_labels` in config (GOV
+      and SAU stay beside the name; CSVs carry both), score bands read "651–700", and data columns
+      by name from `client_schema.LABELS`. The rule Settings can't evaluate reads by description._
+- [x] Provenance pills only where a figure appears, not on section headers.
+      _11 moved: onto the column or tile the figure is in, or a key under a chart._
+- [x] Each fact lives in one place. Applicant count and period currently appear on Settings,
       Administration and the demo strip.
+      _The strip now says only what it is for. The dataset's size and dates are on Administration →
+      Data alone. "Figures built" on the analysis screens is now the engine's time when it is
+      running, the same as Settings and Administration show (they disagreed by the export gap)._
 
 <!-- Add new items here. -->

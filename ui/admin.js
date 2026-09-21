@@ -56,6 +56,7 @@
 
   /* ================================================================ engine (read-only) */
   function load() {
+    S.asked = true;
     fetch('/api/settings').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (j) { S.gov = j; S.live = true; }, function () { S.live = false; })
       .then(function () { if (S.tab === 'overview' || S.tab === 'audit') window.PageShell.draw(true); });
@@ -91,13 +92,13 @@
     }
     var failed = R && R.error, running = R && R.running;
     var computed = S.gov && S.gov.computed_at ? when(S.gov.computed_at) : esc(F.run.generated);
-    out.push({ id: 'data', title: 'Data', attn: !!failed, right: pv('OBSERVED'), note: N('ov_data'),
-      line: n0(D.rows) + ' applicants · ' + esc(D.date_from) + ' to ' + esc(D.date_to) +
-        '<span class="su-card-s">' + (running ? 'Recompute running' : 'Figures computed ' + computed) + '</span>',
+    out.push({ id: 'data', title: 'Data', attn: !!failed, note: N('ov_data'),
+      line: (failed ? 'Last recompute failed' : running ? 'Recompute running' : 'Figures computed ' + computed) +
+        '<span class="su-card-s">' + esc(D.label) + '</span>',
       detail: failed ? 'The last recompute did not finish: ' + esc(R.error) + '. The figures in use are unchanged.' : '',
       tab: 'data', action: 'Go to Data' });
     var mapped = FD.required_mapped === FD.required;
-    out.push({ id: 'mapping', title: 'Field mapping', attn: !mapped, right: pv('OBSERVED'), note: N('ov_mapping'),
+    out.push({ id: 'mapping', title: 'Field mapping', attn: !mapped, note: N('ov_mapping'),
       line: n0(FD.required_mapped) + ' of ' + n0(FD.required) + ' required fields supplied',
       detail: 'Rules that read a missing field are not evaluated, so some declines are not replayed.',
       tab: 'data', action: 'Go to Data' });
@@ -158,7 +159,7 @@
 
   function secSource() {
     var D = F.dataset;
-    return section('source', 'Source in use', pv('OBSERVED'),
+    return section('source', 'Source in use', '',
       kv([{ key: 'Source', value: D.label }, { key: 'Applicants', value: n0(D.rows) },
           { key: 'Applications between', value: D.date_from + ' and ' + D.date_to }]) +
       (S.wiz ? '' : '<div class="su-row su-gap"><button type="button" class="btn sm" data-act="wiz-open"' + N('ds_connect') + dis('data.load') + '>Connect a new source</button></div>' +
@@ -326,7 +327,7 @@
   /* ================================================================ data: mapping, outcomes, rules */
   function secMapping() {
     var C = F.fields, complete = C.required_mapped === C.required;
-    return section('mapping', 'Field mapping', pv('OBSERVED'),
+    return section('mapping', 'Field mapping', '',
       caveat(complete ? 'obs' : 'warn', 'IN USE',
         '<strong>' + n0(C.required_mapped) + ' of ' + n0(C.required) + ' required fields supplied by the data in use.</strong> ' +
         (complete ? 'Every replay runs on it.' : 'Rules that read a missing field are not evaluated.'), N('mp_state')) +
@@ -336,12 +337,12 @@
   function secOutcomes() {
     var O = F.outcome, P = SIM.outcomes;
     var judged = O.products.length ? table('<th>Product</th><th class="num">Booked</th><th class="num">Old enough to judge</th>' +
-      '<th class="num">Went bad</th><th class="num">Bad rate</th>', O.products.map(function (r) {
+      '<th class="num">Went bad</th><th class="num">Bad rate ' + pv('OBSERVED') + '</th>', O.products.map(function (r) {
         return '<tr><td>' + esc(r.product) + '</td><td class="num">' + n0(r.booked) + '</td><td class="num">' + n0(r.judged) + '</td>' +
           '<td class="num">' + n0(r.bad) + '</td><td class="num">' + (r.bad_rate === null ? '<span class="nodata">—</span>' :
           (100 * r.bad_rate).toFixed(1) + '%') + '</td></tr>';
       })) : '';
-    return section('outcomes', 'Outcomes and performance', pv('OBSERVED'),
+    return section('outcomes', 'Outcomes and performance', '',
       '<div class="cols2"><div><div class="su-sub">What counts as bad</div>' + kv(O.definition) + '</div>' +
       '<div><div class="su-sub">Read from</div>' + kv(O.sources, true) + '<p class="su-help su-gap">' + esc(O.rule) + '</p></div></div>' +
       (judged ? '<div class="su-sub su-gap"' + N('oc_judged') + '>Loans the definition can judge</div>' + judged : '') +
@@ -365,7 +366,7 @@
     });
     rows.push('<tr class="is-total"><td>' + n0(T.files) + ' workbooks</td><td>' + n0(T.tables) + ' tables</td><td></td><td></td>' +
       '<td class="num">' + n0(T.rules) + '</td><td class="num">' + n0(T.in_scope) + '</td><td class="num">' + n0(T.inactive) + '</td></tr>');
-    return '<div class="su-sub">In use · rule pack ' + esc(RP.version) + ' ' + pv('OBSERVED') + '</div>' +
+    return '<div class="su-sub">In use · rule pack ' + esc(RP.version) + '</div>' +
       table('<th>Workbook</th><th' + N('rp_table') + '>Table</th><th' + N('rp_role') + '>Role</th><th>Stage</th>' +
             '<th class="num">Rules</th><th class="num"' + N('rp_scope') + '>In scope for ' + esc(RP.product) + '</th><th class="num">Inactive</th>', rows) +
       '<p class="su-help su-gap">' + n0(R.rules_replayed) + ' rules replayed for ' + esc(RP.product) +
@@ -658,5 +659,7 @@
     notes: function () { return Object.assign({}, window.__SETTINGS_NOTES__(F), window.__ADMIN_NOTES__(F)); },
     click: click, input: input, change: change
   });
+  // Asked once, by whoever may see it: at start, or when the demo bar makes this viewer an admin.
   if (can('admin.view')) load();
+  window.Session.onChange(function () { if (can('admin.view') && !S.asked) load(); });
 })();

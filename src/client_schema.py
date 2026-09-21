@@ -100,6 +100,24 @@ COLUMNS: dict[str, str] = {
     "latent_bad": "bool",                # ground truth for EVERY applicant, engine must not see it
 }
 
+LABELS = {
+    "application_id": "Application ID", "app_date": "Application date", "product": "Product",
+    "program": "Programme", "requested_amount": "Requested amount", "tenure_months": "Tenure (months)",
+    "downpayment_pct": "Down payment %", "employer_segment": "Employer segment",
+    "employment_type": "Employment type", "is_pensioner": "Pensioner", "nationality": "Nationality",
+    "is_saudi": "Saudi national", "age": "Age", "gender": "Gender", "sector": "Sector",
+    "military_rank": "Military rank", "military_employee_type": "Military employee type",
+    "employer_name": "Employer", "monthly_income": "Monthly income",
+    "length_of_service_months": "Length of service (months)", "payslip_age_months": "Payslip age (months)",
+    "salary_to_bsf": "Salary to BSF", "simah_score": "SIMAH score", "crif_score": "CRIF score",
+    "simah_scorecard": "SIMAH scorecard", "customer_type": "Customer type (new or existing)",
+    "is_pep": "Politically exposed person", "related_to_pep": "Related to a PEP",
+    "diplomatic_service": "Diplomatic service", "channel": "Channel", "source_code": "Source code",
+    "agent_id": "Agent", "walked_away": "Walked away", "booking_date": "Booking date",
+    "bad_date": "Date gone bad", "latent_bad": "True outcome (synthetic only)",
+}
+"""How each column reads on screen. The column name stays beside it for whoever maps the data."""
+
 PERFORMANCE = {"booking_date", "bad_date"}
 """Empty by meaning, not by omission: never booked, or not gone bad as of the extract. A report
 of missing values must not list them."""

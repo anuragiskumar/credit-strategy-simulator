@@ -125,7 +125,9 @@ window.__NOTES__ = function (F) {
       d: 'Top: each month’s applications replayed against today’s rules, so a change in the approval rate is a change ' +
          'in who applied, not in the rules. Bottom: the bad rate of the loans those applications became, once they have ' +
          'run the whole performance window. A recent month has no bad rate yet: its loans that are still paying have not ' +
-         'had the time to go bad, and counting them as good would make the recent book look safer than it is.'
+         'had the time to go bad, and counting them as good would make the recent book look safer than it is. A month ' +
+         'gets a bad rate once most of its loans (the share is a setting) have run the window by the extract date, ' +
+         'which is why the bad rate elsewhere on this page comes from older loans than the chosen period.'
     },
     trend_chart: {
       t: 'Trend chart',
@@ -141,7 +143,8 @@ window.__NOTES__ = function (F) {
       t: 'Vintage',
       d: 'Every loan the bank actually booked, grouped by when it was booked, read from its booking date and the date it ' +
          'first reached the bad DPD. Each line is the share of that group gone bad after each month on book. Lines that ' +
-         'rise faster, or sit higher, are worse business. A line is drawn only as far as every loan in it has run.'
+         'rise faster, or sit higher, are worse business. A line is drawn only as far as every loan in it has run; ' +
+         'where it reaches the performance window, its height is that group’s bad rate.'
     },
     vintage_chart: {
       t: 'Vintage chart',
@@ -165,7 +168,9 @@ window.__NOTES__ = function (F) {
          'everyone who reached it, split into green (goes on) and grey (lost here). Dark grey is a loss the lender ' +
          'caused (a rule or a product limit); light grey, and a dashed arrow, is a customer who walked away. Losses ' +
          'are grey, not coloured, because colour on these screens only ever says how a figure is known. The losses ' +
-         'sum to the application total minus the booked loans, which is the check that the picture is complete.'
+         'sum to the application total minus the booked loans, which is the check that the picture is complete. ' +
+         'Every stage is derived by replaying the rules, never assigned: the reason attached to each declined ' +
+         'applicant is the rule that actually caught them.'
     },
     fview: {
       t: 'Funnel or Bars',
@@ -209,7 +214,8 @@ window.__NOTES__ = function (F) {
       t: 'The booked book, sliced',
       d: 'The same booked loans, grouped a different way with each button: employer segment, sector, channel, score ' +
          'band or nationality. Shares are of exposure (SAR lent), not of loan count, because concentration risk is ' +
-         'about money.'
+         'about money. Each group reads by its business name, set in configuration; where the data carries a code ' +
+         '(GOV, SAU) it is shown beside the name, and the CSV carries both.'
     },
     th_booked: { t: 'Booked', d: 'Number of booked loans in this group.' },
     th_exposure: {
@@ -226,11 +232,6 @@ window.__NOTES__ = function (F) {
       t: 'Flag',
       d: 'Concentration flag, measured against an even split across the groups shown. Over-exposed: the group holds ' +
          'a share far above its even share. Under-exposed: far below it. The multiples are configurable settings.'
-    },
-    conc: {
-      t: 'CONC',
-      d: 'A plain-language reading of the Flag column: which groups carry more or less of the book\'s exposure than ' +
-         'an even split would give them.'
     },
     ch_panel: {
       t: 'Declines by channel',

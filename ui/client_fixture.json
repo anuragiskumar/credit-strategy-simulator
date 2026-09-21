@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 12:50 UTC",
+  "generated": "2026-09-21 13:18 UTC",
   "data_as_of": "2026-08-31",
   "product": "TWQR",
   "applicants": 25157,
@@ -39,6 +39,57 @@
    ]
   },
   "bad_rate_ceiling": 0.11,
+  "value_labels": {
+   "employer_segment": {
+    "GOV": "Government",
+    "SEMI_GOV": "Semi-government",
+    "PRIVATE_LARGE": "Private sector, large employer",
+    "PRIVATE_SMALL": "Private sector, small employer",
+    "SELF_EMPLOYED": "Self-employed",
+    "BSF_PRIORITY": "BSF priority customers",
+    "BSF_EMPLOYEE": "BSF staff"
+   },
+   "sector": {
+    "it": "Information technology",
+    "retail": "Retail",
+    "construction": "Construction",
+    "healthcare": "Healthcare",
+    "logistics": "Logistics",
+    "education": "Education",
+    "manufacturing": "Manufacturing",
+    "hospitality": "Hospitality",
+    "finance": "Finance",
+    "government": "Government"
+   },
+   "channel": {
+    "digital": "Digital",
+    "branch": "Branch",
+    "dsa": "Direct sales agents",
+    "telesales": "Telesales"
+   },
+   "nationality": {
+    "SAU": "Saudi",
+    "EGY": "Egyptian",
+    "IND": "Indian",
+    "PAK": "Pakistani",
+    "PHL": "Filipino",
+    "SYR": "Syrian",
+    "YEM": "Yemeni",
+    "SDN": "Sudanese",
+    "JOR": "Jordanian",
+    "LBN": "Lebanese",
+    "BGD": "Bangladeshi"
+   },
+   "score_band": {
+    "(700.0, 900.0]": "701–900",
+    "no score": "No score",
+    "(650.0, 700.0]": "651–700",
+    "(600.0, 650.0]": "601–650",
+    "(550.0, 600.0]": "551–600",
+    "(500.0, 550.0]": "501–550",
+    "(0.0, 500.0]": "500 or below"
+   }
+  },
   "context": "TWQR:last_12m",
   "preset": "last_12m"
  },
@@ -9964,7 +10015,7 @@
  "contexts": {
   "TWQR:last_6m": {
    "meta": {
-    "generated": "2026-09-21 12:50 UTC",
+    "generated": "2026-09-21 13:17 UTC",
     "data_as_of": "2026-08-31",
     "product": "TWQR",
     "applicants": 12630,
@@ -10003,6 +10054,57 @@
      ]
     },
     "bad_rate_ceiling": 0.11,
+    "value_labels": {
+     "employer_segment": {
+      "GOV": "Government",
+      "SEMI_GOV": "Semi-government",
+      "PRIVATE_LARGE": "Private sector, large employer",
+      "PRIVATE_SMALL": "Private sector, small employer",
+      "SELF_EMPLOYED": "Self-employed",
+      "BSF_PRIORITY": "BSF priority customers",
+      "BSF_EMPLOYEE": "BSF staff"
+     },
+     "sector": {
+      "it": "Information technology",
+      "retail": "Retail",
+      "construction": "Construction",
+      "healthcare": "Healthcare",
+      "logistics": "Logistics",
+      "education": "Education",
+      "manufacturing": "Manufacturing",
+      "hospitality": "Hospitality",
+      "finance": "Finance",
+      "government": "Government"
+     },
+     "channel": {
+      "digital": "Digital",
+      "branch": "Branch",
+      "dsa": "Direct sales agents",
+      "telesales": "Telesales"
+     },
+     "nationality": {
+      "SAU": "Saudi",
+      "EGY": "Egyptian",
+      "IND": "Indian",
+      "PAK": "Pakistani",
+      "PHL": "Filipino",
+      "SYR": "Syrian",
+      "YEM": "Yemeni",
+      "SDN": "Sudanese",
+      "JOR": "Jordanian",
+      "LBN": "Lebanese",
+      "BGD": "Bangladeshi"
+     },
+     "score_band": {
+      "(700.0, 900.0]": "701–900",
+      "(650.0, 700.0]": "651–700",
+      "no score": "No score",
+      "(600.0, 650.0]": "601–650",
+      "(550.0, 600.0]": "551–600",
+      "(500.0, 550.0]": "501–550",
+      "(0.0, 500.0]": "500 or below"
+     }
+    },
     "context": "TWQR:last_6m",
     "preset": "last_6m"
    },
@@ -19829,7 +19931,7 @@
   },
   "TWQR:all": {
    "meta": {
-    "generated": "2026-09-21 12:51 UTC",
+    "generated": "2026-09-21 13:18 UTC",
     "data_as_of": "2026-08-31",
     "product": "TWQR",
     "applicants": 50000,
@@ -19868,6 +19970,57 @@
      ]
     },
     "bad_rate_ceiling": 0.11,
+    "value_labels": {
+     "employer_segment": {
+      "GOV": "Government",
+      "SEMI_GOV": "Semi-government",
+      "PRIVATE_LARGE": "Private sector, large employer",
+      "PRIVATE_SMALL": "Private sector, small employer",
+      "SELF_EMPLOYED": "Self-employed",
+      "BSF_PRIORITY": "BSF priority customers",
+      "BSF_EMPLOYEE": "BSF staff"
+     },
+     "sector": {
+      "it": "Information technology",
+      "retail": "Retail",
+      "construction": "Construction",
+      "healthcare": "Healthcare",
+      "logistics": "Logistics",
+      "education": "Education",
+      "manufacturing": "Manufacturing",
+      "hospitality": "Hospitality",
+      "finance": "Finance",
+      "government": "Government"
+     },
+     "channel": {
+      "digital": "Digital",
+      "branch": "Branch",
+      "dsa": "Direct sales agents",
+      "telesales": "Telesales"
+     },
+     "nationality": {
+      "SAU": "Saudi",
+      "EGY": "Egyptian",
+      "IND": "Indian",
+      "PAK": "Pakistani",
+      "PHL": "Filipino",
+      "SYR": "Syrian",
+      "YEM": "Yemeni",
+      "SDN": "Sudanese",
+      "JOR": "Jordanian",
+      "LBN": "Lebanese",
+      "BGD": "Bangladeshi"
+     },
+     "score_band": {
+      "(700.0, 900.0]": "701–900",
+      "no score": "No score",
+      "(650.0, 700.0]": "651–700",
+      "(600.0, 650.0]": "601–650",
+      "(550.0, 600.0]": "551–600",
+      "(500.0, 550.0]": "501–550",
+      "(0.0, 500.0]": "500 or below"
+     }
+    },
     "context": "TWQR:all",
     "preset": "all"
    },
@@ -29847,7 +30000,7 @@
   },
   "IJMB:last_6m": {
    "meta": {
-    "generated": "2026-09-21 12:51 UTC",
+    "generated": "2026-09-21 13:19 UTC",
     "data_as_of": "2026-08-31",
     "product": "IJMB",
     "applicants": 5083,
@@ -29917,6 +30070,57 @@
      ]
     },
     "bad_rate_ceiling": 0.11,
+    "value_labels": {
+     "employer_segment": {
+      "GOV": "Government",
+      "SEMI_GOV": "Semi-government",
+      "PRIVATE_LARGE": "Private sector, large employer",
+      "PRIVATE_SMALL": "Private sector, small employer",
+      "SELF_EMPLOYED": "Self-employed",
+      "BSF_PRIORITY": "BSF priority customers",
+      "BSF_EMPLOYEE": "BSF staff"
+     },
+     "sector": {
+      "it": "Information technology",
+      "retail": "Retail",
+      "construction": "Construction",
+      "healthcare": "Healthcare",
+      "logistics": "Logistics",
+      "education": "Education",
+      "manufacturing": "Manufacturing",
+      "hospitality": "Hospitality",
+      "finance": "Finance",
+      "government": "Government"
+     },
+     "channel": {
+      "digital": "Digital",
+      "branch": "Branch",
+      "dsa": "Direct sales agents",
+      "telesales": "Telesales"
+     },
+     "nationality": {
+      "SAU": "Saudi",
+      "EGY": "Egyptian",
+      "IND": "Indian",
+      "PAK": "Pakistani",
+      "PHL": "Filipino",
+      "SYR": "Syrian",
+      "YEM": "Yemeni",
+      "SDN": "Sudanese",
+      "JOR": "Jordanian",
+      "LBN": "Lebanese",
+      "BGD": "Bangladeshi"
+     },
+     "score_band": {
+      "(700.0, 900.0]": "701–900",
+      "(600.0, 650.0]": "601–650",
+      "no score": "No score",
+      "(650.0, 700.0]": "651–700",
+      "(550.0, 600.0]": "551–600",
+      "(500.0, 550.0]": "501–550",
+      "(0.0, 500.0]": "500 or below"
+     }
+    },
     "context": "IJMB:last_6m",
     "preset": "last_6m"
    },
@@ -39498,7 +39702,7 @@
   },
   "IJMB:last_12m": {
    "meta": {
-    "generated": "2026-09-21 12:51 UTC",
+    "generated": "2026-09-21 13:19 UTC",
     "data_as_of": "2026-08-31",
     "product": "IJMB",
     "applicants": 10081,
@@ -39568,6 +39772,57 @@
      ]
     },
     "bad_rate_ceiling": 0.11,
+    "value_labels": {
+     "employer_segment": {
+      "GOV": "Government",
+      "SEMI_GOV": "Semi-government",
+      "PRIVATE_LARGE": "Private sector, large employer",
+      "PRIVATE_SMALL": "Private sector, small employer",
+      "SELF_EMPLOYED": "Self-employed",
+      "BSF_PRIORITY": "BSF priority customers",
+      "BSF_EMPLOYEE": "BSF staff"
+     },
+     "sector": {
+      "it": "Information technology",
+      "retail": "Retail",
+      "construction": "Construction",
+      "healthcare": "Healthcare",
+      "logistics": "Logistics",
+      "education": "Education",
+      "manufacturing": "Manufacturing",
+      "hospitality": "Hospitality",
+      "finance": "Finance",
+      "government": "Government"
+     },
+     "channel": {
+      "digital": "Digital",
+      "branch": "Branch",
+      "dsa": "Direct sales agents",
+      "telesales": "Telesales"
+     },
+     "nationality": {
+      "SAU": "Saudi",
+      "EGY": "Egyptian",
+      "IND": "Indian",
+      "PAK": "Pakistani",
+      "PHL": "Filipino",
+      "SYR": "Syrian",
+      "YEM": "Yemeni",
+      "SDN": "Sudanese",
+      "JOR": "Jordanian",
+      "LBN": "Lebanese",
+      "BGD": "Bangladeshi"
+     },
+     "score_band": {
+      "(700.0, 900.0]": "701–900",
+      "(600.0, 650.0]": "601–650",
+      "no score": "No score",
+      "(650.0, 700.0]": "651–700",
+      "(550.0, 600.0]": "551–600",
+      "(500.0, 550.0]": "501–550",
+      "(0.0, 500.0]": "500 or below"
+     }
+    },
     "context": "IJMB:last_12m",
     "preset": "last_12m"
    },
@@ -49332,7 +49587,7 @@
   },
   "IJMB:all": {
    "meta": {
-    "generated": "2026-09-21 12:51 UTC",
+    "generated": "2026-09-21 13:19 UTC",
     "data_as_of": "2026-08-31",
     "product": "IJMB",
     "applicants": 20000,
@@ -49402,6 +49657,57 @@
      ]
     },
     "bad_rate_ceiling": 0.11,
+    "value_labels": {
+     "employer_segment": {
+      "GOV": "Government",
+      "SEMI_GOV": "Semi-government",
+      "PRIVATE_LARGE": "Private sector, large employer",
+      "PRIVATE_SMALL": "Private sector, small employer",
+      "SELF_EMPLOYED": "Self-employed",
+      "BSF_PRIORITY": "BSF priority customers",
+      "BSF_EMPLOYEE": "BSF staff"
+     },
+     "sector": {
+      "it": "Information technology",
+      "retail": "Retail",
+      "construction": "Construction",
+      "healthcare": "Healthcare",
+      "logistics": "Logistics",
+      "education": "Education",
+      "manufacturing": "Manufacturing",
+      "hospitality": "Hospitality",
+      "finance": "Finance",
+      "government": "Government"
+     },
+     "channel": {
+      "digital": "Digital",
+      "branch": "Branch",
+      "dsa": "Direct sales agents",
+      "telesales": "Telesales"
+     },
+     "nationality": {
+      "SAU": "Saudi",
+      "EGY": "Egyptian",
+      "IND": "Indian",
+      "PAK": "Pakistani",
+      "PHL": "Filipino",
+      "SYR": "Syrian",
+      "YEM": "Yemeni",
+      "SDN": "Sudanese",
+      "JOR": "Jordanian",
+      "LBN": "Lebanese",
+      "BGD": "Bangladeshi"
+     },
+     "score_band": {
+      "(700.0, 900.0]": "701–900",
+      "(600.0, 650.0]": "601–650",
+      "no score": "No score",
+      "(650.0, 700.0]": "651–700",
+      "(550.0, 600.0]": "551–600",
+      "(500.0, 550.0]": "501–550",
+      "(0.0, 500.0]": "500 or below"
+     }
+    },
     "context": "IJMB:all",
     "preset": "all"
    },

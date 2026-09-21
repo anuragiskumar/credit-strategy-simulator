@@ -159,7 +159,8 @@
     if (!CX) return '';
     var d = S.form.ctx || (S.form.ctx = { product: ctx.product, preset: presetOf(ctx) ? ctx.preset : null });
     var products = Object.keys(CX.products);
-    return '<div class="su-sub su-gap"' + N('an_choose') + '>Change what you are looking at</div>' +
+    return '<details class="su-more su-gap" data-acc="choose"' + (S.open.choose || S.ctxMsg ? ' open' : '') + '>' +
+      '<summary' + N('an_choose') + '>Change product or period</summary>' +
       '<div class="su-grid">' +
       (products.length > 1 ? '<div class="su-field"><span class="su-legend">Product</span><div class="su-choice">' + products.map(function (p) {
         return '<label class="su-radio"><input type="radio" name="su-cp" value="' + esc(p) + '"' + (d.product === p ? ' checked' : '') + '>' +
@@ -170,9 +171,8 @@
           '<div><b>' + esc(x.name) + '</b><span>' + esc(x.label) + '</span></div></label>';
       }).join('') + '</div></div></div>' +
       '<div class="su-row su-gap"><button type="button" class="btn sm" data-act="ctx"' + (d.preset ? '' : ' disabled') + '>Apply</button>' +
-      '<span class="su-help">Your own view: it changes what you see on every screen, and nothing anyone else sees. ' +
-      'A custom range is chosen from the period control on the analysis screens.</span></div>' +
-      (S.ctxMsg ? '<p class="su-help su-gap" role="status">' + S.ctxMsg + '</p>' : '');
+      '<span class="su-help">Your own view only.</span></div>' +
+      (S.ctxMsg ? '<p class="su-help su-gap" role="status">' + S.ctxMsg + '</p>' : '') + '</details>';
   }
   function applyCtx() {
     var d = S.form.ctx, p = presets(d.product).filter(function (x) { return x.id === d.preset; })[0];
@@ -331,44 +331,46 @@
     var R = F.run, D = F.dataset, C = F.fields;
     if (!R.available || !D.available) return section('health', 'Data health', '', caveat('warn', 'NO DATA', 'No applicant dataset is loaded.'), N('dh_head'));
     var nulls = (D.nulls || []).map(function (n) {
-      return '<tr><td><span class="rid">' + esc(n.column) + '</span></td><td class="num">' + pct(n.share, 1) + '</td>' +
+      return '<tr><td>' + esc(n.label || n.column) + ' <span class="rid">' + esc(n.column) + '</span></td><td class="num">' + pct(n.share, 1) + '</td>' +
         '<td style="width:140px"><span class="su-nullbar" style="width:' + Math.max(1, Math.round(n.share * 100)) + '%"></span></td></tr>';
     });
     var nu = R.unevaluable.length;
     var uneval = nu
       ? caveat('warn', 'NOT EVALUATED', '<strong>' + n0(nu) + ' ' + plural(nu, 'rule reads', 'rules read') +
           ' data the applicant table does not carry</strong>, so ' + plural(nu, 'it declines', 'they decline') + ' no one: ' +
-          R.unevaluable.map(function (id) { return '<span class="rid">' + esc(id) + '</span>'; }).join(', ') + '.' +
+          (R.unevaluable_rules || R.unevaluable.map(function (id) { return { rule_id: id }; })).map(function (r) {
+            return (r.description ? '“' + esc(r.description) + '” ' : '') + '<span class="rid">' + esc(r.rule_id) + '</span>';
+          }).join(', ') + '.' +
           (C.unsupplied.length ? ' Missing: ' + C.unsupplied.map(function (u) {
             return 'a <abbr class="su-expr" title="' + esc(u.field) + '">derived value</abbr> read by ' + n0(u.rules) + ' ' + plural(u.rules, 'rule');
           }).join('; ') + '.' : ''), N('dh_uneval'))
       : caveat('obs', 'EVALUATED', 'Every rule in scope can be evaluated on the data.');
-    return section('health', 'Data health', pv('OBSERVED'),
+    return section('health', 'Data health', '',
       '<div class="tiles c4">' +
-        tile('Required fields', n0(C.required_mapped) + ' of ' + n0(C.required), 'supplied by the data', 'on-obs', N('dh_fields')) +
-        tile('Fields with gaps', n0(nulls.length), 'have missing values', 'on-obs') +
-        tile('Rules not evaluated', n0(nu), 'the data cannot answer them', 'on-obs') +
-        tile('Rules that catch nobody', n0(R.never_fire_count), 'of ' + n0(R.rules_replayed) + ' · listed on <a href="client.html#drivers">Decline drivers</a>', 'on-obs', N('rn_never')) +
+        tile('Required fields ' + pv('OBSERVED'), n0(C.required_mapped) + ' of ' + n0(C.required), 'supplied by the data', 'on-obs', N('dh_fields')) +
+        tile('Fields with gaps ' + pv('OBSERVED'), n0(nulls.length), 'have missing values', 'on-obs') +
+        tile('Rules not evaluated ' + pv('OBSERVED'), n0(nu), 'the data cannot answer them', 'on-obs') +
+        tile('Rules that catch nobody ' + pv('OBSERVED'), n0(R.never_fire_count), 'of ' + n0(R.rules_replayed) + ' · listed on <a href="client.html#drivers">Decline drivers</a>', 'on-obs', N('rn_never')) +
       '</div>' +
       '<div class="su-gap">' + uneval + '</div>' +
       '<div class="su-sub su-gap"' + N('rn_nulls') + '>Fields with missing values</div>' +
       table('<th>Field</th><th class="num">Missing</th><th></th>', nulls) +
-      '<p class="su-help su-gap">' + n0(D.rows) + ' applications, ' + esc(D.date_from) + ' to ' + esc(D.date_to) + '. Checked ' + esc(R.generated) + '.</p>',
+      '<p class="su-help su-gap">Checked ' + esc(R.generated) + '.</p>',
       N('dh_head'));
   }
   function secMapping() {
     var C = F.fields;
     var rows = C.columns.filter(function (r) { return r.need !== 'Not requested'; }).map(function (r) {
-      return '<tr><td><span class="rid">' + esc(r.column) + '</span></td><td class="su-mono su-muted">' + esc(r.dtype) + '</td>' +
+      return '<tr><td>' + esc(r.label || r.column) + ' <span class="rid">' + esc(r.column) + '</span></td><td class="su-mono su-muted">' + esc(r.dtype) + '</td>' +
         '<td><span class="su-tag need-' + esc(r.need.split(' ')[0]) + '">' + esc(r.need) + '</span></td>' +
         '<td class="num">' + (r.rules ? n0(r.rules) : '<span class="nodata">—</span>') + '</td>' +
         '<td class="num">' + (r.null_share ? pct(r.null_share, 1) : '<span class="nodata">—</span>') + '</td></tr>';
     });
-    return accordion('mapping', 'Fields the rules read', pv('OBSERVED'),
+    return accordion('mapping', 'Fields the rules read', '',
       '<p class="su-help">Each field in the applicant table, whether the rules need it, and how many read it.' +
       (can('admin.view') ? ' <a class="su-manage" href="admin.html#sec-mapping">Edit the mapping</a>' : '') + '</p>' +
       '<div class="su-scroll su-gap"><div class="tablewrap"><table class="t su-compact"><thead><tr><th>Field</th><th>Type</th>' +
-      '<th' + N('mp_need') + '>Need</th><th class="num">Rules</th><th class="num">Missing</th></tr></thead><tbody>' +
+      '<th' + N('mp_need') + '>Need</th><th class="num">Rules</th><th class="num">Missing ' + pv('OBSERVED') + '</th></tr></thead><tbody>' +
       rows.join('') + '</tbody></table></div></div>', N('mp_head'), S.open.mapping);
   }
 

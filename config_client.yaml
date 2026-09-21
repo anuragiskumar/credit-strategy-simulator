@@ -457,6 +457,46 @@ field_labels:
   v_simahscore: SIMAH score (bureau)
   simahscorecarddescription: SIMAH scorecard
 
+# How a slice value reads on screen ("Direct sales agents", not "dsa"). The code stays in the
+# data and the CSVs and is shown beside the name; a value not listed reads as its code.
+value_labels:
+  employer_segment:
+    GOV: Government
+    SEMI_GOV: Semi-government
+    PRIVATE_LARGE: Private sector, large employer
+    PRIVATE_SMALL: Private sector, small employer
+    SELF_EMPLOYED: Self-employed
+    BSF_PRIORITY: BSF priority customers
+    BSF_EMPLOYEE: BSF staff
+  sector:
+    it: Information technology
+    retail: Retail
+    construction: Construction
+    healthcare: Healthcare
+    logistics: Logistics
+    education: Education
+    manufacturing: Manufacturing
+    hospitality: Hospitality
+    finance: Finance
+    government: Government
+  channel:
+    digital: Digital
+    branch: Branch
+    dsa: Direct sales agents
+    telesales: Telesales
+  nationality:
+    SAU: Saudi
+    EGY: Egyptian
+    IND: Indian
+    PAK: Pakistani
+    PHL: Filipino
+    SYR: Syrian
+    YEM: Yemeni
+    SDN: Sudanese
+    JOR: Jordanian
+    LBN: Lebanese
+    BGD: Bangladeshi
+
 # ---------------------------------------------------------------- simulator (step 4)
 simulate:
   riskier_multiple: 1.15      # swap-ins above this x the booked bad rate are "riskier"

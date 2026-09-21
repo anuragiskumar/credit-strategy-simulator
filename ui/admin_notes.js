@@ -46,7 +46,8 @@ window.__ADMIN_NOTES__ = function (F) {
     },
     ov_data: {
       t: 'Data card',
-      d: 'Counted: the applicants in use, their application dates, and when the figures were computed. It needs you only ' +
+      d: 'When the figures were last computed, and from which source. How many applicants and which dates are on the ' +
+         'Data tab, the one place they are shown. It needs you only ' +
          'when the last recompute failed, which the engine reports; the old figures stay in use.'
     },
     ov_mapping: {

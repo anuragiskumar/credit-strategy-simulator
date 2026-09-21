@@ -10,6 +10,7 @@ nothing either: it calls the same functions the CLIs and the tests call.
 from __future__ import annotations
 
 import math
+import re
 import time
 
 import numpy as np
@@ -62,6 +63,25 @@ def _records(df: pd.DataFrame, index_name: str | None = None) -> list[dict]:
     if index_name:
         out = out.rename(columns={out.columns[0]: index_name})
     return clean(out.to_dict("records"))
+
+
+def band_label(band: str) -> str:
+    """A score band as a person reads it: "(650.0, 700.0]" is "651–700", the lowest "500 or below"."""
+    m = re.fullmatch(r"\(([\d.]+), ([\d.]+)\]", band)
+    if not m:
+        return band[:1].upper() + band[1:]
+    lo, hi = int(float(m[1])), int(float(m[2]))
+    return f"{hi} or below" if lo <= 0 else f"{lo + 1}–{hi}"
+
+
+def value_labels(cfg: dict, book_by: dict) -> dict:
+    """Business names for every slice value the screens show, by slice. A code with no name in
+    config reads as itself; score bands are named from their edges."""
+    named = cfg.get("value_labels") or {}
+    out = {k: {str(c): str(v) for c, v in (named.get(k) or {}).items()} for k in book_by}
+    out.setdefault("channel", {})
+    out["score_band"] = {r["score_band"]: band_label(r["score_band"]) for r in book_by["score_band"]["rows"]}
+    return out
 
 
 def drivers_view(base: S.Baseline, inv, drivers: pd.DataFrame, funnel: pd.DataFrame,
@@ -170,6 +190,7 @@ def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
             "synthetic": True,
             "replay_decisions": clean(cfg["replay"]),
             "bad_rate_ceiling": cfg["optimise"]["max_bad_rate"],
+            "value_labels": value_labels(cfg, book_by),
         },
         "headline": {
             # Six places, not four: the page rounds once more to show a percent, and rounding a
