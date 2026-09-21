@@ -380,7 +380,9 @@ window.__NOTES__ = function (F) {
       t: 'Goal-seek',
       d: 'The simulator in reverse: set a target approval rate and the engine searches combinations of changes ' +
          '(switching rules off, moving cutoffs) that reach it. Every search is bounded by a bad-rate ceiling ' +
-         '(default ' + ceiling + '), because "maximise approvals" on its own is solved by approving everyone.'
+         '(default ' + ceiling + '), because "maximise approvals" on its own is solved by approving everyone.' +
+         ' What comes back is a ranked shortlist for a person to take to a risk committee, not a decision and ' +
+         'not a proof of optimality. Loosening a policy is a committee decision, not a calculation.'
     },
     goal_target: {
       t: 'Target approval rate',
@@ -430,11 +432,6 @@ window.__NOTES__ = function (F) {
       t: 'Changes in the option',
       d: 'The specific changes that make up the option, such as rules to switch off or cutoffs to move. Nothing is ' +
          'applied; this is a proposal.'
-    },
-    limit: {
-      t: 'LIMIT',
-      d: 'The output is a ranked shortlist for a person to take to a risk committee, not a proof of optimality. ' +
-         'Loosening a policy is a committee decision, not a calculation.'
     }
   };
 };

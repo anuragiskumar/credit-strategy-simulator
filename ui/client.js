@@ -812,9 +812,9 @@
   }
 
   function legend() {
-    return '<div class="simlegend"' + N('sim_legend') + '><span><i class="c-obs"></i>counted from the replay</span>' +
-      '<span><i class="c-inf"></i>estimated for applicants never booked</span>' +
-      '<span><i class="c-nm"></i>no estimate possible</span></div>';
+    return '<div class="simlegend"' + N('sim_legend') + '><span><i class="c-obs"></i>counted</span>' +
+      '<span><i class="c-inf"></i>estimated (never booked)</span>' +
+      '<span><i class="c-nm"></i>no estimate</span></div>';
   }
 
   /* ---- one chart: approval against bad rate, with the ceiling as a line */
@@ -827,7 +827,7 @@
     var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
     var xpad = Math.max(0.005, (x1 - x0) * 0.12), ypad = Math.max(0.002, (y1 - y0) * 0.12);
     x0 -= xpad; x1 += xpad; y0 -= ypad; y1 += ypad;
-    var W = 560, H = 300, L = 56, R = 16, T = 14, B = 42;
+    var W = 560, H = opts.compact ? 210 : 300, L = 56, R = 16, T = 14, B = 42;
     function X(v) { return L + (v - x0) * (W - L - R) / (x1 - x0); }
     function Y(v) { return T + (y1 - v) * (H - T - B) / (y1 - y0); }
     var g = '';
@@ -888,10 +888,14 @@
 
   /* ---- the waterfall: what each step added */
   function waterfall() {
+    return panel('Your scenario', SIM.pending ? '<span class="simbusy">Replaying…</span>' : '', waterfallBody(), N('sim_stack'));
+  }
+
+  function waterfallBody() {
     var out = SIM.out, h = F.headline;
     if (!SIM.steps.length) {
-      return panel('Your scenario', '', '<p class="note">Nothing changed yet. Each change you make is a step. ' +
-        'Add more to build on it, and remove any step to see the scenario without it.</p>', N('sim_stack'));
+      return '<p class="note">Nothing changed yet. Each change you make is a step. ' +
+        'Add more to build on it, and remove any step to see the scenario without it.</p>';
     }
     var levels = [h.approval_rate].concat(SIM.steps.map(function (_, i) {
       return out && out.steps[i] ? out.steps[i].approval_rate : null;
@@ -922,10 +926,9 @@
     var last = levels[levels.length - 1];
     if (last !== null) rows += row('After ' + (SIM.steps.length === 1 ? 'this change' : 'all ' + SIM.steps.length + ' changes'),
       lo, last, pct(last), 'is-base is-total');
-    return panel('Your scenario', SIM.pending ? '<span class="simbusy">Replaying…</span>' : '',
-      '<div class="wfall">' + rows + '</div>' +
+    return '<div class="wfall">' + rows + '</div>' +
       '<p class="simnote">Bars show approval rate; the axis starts at ' + pct(lo, 0) + '.</p>' +
-      '<button class="fmore" data-sim-reset' + (SIM.pending ? ' disabled' : '') + '>Reset to today\'s rules</button>', N('sim_stack'));
+      '<button class="fmore" data-sim-reset' + (SIM.pending ? ' disabled' : '') + '>Reset to today\'s rules</button>';
   }
 
   /* ---- Try a change: story presets, two sliders, the busiest rules */
@@ -1016,8 +1019,9 @@
         panel('The ' + TOP_RULES + ' rules that stop the most applicants', '', ruleSwitches() +
           '<button class="fmore" data-sim-view="rules">See all ' + (SIM.rules ? SIM.rules.length : '') + ' rules</button>') +
       '</div><div class="simside">' +
-        panel('Where this leaves the book', '', frontier(pointsList, { aria: 'Approval rate against bad rate, today and your scenario' }) + legend()) +
-        waterfall() +
+        panel('Your scenario', SIM.pending ? '<span class="simbusy">Replaying…</span>' : '',
+          frontier(pointsList, { compact: true, aria: 'Approval rate against bad rate, today and your scenario' }) + legend() +
+          '<div class="simsep"' + N('sim_stack') + '>What each change added</div>' + waterfallBody()) +
       '</div></div>';
   }
 
@@ -1209,13 +1213,13 @@
       return '<button class="chip" data-goal-freeze="' + esc(r.rule_id) + '" aria-pressed="' + frozen + '" title="' + esc(r.rule_id) + '">' +
         (frozen ? lockIcon({ locked: true }) : '') + esc(r.label) + '</button>';
     }).join(' ');
-    return '<div class="simgoal">' +
-      '<label class="simfield"' + N('goal_target') + '><span>Reach an approval rate of</span>' +
-        '<span class="simunit"><input type="number" class="siminput" id="goaltarget" min="0" max="100" step="0.5" value="' + esc(g.target) + '">%</span>' +
-        '<small>today ' + pct(F.headline.approval_rate) + '</small></label>' +
-      '<label class="simfield"' + N('goal_ceiling') + '><span>without the bad rate going above</span>' +
-        '<span class="simunit"><input type="number" class="siminput" id="goalceiling" min="0" max="100" step="0.5" value="' + esc(g.ceiling) + '">%</span>' +
-        '<small>today ' + pct(F.headline.booked_bad_rate, 2) + '</small></label>' +
+    return '<div class="goalform">' +
+      '<span class="gl"' + N('goal_target') + '>Reach an approval rate of</span>' +
+      '<span class="gin"><input type="number" class="siminput" id="goaltarget" min="0" max="100" step="0.5" value="' + esc(g.target) +
+        '" aria-label="Target approval rate, percent">%<small>today ' + pct(F.headline.approval_rate) + '</small></span>' +
+      '<span class="gl"' + N('goal_ceiling') + '>without the bad rate going above</span>' +
+      '<span class="gin"><input type="number" class="siminput" id="goalceiling" min="0" max="100" step="0.5" value="' + esc(g.ceiling) +
+        '" aria-label="Bad-rate limit, percent">%<small>today ' + pct(F.headline.booked_bad_rate, 2) + '</small></span>' +
       '<button class="btn" data-goal-run' + (g.pending ? ' disabled' : '') + '>' + (g.pending ? '<span class="spin" aria-hidden="true"></span>Searching…' : 'Find the way') + '</button>' +
       '</div>' +
       disclose('constraints', 'Constraints',
@@ -1227,8 +1231,7 @@
 
   function goalResult(res) {
     return '<div class="simgrid is-goal"><div>' + recommendation(res) + otherOptions(res) + '</div>' +
-      '<div>' + goalChart(res) + legend() + '</div></div>' +
-      '<p class="simfoot"' + N('limit') + '>A shortlist for the risk committee, not a decision.</p>';
+      '<div>' + goalChart(res) + legend() + '</div></div>';
   }
 
   /** While goal-seek runs: the shape of the answer, drawn in grey, and what the engine is doing.
@@ -1306,6 +1309,21 @@
       (SIM.error && SIM.view === 'target' ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') +
       scenario + body;
   }
+
+  /** The side column sticks just below the outcome bar and scrolls on its own if taller than the room left. */
+  function syncStick(root) {
+    var bar = root.querySelector('.simsticky'), canvas = document.getElementById('canvas');
+    if (!bar || !canvas) return;
+    var top = bar.offsetHeight + 8;
+    // A sticky box cannot pass the bottom of its grid, which ends above the page's bottom padding.
+    // Taller than the room left, it would be pushed up under the outcome bar at the end of a scroll.
+    var below = parseFloat(getComputedStyle(root).paddingBottom) || 0;
+    root.style.setProperty('--simstick', top + 'px');
+    root.style.setProperty('--simside-max', Math.max(240, canvas.clientHeight - top - below - 4) + 'px');
+  }
+  window.addEventListener('resize', function () {
+    if (S.page === 'simulator') syncStick(document.getElementById('canvaswrap'));
+  });
 
   function wireSimulator(root) {
     root.querySelectorAll('[data-sim-view]').forEach(function (b) {
@@ -1412,6 +1430,10 @@
         SIM.view = 'try';
         propose(o.changes.slice());
       });
+    });
+    syncStick(root);
+    root.querySelectorAll('details[data-sim-open]').forEach(function (d) {
+      d.addEventListener('toggle', function () { syncStick(root); });
     });
     if (SIM.refocus && !SIM.pending) {
       var el = root.querySelector(SIM.refocus);

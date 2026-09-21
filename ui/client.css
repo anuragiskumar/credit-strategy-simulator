@@ -306,11 +306,6 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .simbusy { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 .fmore:disabled { opacity: .45; cursor: default; }
 
-.simgoal { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
-.simfield { display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 500; }
-.simfield small { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 400; }
-.simunit { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); }
-.simunit .siminput { width: 82px; }
 .simfrozen { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .simfrozen .simnote { flex-basis: 100%; }
 .simfrozen .chip[aria-pressed="true"] { background: var(--sunken); color: var(--muted); text-decoration: line-through; }
@@ -420,7 +415,7 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 @media (prefers-reduced-motion: reduce) { .simtoggle i, .simtoggle i::after { transition: none; } }
 
 /* the waterfall */
-.wfall { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(70px, 1fr) max-content 28px; column-gap: 10px; row-gap: 6px; }
+.wfall { display: grid; grid-template-columns: minmax(0, 2fr) minmax(56px, 1fr) max-content 24px; column-gap: 10px; row-gap: 6px; }
 .wrow { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; min-height: 30px; }
 .wl { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
 .wl > span:last-child { display: flex; flex-direction: column; gap: 1px; }
@@ -445,10 +440,6 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .rfig { margin: 0 0 10px; font-size: 13px; color: var(--muted); line-height: 1.55; }
 .rfig .fig { font-family: var(--mono); color: var(--ink); }
 .opt h4 small { font-weight: 400; color: var(--muted); font-size: 11.5px; }
-.simfoot { margin: 12px 0 0; font-size: 11.5px; color: var(--faint); }
-.simgoal .simfield > span:first-child { font-size: 13px; }
-/* The outcome bar is the sticky element here; a sticky side column would slide under it. */
-.simsticky ~ .simgrid .simside { position: static; }
 .simsticky > .specnum { position: absolute; top: 0; inset-inline-end: -10px; }
 .simkicker { margin: 0 0 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
 .simsticky .caveat { margin: 8px 0 0; }
@@ -498,3 +489,26 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
   .gwstages span { animation: none; }
   .gwstages span:first-child { opacity: 1; }
 }
+
+/* The side column sits just below the sticky outcome bar (--simstick is measured after each render)
+   and scrolls inside itself, so the chart and the steps stay in view while the controls scroll. */
+@media (min-width: 1181px) {
+  .simsticky ~ .simgrid .simside { top: var(--simstick, 12px); max-height: var(--simside-max, none); overflow-y: auto;
+                                   overscroll-behavior: contain; border-radius: 9px; }
+  .simsticky ~ .simgrid .simside > .panel { margin-bottom: 0; }
+}
+.simsep { margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--line-soft);
+          font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+/* goal-seek: one sentence, button level with the inputs; "today" hangs under each input */
+.goalform { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding-bottom: 18px; }
+.goalform .gl { font-size: 14px; color: var(--ink-2); }
+.goalform .gin { position: relative; display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 14px; color: var(--ink-2); }
+.goalform .siminput { width: 76px; height: 36px; font-size: 15px; padding: 0 10px; text-align: end; }
+.goalform .gin small { position: absolute; top: 100%; inset-inline-start: 2px; margin-top: 3px; white-space: nowrap;
+                       font-size: 10.5px; color: var(--faint); }
+.goalform .btn { height: 36px; padding: 0 18px; margin-inline-start: 6px; }
+/* The simulator's own sticky layout needs the room; other screens keep their bottom padding. */
+.canvaswrap:has(.simsticky) { padding-bottom: 20px; }
+.simside .panelbody .simchart + .simlegend { margin-top: 4px; }
+.simside .simsep { margin-top: 12px; }
