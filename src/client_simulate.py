@@ -316,7 +316,13 @@ class Baseline:
 
     @property
     def booked_bad_rate(self) -> float:
+        """Over mature booked loans; NaN would mean none are old enough to judge."""
         return float(self.outcome.loc[self.outcome["booked"], "observed_bad"].mean())
+
+    @property
+    def observed_loans(self) -> int:
+        """How many booked loans the bad rate actually rests on."""
+        return int(self.outcome["observed_bad"].notna().sum())
 
 
 def build_baseline(df: pd.DataFrame, inv, cfg: dict) -> Baseline:

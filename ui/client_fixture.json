@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 05:23 UTC",
+  "generated": "2026-09-21 09:29 UTC",
   "product": "TWQR",
   "applicants": 50000,
   "rules_replayed": 226,
@@ -32,7 +32,7 @@
  "headline": {
   "approval_rate": 0.2188,
   "booked": 10940,
-  "booked_bad_rate": 0.0829,
+  "booked_bad_rate": 0.0848,
   "exposure": 1399825831.5700002,
   "median_offer_gap": 15598.235
  },
@@ -1358,7 +1358,8 @@
      "employer_segment": "BSF_PRIORITY",
      "booked": 1539,
      "exposure": 472000776.0,
-     "bad_rate": 7.08,
+     "observed": 741,
+     "bad_rate": 7.69,
      "share_of_book": 14.1,
      "share_of_exposure": 33.7
     },
@@ -1366,7 +1367,8 @@
      "employer_segment": "PRIVATE_LARGE",
      "booked": 2601,
      "exposure": 242672702.0,
-     "bad_rate": 6.92,
+     "observed": 1282,
+     "bad_rate": 6.4,
      "share_of_book": 23.8,
      "share_of_exposure": 17.3
     },
@@ -1374,7 +1376,8 @@
      "employer_segment": "GOV",
      "booked": 2055,
      "exposure": 216365758.0,
-     "bad_rate": 6.18,
+     "observed": 985,
+     "bad_rate": 6.19,
      "share_of_book": 18.8,
      "share_of_exposure": 15.5
     },
@@ -1382,7 +1385,8 @@
      "employer_segment": "SELF_EMPLOYED",
      "booked": 1730,
      "exposure": 150938602.0,
-     "bad_rate": 15.43,
+     "observed": 859,
+     "bad_rate": 16.18,
      "share_of_book": 15.8,
      "share_of_exposure": 10.8
     },
@@ -1390,7 +1394,8 @@
      "employer_segment": "BSF_EMPLOYEE",
      "booked": 792,
      "exposure": 122809818.0,
-     "bad_rate": 11.11,
+     "observed": 391,
+     "bad_rate": 11.76,
      "share_of_book": 7.2,
      "share_of_exposure": 8.8
     },
@@ -1398,7 +1403,8 @@
      "employer_segment": "SEMI_GOV",
      "booked": 1097,
      "exposure": 120797736.0,
-     "bad_rate": 6.02,
+     "observed": 554,
+     "bad_rate": 5.42,
      "share_of_book": 10.0,
      "share_of_exposure": 8.6
     },
@@ -1406,7 +1412,8 @@
      "employer_segment": "PRIVATE_SMALL",
      "booked": 1126,
      "exposure": 74240439.0,
-     "bad_rate": 6.22,
+     "observed": 552,
+     "bad_rate": 7.25,
      "share_of_book": 10.3,
      "share_of_exposure": 5.3
     }
@@ -1425,7 +1432,8 @@
      "sector": "it",
      "booked": 3713,
      "exposure": 482266248.0,
-     "bad_rate": 8.05,
+     "observed": 1839,
+     "bad_rate": 8.37,
      "share_of_book": 33.9,
      "share_of_exposure": 34.5
     },
@@ -1433,7 +1441,8 @@
      "sector": "retail",
      "booked": 1496,
      "exposure": 197144038.0,
-     "bad_rate": 9.43,
+     "observed": 747,
+     "bad_rate": 10.31,
      "share_of_book": 13.7,
      "share_of_exposure": 14.1
     },
@@ -1441,7 +1450,8 @@
      "sector": "construction",
      "booked": 1347,
      "exposure": 173082625.0,
-     "bad_rate": 9.28,
+     "observed": 641,
+     "bad_rate": 9.05,
      "share_of_book": 12.3,
      "share_of_exposure": 12.4
     },
@@ -1449,7 +1459,8 @@
      "sector": "healthcare",
      "booked": 1086,
      "exposure": 139874830.0,
-     "bad_rate": 5.43,
+     "observed": 523,
+     "bad_rate": 6.31,
      "share_of_book": 9.9,
      "share_of_exposure": 10.0
     },
@@ -1457,7 +1468,8 @@
      "sector": "logistics",
      "booked": 976,
      "exposure": 117621536.0,
-     "bad_rate": 8.61,
+     "observed": 483,
+     "bad_rate": 7.66,
      "share_of_book": 8.9,
      "share_of_exposure": 8.4
     },
@@ -1465,7 +1477,8 @@
      "sector": "education",
      "booked": 869,
      "exposure": 105865899.0,
-     "bad_rate": 7.83,
+     "observed": 421,
+     "bad_rate": 7.6,
      "share_of_book": 7.9,
      "share_of_exposure": 7.6
     },
@@ -1473,7 +1486,8 @@
      "sector": "manufacturing",
      "booked": 686,
      "exposure": 87059363.0,
-     "bad_rate": 9.91,
+     "observed": 336,
+     "bad_rate": 8.93,
      "share_of_book": 6.3,
      "share_of_exposure": 6.2
     },
@@ -1481,7 +1495,8 @@
      "sector": "hospitality",
      "booked": 566,
      "exposure": 72496239.0,
-     "bad_rate": 9.54,
+     "observed": 273,
+     "bad_rate": 9.89,
      "share_of_book": 5.2,
      "share_of_exposure": 5.2
     },
@@ -1489,7 +1504,8 @@
      "sector": "finance",
      "booked": 201,
      "exposure": 24415053.0,
-     "bad_rate": 4.48,
+     "observed": 101,
+     "bad_rate": 6.93,
      "share_of_book": 1.8,
      "share_of_exposure": 1.7
     }
@@ -1513,7 +1529,8 @@
      "channel": "digital",
      "booked": 4046,
      "exposure": 454401520.0,
-     "bad_rate": 11.79,
+     "observed": 2010,
+     "bad_rate": 12.54,
      "share_of_book": 37.0,
      "share_of_exposure": 32.5
     },
@@ -1521,7 +1538,8 @@
      "channel": "branch",
      "booked": 3049,
      "exposure": 418431788.0,
-     "bad_rate": 5.97,
+     "observed": 1532,
+     "bad_rate": 5.42,
      "share_of_book": 27.9,
      "share_of_exposure": 29.9
     },
@@ -1529,7 +1547,8 @@
      "channel": "dsa",
      "booked": 2504,
      "exposure": 342372503.0,
-     "bad_rate": 6.35,
+     "observed": 1188,
+     "bad_rate": 6.57,
      "share_of_book": 22.9,
      "share_of_exposure": 24.5
     },
@@ -1537,7 +1556,8 @@
      "channel": "telesales",
      "booked": 1341,
      "exposure": 184620020.0,
-     "bad_rate": 6.64,
+     "observed": 634,
+     "bad_rate": 6.62,
      "share_of_book": 12.3,
      "share_of_exposure": 13.2
     }
@@ -1550,7 +1570,8 @@
      "nationality": "SAU",
      "booked": 8944,
      "exposure": 1137524052.0,
-     "bad_rate": 7.73,
+     "observed": 4411,
+     "bad_rate": 8.27,
      "share_of_book": 81.8,
      "share_of_exposure": 81.3
     },
@@ -1558,7 +1579,8 @@
      "nationality": "LBN",
      "booked": 200,
      "exposure": 31428515.0,
-     "bad_rate": 10.5,
+     "observed": 82,
+     "bad_rate": 13.41,
      "share_of_book": 1.8,
      "share_of_exposure": 2.2
     },
@@ -1566,7 +1588,8 @@
      "nationality": "SYR",
      "booked": 198,
      "exposure": 29725576.0,
-     "bad_rate": 9.6,
+     "observed": 93,
+     "bad_rate": 10.75,
      "share_of_book": 1.8,
      "share_of_exposure": 2.1
     },
@@ -1574,7 +1597,8 @@
      "nationality": "EGY",
      "booked": 202,
      "exposure": 27658376.0,
-     "bad_rate": 10.89,
+     "observed": 103,
+     "bad_rate": 8.74,
      "share_of_book": 1.8,
      "share_of_exposure": 2.0
     },
@@ -1582,7 +1606,8 @@
      "nationality": "IND",
      "booked": 202,
      "exposure": 26348880.0,
-     "bad_rate": 13.37,
+     "observed": 90,
+     "bad_rate": 12.22,
      "share_of_book": 1.8,
      "share_of_exposure": 1.9
     },
@@ -1590,7 +1615,8 @@
      "nationality": "SDN",
      "booked": 193,
      "exposure": 26498521.0,
-     "bad_rate": 10.36,
+     "observed": 89,
+     "bad_rate": 7.87,
      "share_of_book": 1.8,
      "share_of_exposure": 1.9
     },
@@ -1598,7 +1624,8 @@
      "nationality": "YEM",
      "booked": 197,
      "exposure": 26111007.0,
-     "bad_rate": 12.18,
+     "observed": 90,
+     "bad_rate": 8.89,
      "share_of_book": 1.8,
      "share_of_exposure": 1.9
     },
@@ -1606,7 +1633,8 @@
      "nationality": "BGD",
      "booked": 211,
      "exposure": 25784624.0,
-     "bad_rate": 9.0,
+     "observed": 112,
+     "bad_rate": 10.71,
      "share_of_book": 1.9,
      "share_of_exposure": 1.8
     },
@@ -1614,7 +1642,8 @@
      "nationality": "PAK",
      "booked": 207,
      "exposure": 24106665.0,
-     "bad_rate": 13.04,
+     "observed": 106,
+     "bad_rate": 10.38,
      "share_of_book": 1.9,
      "share_of_exposure": 1.7
     },
@@ -1622,7 +1651,8 @@
      "nationality": "PHL",
      "booked": 207,
      "exposure": 24305860.0,
-     "bad_rate": 7.25,
+     "observed": 115,
+     "bad_rate": 3.48,
      "share_of_book": 1.9,
      "share_of_exposure": 1.7
     },
@@ -1630,7 +1660,8 @@
      "nationality": "JOR",
      "booked": 179,
      "exposure": 20333756.0,
-     "bad_rate": 12.29,
+     "observed": 73,
+     "bad_rate": 9.59,
      "share_of_book": 1.6,
      "share_of_exposure": 1.5
     }
@@ -1699,7 +1730,8 @@
      "score_band": "(700.0, 900.0]",
      "booked": 2922,
      "exposure": 360285256.0,
-     "bad_rate": 1.61,
+     "observed": 1395,
+     "bad_rate": 1.58,
      "share_of_book": 26.7,
      "share_of_exposure": 25.7
     },
@@ -1707,7 +1739,8 @@
      "score_band": "no score",
      "booked": 2304,
      "exposure": 264160560.0,
-     "bad_rate": 16.32,
+     "observed": 1107,
+     "bad_rate": 16.89,
      "share_of_book": 21.1,
      "share_of_exposure": 18.9
     },
@@ -1715,7 +1748,8 @@
      "score_band": "(650.0, 700.0]",
      "booked": 2193,
      "exposure": 263782305.0,
-     "bad_rate": 3.24,
+     "observed": 1094,
+     "bad_rate": 2.83,
      "share_of_book": 20.0,
      "share_of_exposure": 18.8
     },
@@ -1723,7 +1757,8 @@
      "score_band": "(600.0, 650.0]",
      "booked": 1953,
      "exposure": 242856123.0,
-     "bad_rate": 6.61,
+     "observed": 966,
+     "bad_rate": 6.73,
      "share_of_book": 17.9,
      "share_of_exposure": 17.3
     },
@@ -1731,7 +1766,8 @@
      "score_band": "(550.0, 600.0]",
      "booked": 964,
      "exposure": 152095939.0,
-     "bad_rate": 11.1,
+     "observed": 487,
+     "bad_rate": 11.7,
      "share_of_book": 8.8,
      "share_of_exposure": 10.9
     },
@@ -1739,7 +1775,8 @@
      "score_band": "(500.0, 550.0]",
      "booked": 387,
      "exposure": 71150323.0,
-     "bad_rate": 18.6,
+     "observed": 196,
+     "bad_rate": 17.35,
      "share_of_book": 3.5,
      "share_of_exposure": 5.1
     },
@@ -1747,7 +1784,8 @@
      "score_band": "(0.0, 500.0]",
      "booked": 217,
      "exposure": 45495326.0,
-     "bad_rate": 48.39,
+     "observed": 119,
+     "bad_rate": 49.58,
      "share_of_book": 2.0,
      "share_of_exposure": 3.3
     }
@@ -1769,7 +1807,7 @@
    "share_of_applicants": 25.35,
    "sole_reason_pct": 35.1,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.2632,
+   "est_bad_rate_if_relaxed": 0.2677,
    "risk_note": null,
    "earns_its_place": true
   },
@@ -1786,7 +1824,7 @@
    "share_of_applicants": 13.29,
    "sole_reason_pct": 47.0,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0853,
+   "est_bad_rate_if_relaxed": 0.0838,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -1803,7 +1841,7 @@
    "share_of_applicants": 10.97,
    "sole_reason_pct": 37.9,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.1405,
+   "est_bad_rate_if_relaxed": 0.1418,
    "risk_note": null,
    "earns_its_place": true
   },
@@ -1854,7 +1892,7 @@
    "share_of_applicants": 4.48,
    "sole_reason_pct": 35.9,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0761,
+   "est_bad_rate_if_relaxed": 0.0769,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -1871,7 +1909,7 @@
    "share_of_applicants": 5.38,
    "sole_reason_pct": 16.1,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.1195,
+   "est_bad_rate_if_relaxed": 0.1254,
    "risk_note": null,
    "earns_its_place": true
   },
@@ -1888,7 +1926,7 @@
    "share_of_applicants": 4.81,
    "sole_reason_pct": 17.3,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0973,
+   "est_bad_rate_if_relaxed": 0.1059,
    "risk_note": null,
    "earns_its_place": true
   },
@@ -1905,7 +1943,7 @@
    "share_of_applicants": 1.29,
    "sole_reason_pct": 40.5,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0801,
+   "est_bad_rate_if_relaxed": 0.0807,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -1922,7 +1960,7 @@
    "share_of_applicants": 1.14,
    "sole_reason_pct": 37.8,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0734,
+   "est_bad_rate_if_relaxed": 0.0737,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -1939,7 +1977,7 @@
    "share_of_applicants": 1.3,
    "sole_reason_pct": 32.7,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0764,
+   "est_bad_rate_if_relaxed": 0.0775,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -1973,7 +2011,7 @@
    "share_of_applicants": 0.86,
    "sole_reason_pct": 37.4,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.1547,
+   "est_bad_rate_if_relaxed": 0.1534,
    "risk_note": null,
    "earns_its_place": true
   },
@@ -2007,7 +2045,7 @@
    "share_of_applicants": 1.53,
    "sole_reason_pct": 16.1,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0836,
+   "est_bad_rate_if_relaxed": 0.0861,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -2024,7 +2062,7 @@
    "share_of_applicants": 0.84,
    "sole_reason_pct": 28.2,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0995,
+   "est_bad_rate_if_relaxed": 0.103,
    "risk_note": null,
    "earns_its_place": true
   },
@@ -2041,7 +2079,7 @@
    "share_of_applicants": 0.32,
    "sole_reason_pct": 67.1,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0826,
+   "est_bad_rate_if_relaxed": 0.0784,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -2058,7 +2096,7 @@
    "share_of_applicants": 0.35,
    "sole_reason_pct": 44.6,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0877,
+   "est_bad_rate_if_relaxed": 0.0915,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -2075,7 +2113,7 @@
    "share_of_applicants": 0.41,
    "sole_reason_pct": 34.6,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0844,
+   "est_bad_rate_if_relaxed": 0.0843,
    "risk_note": "not relaxable: rests on a fixed field (regulatory, bureau or identity). Relaxing it is not a risk trade-off.",
    "earns_its_place": true
   },
@@ -2092,7 +2130,7 @@
    "share_of_applicants": 0.33,
    "sole_reason_pct": 42.8,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0644,
+   "est_bad_rate_if_relaxed": 0.0662,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -2109,7 +2147,7 @@
    "share_of_applicants": 0.42,
    "sole_reason_pct": 32.5,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0863,
+   "est_bad_rate_if_relaxed": 0.0899,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -2126,7 +2164,7 @@
    "share_of_applicants": 0.31,
    "sole_reason_pct": 41.0,
    "risk_known": true,
-   "est_bad_rate_if_relaxed": 0.0561,
+   "est_bad_rate_if_relaxed": 0.0554,
    "risk_note": null,
    "earns_its_place": false
   },
@@ -2183,9 +2221,9 @@
   }
  ],
  "model": {
-  "gini": 0.5968,
-  "n_train": 10940,
-  "train_bad_rate": 0.0829,
+  "gini": 0.6266,
+  "n_train": 5364,
+  "train_bad_rate": 0.0848,
   "score_floor": 300.0,
   "score_ceiling": 900.0,
   "booked_missing_score": true
@@ -4750,7 +4788,7 @@
      "approval_change_pp": 0.31,
      "swap_in": 153,
      "swap_out": 0,
-     "expected_bad_rate": 0.0836,
+     "expected_bad_rate": 0.0855,
      "risk_known": true,
      "note": "swap-ins look 1.6x riskier than the current book"
     },
@@ -4760,9 +4798,9 @@
      "approval_change_pp": 0.27,
      "swap_in": 133,
      "swap_out": 0,
-     "expected_bad_rate": 0.0835,
+     "expected_bad_rate": 0.0854,
      "risk_known": true,
-     "note": "swap-ins look 1.6x riskier than the current book"
+     "note": "swap-ins look 1.5x riskier than the current book"
     },
     {
      "cutoff": 580,
@@ -4770,7 +4808,7 @@
      "approval_change_pp": 0.21,
      "swap_in": 104,
      "swap_out": 0,
-     "expected_bad_rate": 0.0833,
+     "expected_bad_rate": 0.0852,
      "risk_known": true,
      "note": "swap-ins look 1.5x riskier than the current book"
     },
@@ -4780,9 +4818,9 @@
      "approval_change_pp": 0.1,
      "swap_in": 52,
      "swap_out": 0,
-     "expected_bad_rate": 0.083,
+     "expected_bad_rate": 0.085,
      "risk_known": true,
-     "note": "swap-ins look 1.4x riskier than the current book"
+     "note": "swap-ins look 1.3x riskier than the current book"
     },
     {
      "cutoff": 600,
@@ -4790,7 +4828,7 @@
      "approval_change_pp": 0.0,
      "swap_in": 0,
      "swap_out": 0,
-     "expected_bad_rate": 0.0829,
+     "expected_bad_rate": 0.0848,
      "risk_known": true,
      "note": "current"
     }
@@ -4847,7 +4885,7 @@
      "approval_change_pp": 0.0,
      "swap_in": 0,
      "swap_out": 0,
-     "expected_bad_rate": 0.0829,
+     "expected_bad_rate": 0.0848,
      "risk_known": true,
      "note": "current"
     }
@@ -4864,7 +4902,7 @@
    "approval_change_pp": 3.85,
    "swap_in": 1926,
    "swap_out": 0,
-   "expected_bad_rate": 0.1053,
+   "expected_bad_rate": 0.1071,
    "risk_known": true,
    "verdict": "swap-ins look 2.8x riskier than the current book",
    "swap_in_by_channel": {
@@ -4899,9 +4937,9 @@
    "approval_change_pp": 3.1,
    "swap_in": 1552,
    "swap_out": 0,
-   "expected_bad_rate": 0.0816,
+   "expected_bad_rate": 0.083,
    "risk_known": true,
-   "verdict": "swap-ins look comparable to the current book (0.9x)",
+   "verdict": "swap-ins look safer than the current book (0.8x)",
    "swap_in_by_channel": {
     "digital": {
      "swap_in": 549,
@@ -4934,9 +4972,9 @@
    "approval_change_pp": 2.81,
    "swap_in": 1406,
    "swap_out": 0,
-   "expected_bad_rate": 0.0901,
+   "expected_bad_rate": 0.0919,
    "risk_known": true,
-   "verdict": "swap-ins look 1.8x riskier than the current book",
+   "verdict": "swap-ins look 1.7x riskier than the current book",
    "swap_in_by_channel": {
     "digital": {
      "swap_in": 558,
@@ -5004,9 +5042,9 @@
    "approval_change_pp": 0.78,
    "swap_in": 390,
    "swap_out": 0,
-   "expected_bad_rate": 0.0831,
+   "expected_bad_rate": 0.085,
    "risk_known": true,
-   "verdict": "swap-ins look comparable to the current book (1.1x)",
+   "verdict": "swap-ins look comparable to the current book (1.0x)",
    "swap_in_by_channel": {
     "digital": {
      "swap_in": 202,
@@ -5039,9 +5077,9 @@
    "approval_change_pp": 0.2,
    "swap_in": 99,
    "swap_out": 0,
-   "expected_bad_rate": 0.0826,
+   "expected_bad_rate": 0.0845,
    "risk_known": true,
-   "verdict": "swap-ins look safer than the current book (0.6x)",
+   "verdict": "swap-ins look safer than the current book (0.5x)",
    "swap_in_by_channel": {
     "digital": {
      "swap_in": 44,
@@ -5109,9 +5147,9 @@
    "approval_change_pp": 0.42,
    "swap_in": 211,
    "swap_out": 0,
-   "expected_bad_rate": 0.0831,
+   "expected_bad_rate": 0.0851,
    "risk_known": true,
-   "verdict": "swap-ins look comparable to the current book (1.1x)",
+   "verdict": "swap-ins look 1.2x riskier than the current book",
    "swap_in_by_channel": {
     "digital": {
      "swap_in": 88,
@@ -5148,10 +5186,20 @@
      "approval_change_pp": 3.37,
      "swap_in": 1683,
      "swap_out": 0,
-     "expected_bad_rate": 0.0812,
+     "expected_bad_rate": 0.0826,
      "risk_known": true,
-     "risk_cost_pp": -0.171,
+     "risk_cost_pp": -0.222,
      "breaches_ceiling": false,
+     "changes": [
+      {
+       "type": "off",
+       "rule_id": "yknBasicCheckValidation#016"
+      },
+      {
+       "type": "off",
+       "rule_id": "racAndPolicies#221"
+      }
+     ],
      "reaches_target": true
     },
     {
@@ -5160,10 +5208,22 @@
      "approval_change_pp": 3.48,
      "swap_in": 1742,
      "swap_out": 0,
-     "expected_bad_rate": 0.0816,
+     "expected_bad_rate": 0.083,
      "risk_known": true,
-     "risk_cost_pp": -0.131,
+     "risk_cost_pp": -0.182,
      "breaches_ceiling": false,
+     "changes": [
+      {
+       "type": "off",
+       "rule_id": "yknBasicCheckValidation#016"
+      },
+      {
+       "type": "cutoff",
+       "field": "simahcreditscore",
+       "from": 650,
+       "to": 620
+      }
+     ],
      "reaches_target": true
     },
     {
@@ -5172,10 +5232,22 @@
      "approval_change_pp": 3.13,
      "swap_in": 1566,
      "swap_out": 0,
-     "expected_bad_rate": 0.0816,
+     "expected_bad_rate": 0.083,
      "risk_known": true,
-     "risk_cost_pp": -0.131,
+     "risk_cost_pp": -0.182,
      "breaches_ceiling": false,
+     "changes": [
+      {
+       "type": "off",
+       "rule_id": "yknBasicCheckValidation#016"
+      },
+      {
+       "type": "cutoff",
+       "field": "crifscore",
+       "from": 605,
+       "to": 580
+      }
+     ],
      "reaches_target": true
     }
    ]
@@ -5186,27 +5258,55 @@
    "ceiling": 0.11,
    "options": [
     {
-     "option": "A: switch off racAndPolicies#012 (CRIF SCORE <= 570 and SIMAH SCORE <=650) + switch off yknBasicCheckValidation#016 (Age is not between 20 or 70) + switch off simati_chk_IAF#006 (PF - Minimum Customer Salary – for Military is 10000)",
-     "approval_rate": 0.3075,
-     "approval_change_pp": 8.87,
-     "swap_in": 4435,
-     "swap_out": 0,
-     "expected_bad_rate": 0.1063,
-     "risk_known": true,
-     "risk_cost_pp": 2.339,
-     "breaches_ceiling": false,
-     "reaches_target": true
-    },
-    {
-     "option": "B: switch off racAndPolicies#012 (CRIF SCORE <= 570 and SIMAH SCORE <=650) + switch off yknBasicCheckValidation#016 (Age is not between 20 or 70) + switch off racAndPolicies#221 (Tenure Non Saudi)",
+     "option": "A: switch off racAndPolicies#012 (CRIF SCORE <= 570 and SIMAH SCORE <=650) + switch off yknBasicCheckValidation#016 (Age is not between 20 or 70) + switch off racAndPolicies#221 (Tenure Non Saudi)",
      "approval_rate": 0.303,
      "approval_change_pp": 8.42,
      "swap_in": 4212,
      "swap_out": 0,
-     "expected_bad_rate": 0.1063,
+     "expected_bad_rate": 0.1073,
      "risk_known": true,
-     "risk_cost_pp": 2.339,
+     "risk_cost_pp": 2.248,
      "breaches_ceiling": false,
+     "changes": [
+      {
+       "type": "off",
+       "rule_id": "racAndPolicies#012"
+      },
+      {
+       "type": "off",
+       "rule_id": "yknBasicCheckValidation#016"
+      },
+      {
+       "type": "off",
+       "rule_id": "racAndPolicies#221"
+      }
+     ],
+     "reaches_target": true
+    },
+    {
+     "option": "B: switch off racAndPolicies#012 (CRIF SCORE <= 570 and SIMAH SCORE <=650) + switch off yknBasicCheckValidation#016 (Age is not between 20 or 70) + switch off simati_chk_IAF#006 (PF - Minimum Customer Salary – for Military is 10000)",
+     "approval_rate": 0.3075,
+     "approval_change_pp": 8.87,
+     "swap_in": 4435,
+     "swap_out": 0,
+     "expected_bad_rate": 0.1074,
+     "risk_known": true,
+     "risk_cost_pp": 2.258,
+     "breaches_ceiling": false,
+     "changes": [
+      {
+       "type": "off",
+       "rule_id": "racAndPolicies#012"
+      },
+      {
+       "type": "off",
+       "rule_id": "yknBasicCheckValidation#016"
+      },
+      {
+       "type": "off",
+       "rule_id": "simati_chk_IAF#006"
+      }
+     ],
      "reaches_target": true
     },
     {
@@ -5215,10 +5315,26 @@
      "approval_change_pp": 8.16,
      "swap_in": 4080,
      "swap_out": 0,
-     "expected_bad_rate": 0.1067,
+     "expected_bad_rate": 0.1078,
      "risk_known": true,
-     "risk_cost_pp": 2.379,
+     "risk_cost_pp": 2.298,
      "breaches_ceiling": false,
+     "changes": [
+      {
+       "type": "off",
+       "rule_id": "racAndPolicies#012"
+      },
+      {
+       "type": "off",
+       "rule_id": "yknBasicCheckValidation#016"
+      },
+      {
+       "type": "cutoff",
+       "field": "crifscore",
+       "from": 571,
+       "to": 545
+      }
+     ],
      "reaches_target": true
     }
    ]

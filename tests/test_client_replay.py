@@ -172,9 +172,12 @@ def test_the_offer_never_exceeds_the_request(df, outcome):
     assert (outcome["offered_amount"] <= df["requested_amount"] + 1e-6).all()
 
 
-def test_performance_is_observed_only_on_booked_applicants(outcome):
+def test_performance_is_observed_only_on_mature_booked_loans(outcome):
     assert outcome.loc[~outcome["booked"], "observed_bad"].isna().all()
-    assert outcome.loc[outcome["booked"], "observed_bad"].notna().all()
+    assert outcome.loc[outcome["mature"], "observed_bad"].notna().all()
+    immature = outcome["booked"] & ~outcome["mature"]
+    assert immature.any(), "the generator should leave recent loans immature"
+    assert outcome.loc[immature, "observed_bad"].isna().all()
 
 
 # --------------------------------------------------------------------------- drivers
@@ -238,8 +241,9 @@ def test_portfolio_finds_planted_concentration(df, outcome, cfg):
 
 
 # --------------------------------------------------------------------------- risk honesty
-def test_pd_model_trains_only_on_booked_applicants(model, outcome):
-    assert model.n_train == int(outcome["booked"].sum())
+def test_pd_model_trains_only_on_mature_booked_loans(model, outcome):
+    assert model.n_train == int(outcome["mature"].sum())
+    assert model.n_train < int(outcome["booked"].sum())
     assert model.gini > 0.2
 
 

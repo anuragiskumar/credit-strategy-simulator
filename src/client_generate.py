@@ -18,13 +18,16 @@ truth rather than against whatever it happens to produce:
 
 `latent_bad` is the true outcome for every applicant, including those who are declined. No real
 bank has this. It exists only so reject inference can later be scored against truth, and the
-analysis layer must never read it.
+analysis layer must never read it. What the analysis reads is `booking_date` and `bad_date`,
+recorded only for the loans the rules actually book (see `_observe`), exactly as a bank's file
+would carry them.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from functools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -230,6 +233,8 @@ def generate(cfg: dict) -> pd.DataFrame:
         "source_code": source_code,
         "agent_id": agent_id,
         "walked_away": walked_away,
+        "booking_date": pd.NaT,
+        "bad_date": pd.NaT,
         "latent_bad": latent_bad,
     })
     for col in ("product", "program", "employer_segment", "employment_type", "nationality",
@@ -237,8 +242,56 @@ def generate(cfg: dict) -> pd.DataFrame:
                 "salary_to_bsf", "simah_scorecard", "customer_type", "channel", "source_code",
                 "agent_id"):
         df[col] = df[col].astype("string")
+    df = _observe(df, cfg, rng)
     client_schema.assert_valid(df, require_latent=True)
     return df[list(client_schema.COLUMNS)]
+
+
+@lru_cache(maxsize=2)
+def _inventory(folder: str):
+    from src.rule_inventory import build_inventory
+    return build_inventory(folder)
+
+
+def _observe(df: pd.DataFrame, cfg: dict, rng) -> pd.DataFrame:
+    """Record performance the way a bank would have it: only for the loans it booked.
+
+    Who was booked is decided by replaying the real rules, not drawn: the bank's history is what
+    its current policy approved. Then each booked loan gets a booking date and, if it went bad,
+    the date it first reached the bad DPD. Nothing after the extract date is recorded, so the
+    most recent loans are genuinely immature, which is what the analysis window has to cope with.
+
+    Every draw here comes after the rest of the population, so the applicants themselves are
+    identical to a population generated without performance.
+    """
+    from src import client_analysis, client_replay
+
+    oc, og = cfg["outcome"], cfg["outcome"]["generate"]
+    n = len(df)
+    lag = rng.integers(0, og["booking_lag_days"] + 1, n)
+    # Days, not calendar months, so the draw is vectorised. A month is taken as 30.44 days and
+    # the top of the range is kept just inside the definition window, which a calendar month
+    # offset from any booking date always exceeds.
+    within = int(oc["bad_definition"]["within_months"])
+    lo, hi = og["months_to_bad"]
+    days_to_bad = rng.integers(round(lo * 30.44), int(min(hi, within) * 30.44) - 2, n)
+    late = rng.random(n) < og["late_bad_share"]
+    days_late = rng.integers(round((within + 1) * 30.44), round(2 * within * 30.44), n)
+
+    booked = client_analysis.stage_outcome(
+        df, client_replay.replay(df, _inventory(cfg["replay"]["rules_folder"]), cfg), cfg
+    )["booked"].to_numpy().copy()
+
+    as_of = pd.Timestamp(oc["as_of"])
+    booking = df["app_date"] + pd.to_timedelta(lag, unit="D")
+    booked &= (booking <= as_of).to_numpy()      # applied in the last fortnight, not yet booked
+    bad_after = np.where(df["latent_bad"], days_to_bad, np.where(late, days_late, -1))
+    bad = booking + pd.to_timedelta(np.maximum(bad_after, 0), unit="D")
+    went_bad = booked & (bad_after >= 0) & (bad <= as_of).to_numpy()
+
+    df["booking_date"] = booking.where(booked)
+    df["bad_date"] = bad.where(went_bad)
+    return df
 
 
 # --------------------------------------------------------------------------- calibration

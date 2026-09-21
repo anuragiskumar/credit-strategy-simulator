@@ -84,11 +84,16 @@ class PDModel:
 
 
 def fit(df: pd.DataFrame, outcome: pd.DataFrame, cfg: dict) -> PDModel:
-    """Train on booked applicants only — the only performance a real bank observes."""
+    """Train on mature booked loans only — the only performance a real bank observes.
+
+    A loan booked last month has not had time to go bad. Training on it as a good would teach
+    the model that recent business is safe, which is the same flattering error as counting it
+    in the bad rate.
+    """
     rk = cfg["risk_model"]
-    booked = outcome["booked"].to_numpy()
+    booked = (outcome["booked"] & outcome["observed_bad"].notna()).to_numpy()
     if booked.sum() < rk["min_training_rows"]:
-        raise ValueError(f"only {int(booked.sum())} booked rows; need "
+        raise ValueError(f"only {int(booked.sum())} booked loans are old enough to judge; need "
                          f"{rk['min_training_rows']} to fit a PD model")
     train = df[booked]
     y = outcome.loc[booked, "observed_bad"].astype(int).to_numpy()

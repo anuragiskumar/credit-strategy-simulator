@@ -93,10 +93,14 @@ COLUMNS: dict[str, str] = {
     "agent_id": "string",
     # behaviour and performance
     "walked_away": "bool",
+    # Observed performance: what a bank actually supplies, and only for what it booked. The bad
+    # definition and the extract date these are read against live in config under `outcome`.
+    "booking_date": "datetime64[ns]",    # null: the bank never booked this application
+    "bad_date": "datetime64[ns]",        # first reached the bad DPD; null: has not, as of extract
     "latent_bad": "bool",                # ground truth for EVERY applicant, engine must not see it
 }
 
-NULLABLE = {"simah_score", "military_rank", "military_employee_type"}
+NULLABLE = {"simah_score", "military_rank", "military_employee_type", "booking_date", "bad_date"}
 
 ENGINE_VISIBLE = [c for c in COLUMNS if c != "latent_bad"]
 """What the replay and analysis layers may read.
@@ -140,6 +144,13 @@ def validate(df: pd.DataFrame, *, require_latent: bool = False) -> list[str]:
         problems.append("military_rank set on a non-military applicant")
     if df.loc[mil, "military_rank"].isna().any():
         problems.append("military applicant without a military_rank")
+    booking, bad = pd.to_datetime(df["booking_date"]), pd.to_datetime(df["bad_date"])
+    if (booking < pd.to_datetime(df["app_date"])).any():
+        problems.append("booking_date before app_date")
+    if (bad.notna() & booking.isna()).any():
+        problems.append("bad_date on an application that was never booked")
+    if (bad < booking).any():
+        problems.append("bad_date before booking_date")
     return problems
 
 

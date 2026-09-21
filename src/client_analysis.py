@@ -4,9 +4,10 @@ This is the layer that answers the brief's question catalogue. It reads the hit 
 `client_replay` and never re-implements a rule, so a change to the rules moves every number here
 at once.
 
-It also never reads `latent_bad` for a declined applicant. A bank only observes performance on
-what it booked, and an analysis that quietly used the truth for everyone would report a risk
-impact no real deployment could reproduce.
+It also never reads `latent_bad`. A bank only observes performance on what it booked, and only
+once a loan has been on book long enough to judge; an analysis that quietly used the truth would
+report a risk impact no real deployment could reproduce. `observed_performance()` is the one
+place performance is read, from `booking_date`, `bad_date` and the declared bad definition.
 """
 from __future__ import annotations
 
@@ -57,6 +58,47 @@ def offered_amount(df: pd.DataFrame, res, cfg: dict) -> pd.Series:
     return offer
 
 
+class OutcomeError(ValueError):
+    """The observed-outcome configuration cannot be read."""
+
+
+def bad_definition(cfg: dict) -> dict:
+    """The declared bad definition and extract date, checked. Every performance figure uses it."""
+    oc = cfg.get("outcome") or {}
+    if not oc.get("as_of"):
+        raise OutcomeError("outcome.as_of is not set: the engine cannot tell a loan that has not "
+                           "gone bad from one it has not yet seen long enough to judge")
+    bd = oc.get("bad_definition") or {}
+    months = int(bd.get("within_months", 0))
+    if months <= 0:
+        raise OutcomeError("outcome.bad_definition.within_months must be a positive number of months")
+    return {"as_of": pd.Timestamp(oc["as_of"]), "dpd": int(bd.get("dpd", 0)),
+            "within_months": months}
+
+
+def observed_performance(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """What the bank has actually seen of each loan, read against the declared bad definition.
+
+    A loan is `mature` once it has been on book for the definition's whole window by the extract
+    date. Only then is "not bad" an answer. An immature loan that has not gone bad yet is not a
+    good loan, it is an unknown one, so `observed_bad` is NaN for it.
+
+    An immature loan that has ALREADY gone bad is left out too. Counting its bad while leaving
+    out its immature neighbours that are still paying would push the bad rate up for the same
+    reason counting them as good would push it down.
+    """
+    d = bad_definition(cfg)
+    booking = pd.to_datetime(df["booking_date"])
+    bad = pd.to_datetime(df["bad_date"])
+    horizon = booking + pd.DateOffset(months=d["within_months"])
+    mature = booking.notna() & (horizon <= d["as_of"])
+    went_bad = bad.notna() & (bad <= horizon) & (bad <= d["as_of"])
+    return pd.DataFrame({
+        "mature": mature,
+        "observed_bad": np.where(mature, went_bad.astype(float), np.nan),
+    }, index=df.index)
+
+
 def stage_outcome(df: pd.DataFrame, res, cfg: dict) -> pd.DataFrame:
     """Assign every applicant the first stage they dropped out at, and why.
 
@@ -94,14 +136,18 @@ def stage_outcome(df: pd.DataFrame, res, cfg: dict) -> pd.DataFrame:
     stage.loc[walked] = "walked_away"
     reason.loc[walked] = WALKED_ELSEWHERE
 
+    # Performance is observed ONLY on what the bank booked, and only once a loan is mature. This
+    # is the column the analysis may read; `latent_bad` is not. A replay-booked applicant the
+    # bank did not actually book (the rules have changed since) has no performance at all.
+    perf = observed_performance(df, cfg)
+    booked = stage.eq("booked")
     return pd.DataFrame({
         "stage": pd.Categorical(stage, categories=STAGES, ordered=True),
         "reason_rule": reason, "reason_code": reason_code,
         "offered_amount": offer,
-        "booked": stage.eq("booked"),
-        # Performance is observed ONLY on what the bank booked. This is the column the
-        # analysis may read; `latent_bad` is not.
-        "observed_bad": np.where(stage.eq("booked"), df["latent_bad"], np.nan),
+        "booked": booked,
+        "mature": booked & perf["mature"],
+        "observed_bad": perf["observed_bad"].where(booked),
     }, index=df.index)
 
 
@@ -368,6 +414,9 @@ def portfolio(df: pd.DataFrame, outcome: pd.DataFrame, by: str,
     out = pd.DataFrame({
         "booked": g.size(),
         "exposure": g["offered_amount"].sum().round(0),
+        # Over mature loans only: `observed` says how many that is, which can be far fewer
+        # than `booked` in a slice that is mostly recent business.
+        "observed": g["observed_bad"].count(),
         "bad_rate": (100 * g["observed_bad"].mean()).round(2),
     })
     out["share_of_book"] = (100 * out["booked"] / out["booked"].sum()).round(1)

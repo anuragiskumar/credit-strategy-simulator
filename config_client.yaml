@@ -11,8 +11,26 @@ data_path: data/client_applications.parquet
 fixture_path: tests/fixtures/client_sample.parquet
 
 product: TWQR
-app_date_start: "2025-10-01"
-app_date_days: 365          # the last 12 months of applications, per Guru's ask
+# 24 months of applications, not 12. A loan needs `outcome.bad_definition.within_months` of
+# history before its bad rate means anything, so the older year is what the bad rate and the PD
+# model learn from, and the recent year is what the analysis window replays.
+app_date_start: "2024-09-01"
+app_date_days: 730
+
+# ---------------------------------------------------------------- observed outcome
+# The real-data contract. A bank supplies `booking_date` and `bad_date` (the date a loan first
+# reached `dpd` days past due) for what it booked, plus the date the extract was taken. The engine
+# never reads `latent_bad`; it only sees what these three facts imply.
+outcome:
+  as_of: "2026-08-31"          # the performance extract date: nothing after it is observed
+  bad_definition:
+    dpd: 90                    # declared, not computed: bad_date must mean "first reached 90+ DPD"
+    within_months: 12          # bad only if reached within this many months of booking
+  # Synthetic only: how the generator dates the performance of the loans it books.
+  generate:
+    booking_lag_days: 14       # booked 0-14 days after the application
+    months_to_bad: [3, 12]     # a bad loan first reaches 90+ DPD in this range of months
+    late_bad_share: 0.04       # goods that do reach 90+ DPD, but after the definition window
 
 # ---------------------------------------------------------------- population mix
 population:
