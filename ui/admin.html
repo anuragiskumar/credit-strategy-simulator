@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration · Azentio.ai | Credit Strategy Optimiser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="client.css">
+<link rel="stylesheet" href="shell.css">
+<link rel="stylesheet" href="settings.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="iconbtn railtoggle" id="railbtn" aria-label="Menu">☰</button>
+    <div class="mark brand" aria-label="Azentio.ai | Credit Strategy Optimiser">
+      <span class="az">Azentio<em>.ai</em></span><span class="sep" aria-hidden="true">|</span><b>Credit Strategy Optimiser</b>
+    </div>
+    <div class="topdiv hide-sm"></div>
+    <button class="chip is-static" id="productchip"><span class="fig">—</span></button>
+    <div class="spacer"></div>
+    <button class="iconbtn" id="specbtn" aria-label="Spec notes" aria-pressed="false" title="Spec notes: number each item and explain it below">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3.5 1.75h6.25L12.5 4.5v9.75h-9z"/>
+        <path d="M9.5 1.75V4.75h3"/>
+        <path d="M5.5 8h5M5.5 10.25h5M5.5 12.25h2.5"/>
+      </svg>
+    </button>
+    <button class="iconbtn" id="themebtn" aria-label="Theme">◐</button>
+  </header>
+
+  <div class="demostrip" data-note="sh_strip">
+    <b>SYNTHETIC APPLICANTS · REAL RULES</b>
+    <span id="demostriptext"></span>
+  </div>
+
+  <div class="body">
+    <nav class="rail" id="rail" aria-label="Screens"></nav>
+    <main class="canvas" id="canvas"><div class="canvaswrap" id="canvaswrap"></div></main>
+  </div>
+</div>
+<div class="scrim" id="scrim"></div>
+
+<script src="settings_data.js"></script>
+<script src="session.js"></script>
+<script src="demo_bar.js"></script>
+<script src="settings_kit.js"></script>
+<script src="settings_notes.js"></script>
+<script src="admin_notes.js"></script>
+<script src="page_shell.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

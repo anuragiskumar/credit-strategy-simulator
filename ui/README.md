@@ -39,10 +39,15 @@ turning a number into a string, a width, or an SVG coordinate.
 | `client.js` | Portfolio, Decline drivers, Simulator. Reads `window.__CLIENT__`, nothing else |
 | `client_export.py` | Produces `client_fixture.json` and `client_data.js` from the engine |
 | `client_notes.js` | Text of the spec notes: what each element on the three screens is and stands for |
-| `settings.js` | The fourth page, Settings. Reads `window.__SETTINGS__`, owns its own state and events, and exposes `window.SettingsScreen` for `client.js` to call |
-| `settings.css` | Layout for it. Every class is `su-` prefixed, and it is loaded after `client.css` |
-| `settings_notes.js` | Spec notes for it. Merged with `client_notes.js`, so no key may appear in both |
+| `settings.html`, `settings.js` | Settings: what the analysis runs on, for every signed-in person. Reads `window.__SETTINGS__` |
+| `admin.html`, `admin.js` | Administration: licence, data source, mapping editor, rule workbooks, platform. Administrators only |
+| `settings_kit.js`, `page_shell.js` | Rendering helpers and the shell (rail, strip, spec notes, theme) the two pages share |
+| `settings_notes.js`, `admin_notes.js` | Spec notes for the two pages. No key may appear in both |
+| `settings.css` | Layout for both. Every class is `su-` prefixed, and it is loaded after `client.css` |
 | `settings_export.py` | Produces `settings.json` and `settings_data.js`. Separate from `client_export.py` so either can be rebuilt alone |
+| `session.js` | What the signed-in person may do. The only thing any page asks; knows no role names |
+| `demo_bar.js` | **Demo only.** The "View as" menu that stands in for the server. Delete its one tag per page to remove it |
+| `shell.css` | The Azentio brand in the top bar, and rail items that link to another page |
 
 `tokens.css` was extracted out of `index.html` so the client screens could reuse it rather than
 copy it. The two pages are separate only because they sit on different engines; they merge
@@ -58,29 +63,43 @@ Then <http://127.0.0.1:8777/client.html>. See `ENGINE.md` for what they show. Th
 about three minutes, most of it the two goal-seek runs; `--quick` skips the scenario grid and
 takes seconds when only the static parts changed.
 
-### Settings
+### Settings and Administration
 
-The fourth screen: licence, rule set, applicant data source, field mapping, policy values, run and
-data quality, and the platform items a deployed product needs.
+Two pages of their own, linked from the rail of every screen.
 
 ```bash
 python -m ui.settings_export      # seconds; independent of client_export
 ```
 
-Part of it is real and part is simulated, and the screen says which. The rule set, dataset facts,
-field requirements, policy values and replay timing are read from the engine. Everything under
-the fixture's `simulated` key is not: the licence, the file upload, the Oracle, PostgreSQL and MySQL
-connectors, outcome definitions, access and security, versions, and diagnostics. That content carries a
-dashed **SIMULATED** tag, which is deliberately not a colour, and none of it changes a figure on any other
-screen. Nothing on the page leaves the browser or is stored, a chosen file is never read, and the demo
-password field is never read.
+| Page | Who | What |
+|---|---|---|
+| `settings.html` | Everyone | Readiness, rule set, policy and risk appetite, run and data quality |
+| | + `data.view` | Applicant data facts and the field mapping, read-only |
+| | + `recompute.run` | Recompute |
+| | + `audit.view` | Audit log |
+| `admin.html` | `admin.view` | Licence, data source, field mapping editor, rule workbooks, outcomes, platform and security, versions, diagnostics |
 
-Add `?dev=1` for presenter controls on the licence panel: step through Active, Expiring, Grace,
-Read-only, Suspended and Renewed, and stage a "renewed licence arrived" refresh. They are not shown on
-`localhost` alone, so a demo run from a laptop never displays them by accident.
+**Who sees what.** A page never checks a role. It asks `Session.can('<action>')` (`session.js`) and
+draws what comes back true. In the deployed product the server answers from the signed-in user's
+attributes and refuses the action whatever the page draws; hiding a control is presentation, not
+security. With no provider, Session allows nothing extra, so a missing provider fails closed.
 
-`client.js` reaches the page through four calls (`page`, `rail`, `after`, `init`) and merges its notes;
-`settings.js` and `settings_notes.js` must load before `client.js`, which boots at load.
+**The demo menu.** `demo_bar.js` is the "View as" menu at the top right of every page: Business
+user, Analyst, Risk approver, Administrator, plus presenter controls (show what is live, the licence
+stage, "a renewed licence has arrived"). It is the only file that knows role names and the only one
+that uses browser storage, so the choice survives moving between pages. It replaces `?dev=1`. It
+never ships: delete its `<script>` tag from each page and every page still works.
+
+**The licence.** Only an administrator sees it, as its current state. Anyone else meets it only as a
+paused action with a plain message and no dates. The stages a licence passes through are contract
+terms that differ by client, so they are read from the licence file (`paused` per stage in the
+fixture) and explained in the spec notes, never drawn.
+
+Part of each page is real and part is simulated. The rule set, dataset facts, field requirements,
+policy values and replay timing are read from the engine. Everything under the fixture's
+`simulated` key is not, and carries a dashed **PREVIEW** tag, once per block, which is
+deliberately not a colour. None of it changes a figure on any other screen. Nothing leaves the
+browser, a chosen file is never read, and the demo password field is never read.
 
 ### Spec notes
 

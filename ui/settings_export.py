@@ -282,23 +282,33 @@ def build_run(cfg: dict, df: pd.DataFrame | None, inv, compiled) -> dict:
 
 
 # --------------------------------------------------------------------------- SIMULATED
+# What each licence stage pauses, as the actions the permission layer checks (ui/session.js).
+# In the deployed product this list is read from the client's signed licence file, because stages
+# and durations differ by client; here it is one illustrative licence.
+PAUSED_READ_ONLY = ["data.load", "rules.load", "recompute.run", "config.change"]
+PAUSED_SUSPENDED = PAUSED_READ_ONLY + ["analysis.view"]
+
+
 def _ladder(end: dt.date) -> list[dict]:
-    """Illustrative enforcement ladder. The durations are contract terms, not engine facts."""
+    """Illustrative enforcement ladder. The durations are contract terms, not engine facts.
+
+    Not drawn on any screen: every client has its own term, so the ladder lives in the contract
+    and the spec notes. The screens only act on `paused` for the current stage."""
     expiring = end - dt.timedelta(days=30)
     grace_end = end + dt.timedelta(days=15)
     ro_end = grace_end + dt.timedelta(days=30)
     return [
         {"id": "active", "label": "Active", "from": "Start of term",
-         "does": "Everything works."},
+         "does": "Everything works.", "paused": []},
         {"id": "expiring", "label": "Expiring", "from": _date(expiring),
-         "does": "A banner and reminders to the named contacts. Everything still works."},
+         "does": "A banner and reminders to the named contacts. Everything still works.", "paused": []},
         {"id": "grace", "label": "Grace", "from": _date(end + dt.timedelta(days=1)),
-         "does": "Everything still works. Daily reminders to administrators."},
+         "does": "Everything still works. Daily reminders to administrators.", "paused": []},
         {"id": "read_only", "label": "Read-only", "from": _date(grace_end + dt.timedelta(days=1)),
          "does": "Screens, analysis and export keep working. New data loads, configuration "
-                 "changes and recomputes are paused."},
+                 "changes and recomputes are paused.", "paused": PAUSED_READ_ONLY},
         {"id": "suspended", "label": "Suspended", "from": _date(ro_end + dt.timedelta(days=1)),
-         "does": "Analysis screens lock; this page and export stay open."},
+         "does": "Analysis screens lock; this page and export stay open.", "paused": PAUSED_SUSPENDED},
     ]
 
 
@@ -326,11 +336,12 @@ def _snapshot(as_of: dt.date, end: dt.date, start: dt.date, ladder: list[dict], 
         remaining = f"{-days} days ago"
     label = next(s["label"] for s in ladder if s["id"] == status)
     does = next(s["does"] for s in ladder if s["id"] == status)
+    paused = next(s["paused"] for s in ladder if s["id"] == status)
     return {"status": status, "status_label": label, "does": does,
             "term": f"{_date(start)} to {_date(end)}",
             "valid_to": _date(end), "headline": headline, "remaining": remaining,
             "chip": f"Licence · valid to {_date(end)}" if days >= 0 else f"Licence · {label.lower()}",
-            "renewed": renewed}
+            "paused": paused, "renewed": renewed}
 
 
 def build_licence(as_of: dt.date) -> dict:
@@ -349,7 +360,7 @@ def build_licence(as_of: dt.date) -> dict:
     return {
         "licensee": "Licensed bank",
         "licence_id": "TWQR-2026-0001",
-        "issued_by": "Vendor licence service (offline signing)",
+        "issued_by": "Azentio licence service (offline signing)",
         "entitlements": [
             {"key": "Product", "value": "TWQR"},
             {"key": "Modules", "value": "Portfolio · Decline drivers · Simulator"},
@@ -357,7 +368,7 @@ def build_licence(as_of: dt.date) -> dict:
             {"key": "Named users", "value": "25"},
         ],
         "signature": {"algorithm": "Ed25519", "verified": True, "fingerprint": "9f2c 41ab 07de 5c18",
-                      "note": "Verified offline against the vendor public key shipped with the product."},
+                      "note": "Verified offline against the Azentio public key shipped with the product."},
         "ladder": ladder,
         "always": ["Client data is never deleted.", "Export is never blocked."],
         "scenarios": scenarios,
@@ -365,9 +376,10 @@ def build_licence(as_of: dt.date) -> dict:
             "none": "No new licence found. The licence on file is unchanged.",
             "found": "A renewed licence file was found, verified and applied.",
             "apply": "The licence file was verified and applied.",
+            "paused_message": "Paused under the current licence. Contact your administrator.",
             "how": "The deployed product has no outbound internet, so refresh does not ask a server "
                    "whether payment arrived. It re-reads the licence store and re-verifies the signature. "
-                   "After payment the vendor issues a new signed licence file, delivered through the "
+                   "After payment Azentio issues a new signed licence file, delivered through the "
                    "patch channel or applied here by an administrator.",
         },
         "reminders": {"contacts": ["risk-admin@client-bank.example", "it-ops@client-bank.example"],
@@ -527,7 +539,7 @@ def build_simulated(as_of: dt.date, real_fields: dict) -> dict:
             {"key": "Engine", "value": "2.2.1"},
             {"key": "Configuration", "value": "client-config r17 (preserved)"},
             {"key": "Last patch", "value": "1.3.2 to 1.4.0, applied 14 Sep 2026"},
-            {"key": "Patch channel", "value": "Encrypted, vendor-signed; up to date"},
+            {"key": "Patch channel", "value": "Encrypted, signed by Azentio; up to date"},
         ],
         "recompute": {
             "steps": ["Load the applicant table", "Replay the rules", "Refit the risk model",
@@ -536,10 +548,11 @@ def build_simulated(as_of: dt.date, real_fields: dict) -> dict:
             "done": "Recompute is not available in this environment. The figures are unchanged.",
         },
         "diagnostics": {
-            "bundle": "A bundle of logs, versions and configuration for the vendor, with no applicant "
+            "bundle": "A bundle of logs, versions and configuration for Azentio support, with no applicant "
                       "data in it. There is no remote access, so this is how a problem is reported.",
-            "exports": ["Decline drivers (CSV)", "Simulator scenarios (CSV)", "Portfolio report (PDF)",
-                        "Configuration (YAML)"],
+            "exports": ["Configuration (YAML)", "Audit log (CSV)"],
+            # Results exports belong on the analysis screens, for every role; not drawn yet.
+            "results_exports": ["Decline drivers (CSV)", "Simulator scenarios (CSV)", "Portfolio report (PDF)"],
             "note": "Export is available in every licence state.",
         },
     }

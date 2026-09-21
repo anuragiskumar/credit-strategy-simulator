@@ -1,0 +1,17 @@
+/* Shared by client.html, settings.html and admin.html: the brand in the top bar, and rail items
+ * that are links to another page rather than buttons. Tokens only, no new colours.
+ *
+ * The brand is a text wordmark until the official Azentio logo file is supplied; swapping it in
+ * touches the .brand block of each page and nothing else.
+ */
+.brand { gap: 8px; }
+.brand .az { font-family: var(--ui); font-size: 14px; font-weight: 700; letter-spacing: -.015em; white-space: nowrap; color: var(--ink); }
+.brand .az em { font-style: normal; font-weight: 500; color: var(--muted); }
+.brand .sep { color: var(--line-hard); font-weight: 300; }
+.brand b { font-weight: 600; }
+@media (max-width: 640px) {
+  .brand .sep, .brand b { display: none; }
+}
+
+a.navitem { text-decoration: none; }
+a.navitem:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }

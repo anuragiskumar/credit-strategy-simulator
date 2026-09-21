@@ -1,17 +1,16 @@
-"""The Settings page of `ui/client.html` and the fixture behind it.
+"""Settings (`ui/settings.html`), Administration (`ui/admin.html`), the permission seam
+(`ui/session.js`), the demo menu (`ui/demo_bar.js`), and the fixture behind them.
 
-The screen follows the rule the rest of the prototype does: the UI computes nothing, every
-figure comes from an export. It adds two more, and these tests hold both:
+The pages follow the rule the rest of the prototype does: the UI computes nothing, every figure
+comes from an export. These tests hold the rest:
 
-  * what is real and what is simulated is never blurred. Everything simulated lives under one
-    key of the fixture, and the screen tags anything drawn from it;
-  * the simulated parts are inert. Nothing leaves the browser, a chosen file is never read, and
-    the demo password field is never read, so a real credential typed into it cannot leak.
-
-The page was built apart from the three analysis screens and then merged into `client.html`. The
-merge tests below hold the seams: script order, the one page registration, and note keys that
-never collide with `client_notes.js`. This suite stays apart from `test_client_ui.py` so each
-file tests one thing.
+  * who sees what is decided in one place. Pages ask Session.can(); only demo_bar.js knows role
+    names, and it is the one file the real server replaces, so the demo menu never ships;
+  * the licence reaches a non-administrator only as a paused action, never as a date, and its
+    term-and-renewal stages are never drawn: they differ by client and live in the spec notes;
+  * what is real and what is simulated is never blurred, and the simulated parts are inert:
+    nothing leaves the browser, a chosen file is never read, the demo password is never read;
+  * the pages speak in product voice and name Azentio, never "the vendor".
 """
 from __future__ import annotations
 
@@ -35,6 +34,11 @@ needs_fixture = pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not bui
 
 PROVENANCE = {"OBSERVED", "PREDICTED", "INFERRED", "NOT_MODELLED", "BLENDED"}
 TOP_LEVEL = {"meta", "rulepack", "dataset", "fields", "policy", "run", "simulated"}
+PAGES = ("client.html", "settings.html", "admin.html")
+PAGE_SCRIPTS = ("settings_kit.js", "page_shell.js", "settings.js", "admin.js")
+ROLE_NAMES = ("Business user", "Analyst", "Risk approver", "Administrator",
+              "'admin'", "'analyst'", "'approver'", "'business'")
+NOTE_KEY = r"(?m)^    ([a-z_0-9]+): \{"
 
 
 def _code(name: str) -> str:
@@ -44,121 +48,209 @@ def _code(name: str) -> str:
     return "\n".join(line for line in text.splitlines() if not line.strip().startswith("//"))
 
 
+def _html(name: str) -> str:
+    return (UI / name).read_text(encoding="utf-8")
+
+
 def _fixture() -> dict:
     return json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
+def _keys(name: str) -> set[str]:
+    return set(re.findall(NOTE_KEY, _html(name)))
+
+
 # --------------------------------------------------------------------------- static files
-def test_the_page_ships_and_client_html_loads_it():
-    for name in ("settings.css", "settings.js", "settings_notes.js", "settings_export.py"):
+def test_settings_and_administration_are_pages_of_their_own():
+    for name in ("settings.html", "admin.html", "settings.js", "admin.js", "settings_kit.js", "page_shell.js",
+                 "session.js", "demo_bar.js", "settings_notes.js", "admin_notes.js", "shell.css", "settings.css"):
         assert (UI / name).exists(), name
-    assert not (UI / "settings.html").exists(), "the standalone page was merged into client.html"
-    html = (UI / "client.html").read_text(encoding="utf-8")
-    assert 'href="tokens.css"' in html and 'href="settings.css"' in html
+    for page in ("settings.html", "admin.html"):
+        html = _html(page)
+        assert 'name="viewport"' in html, page
+        for css in ("tokens.css", "client.css", "shell.css", "settings.css"):
+            assert f'href="{css}"' in html, (page, css)
 
 
-def test_the_settings_scripts_load_before_the_page_script_because_it_boots_at_load():
-    html = (UI / "client.html").read_text(encoding="utf-8")
-    at = {n: html.index(f'src="{n}"') for n in
-          ("settings_data.js", "settings_notes.js", "settings.js", "client.js")}
-    assert at["settings_data.js"] < at["settings.js"] < at["client.js"]
-    assert at["settings_notes.js"] < at["client.js"]
+@pytest.mark.parametrize("page, script", [("settings.html", "settings.js"), ("admin.html", "admin.js")])
+def test_each_page_loads_its_scripts_in_the_order_they_depend_on(page, script):
+    html = _html(page)
+    order = ["settings_data.js", "session.js", "demo_bar.js", "settings_kit.js", "settings_notes.js",
+             "page_shell.js", script]
+    at = [html.index(f'src="{n}"') for n in order]
+    assert at == sorted(at), f"{page} loads its scripts out of order"
+    if page == "admin.html":
+        assert html.index('src="settings_notes.js"') < html.index('src="admin_notes.js"') < html.index('src="admin.js"')
 
 
-def test_the_licence_chip_is_in_the_topbar_and_annotated():
-    html = (UI / "client.html").read_text(encoding="utf-8")
-    assert 'id="licchip"' in html and 'data-note="lic_chip"' in html
+def test_client_html_no_longer_carries_the_settings_page():
+    html, js = _html("client.html"), _code("client.js")
+    for gone in ('src="settings.js"', 'src="settings_notes.js"', 'href="settings.css"', 'id="licchip"'):
+        assert gone not in html, gone
+    assert "SettingsScreen" not in js and "__SETTINGS_NOTES__" not in js
+    assert "href: 'settings.html'" in js and "href: 'admin.html', need: 'admin.view'" in js
 
 
-def test_client_js_registers_the_page_and_calls_the_module_at_each_seam():
-    js = _code("client.js")
-    assert "id: 'settings'" in js
-    for seam in ("SettingsScreen.page()", "SettingsScreen.rail()", "SettingsScreen.after()", "SettingsScreen.init("):
-        assert seam in js, seam
-    assert "__SETTINGS_NOTES__" in js, "notes from settings_notes.js are not merged"
-    # The settings notes read the settings fixture; handing them the analysis fixture throws at runtime.
-    assert "__SETTINGS_NOTES__(window.__SETTINGS__)" in js
+def test_every_page_carries_the_azentio_brand_and_declares_utf8():
+    for page in PAGES:
+        html = _html(page)
+        assert "Azentio.ai | Credit Strategy Optimiser</title>" in html, page
+        assert '<span class="az">Azentio<em>.ai</em></span>' in html, page
+        assert '<meta charset="utf-8">' in html, f"{page} garbles its text on a server that sends no charset"
 
 
-def test_the_settings_module_does_not_depend_on_the_analysis_fixture():
-    """It reads its own fixture, so either export can be rebuilt without the other."""
-    assert "__CLIENT__" not in _code("settings.js")
-
-
-def test_the_settings_notes_never_reuse_a_key_from_the_analysis_notes():
-    key = r"(?m)^    ([a-z_0-9]+): \{"
-    client = set(re.findall(key, (UI / "client_notes.js").read_text(encoding="utf-8")))
-    settings = set(re.findall(key, (UI / "settings_notes.js").read_text(encoding="utf-8")))
-    assert client and settings
-    assert client & settings == set(), f"a key in both would silently override: {sorted(client & settings)}"
+def test_the_pages_do_not_depend_on_the_analysis_fixture():
+    """Settings reads its own fixture, so either export can be rebuilt without the other."""
+    for name in PAGE_SCRIPTS:
+        assert "__CLIENT__" not in _code(name), name
 
 
 def test_the_phone_layout_guards_are_still_in_the_stylesheet():
     """Regression: a trim of settings.css once dropped these, and the page scrolled sideways on a phone."""
-    css = (UI / "settings.css").read_text(encoding="utf-8")
-    for guard in ("#licchip {", ".su-sec .caveat .rid", ".su-sec .seg {", "prefers-reduced-motion"):
+    css = _html("settings.css")
+    for guard in (".su-sec .caveat .rid", ".su-sec .seg {", "prefers-reduced-motion"):
         assert guard in css, f"missing guard: {guard}"
     assert "max-width: 640px" in css and "max-width: 860px" in css
 
 
 def test_the_settings_stylesheet_does_not_restyle_the_analysis_screens():
-    """Loaded on the same page as client.css, so no bare selector may reach its elements."""
-    css = re.sub(r"/\*.*?\*/", "", (UI / "settings.css").read_text(encoding="utf-8"), flags=re.S)
+    """Loaded after client.css, so no bare selector may reach its elements."""
+    css = re.sub(r"/\*.*?\*/", "", _html("settings.css"), flags=re.S)
     selectors = [sel.strip() for block in re.findall(r"(?m)^\s*([^{}@]+)\{", css) for sel in block.split(",")]
-    allowed = (".su-", "#licchip", "#rail .navitem[data-jump]", "textarea.su-", "select.su-", "table.t.su-")
+    allowed = (".su-", "#rail .navitem[data-jump]", "textarea.su-", "select.su-", "table.t.su-")
     for sel in selectors:
         assert sel.startswith(allowed) or sel in {"to", "from"} or re.fullmatch(r"\d+%|\d+%, \d+%", sel), \
             f"selector reaches beyond this page: {sel!r}"
 
 
 def test_every_class_the_page_adds_is_prefixed_so_it_cannot_collide_with_client_css():
-    css = (UI / "settings.css").read_text(encoding="utf-8")
+    css = _html("settings.css")
     assert set(re.findall(r"(?m)^\.(su-[a-z0-9-]+)", css)), "expected su- classes"
     assert not re.findall(r"(?m)^\.((?!su-)[a-z][a-z0-9-]*)", css), "an unprefixed class could collide"
 
 
-# --------------------------------------------------------------------------- what the screen may not do
-def test_the_page_uses_only_the_provenance_kinds_and_only_for_counted_facts():
-    used = set(re.findall(r"pv\('([A-Z_]+)'", _code("settings.js")))
+# --------------------------------------------------------------------------- who sees what
+def test_only_the_demo_menu_knows_role_names():
+    """Pages ask Session what the person may do; a role name anywhere else is a check the server cannot replace."""
+    for name in PAGE_SCRIPTS + ("session.js", "client.js"):
+        found = [r for r in ROLE_NAMES if r in _code(name)]
+        assert not found, f"{name} names a role: {found}"
+    assert all(r in _code("demo_bar.js") for r in ("Business user", "Analyst", "Risk approver", "Administrator"))
+
+
+def test_the_demo_menu_is_one_script_tag_on_every_page_and_nothing_else_refers_to_it():
+    for page in PAGES:
+        html = _html(page)
+        assert html.count('src="demo_bar.js"') == 1, page
+        assert html.index('src="session.js"') < html.index('src="demo_bar.js"'), page
+    for name in PAGE_SCRIPTS + ("session.js", "client.js"):
+        assert "demobar" not in _code(name) and "demo_bar" not in _code(name), name
+
+
+def test_the_old_url_switches_are_gone():
+    for name in PAGE_SCRIPTS + ("demo_bar.js",):
+        body = _code(name)
+        assert not re.search(r"[?&](?:dev|role)=", body), name
+
+
+def test_with_no_provider_the_session_fails_closed():
+    assert re.search(r"var state = \{ can: \[\], paused: \[\], licence: null", _code("session.js"))
+
+
+def test_only_the_demo_menu_uses_browser_storage():
+    for name in PAGE_SCRIPTS + ("session.js",):
+        body = _code(name)
+        for banned in ("localStorage", "sessionStorage", "indexedDB", "document.cookie"):
+            assert banned not in body, f"{name} uses {banned}"
+
+
+def test_every_action_a_page_asks_for_is_one_the_demo_menu_can_grant_or_a_licence_can_pause():
+    asked = set()
+    for name in PAGE_SCRIPTS + ("client.js",):
+        body = _code(name)
+        asked |= set(re.findall(r"\bcan\('([a-z.]+)'\)", body)) | set(re.findall(r"\bpaused\('([a-z.]+)'\)", body))
+        asked |= set(re.findall(r"need: '([a-z.]+)'", body))
+    granted = set(re.findall(r"'([a-z]+\.[a-z]+)'", _code("demo_bar.js")))
+    pausable = set(X.PAUSED_SUSPENDED)
+    assert asked, "no page asks Session anything"
+    assert asked <= granted | pausable, f"asked for but never granted or paused: {sorted(asked - granted - pausable)}"
+    assert granted <= asked, f"granted but never asked for: {sorted(granted - asked)}"
+
+
+def test_administration_refuses_anyone_without_admin_view():
+    body = _code("admin.js")
+    assert "if (!can('admin.view'))" in body and "NO ACCESS" in body
+
+
+# --------------------------------------------------------------------------- the licence
+def test_no_page_draws_the_term_and_renewal_stages():
+    """Each client has its own term, so the stages live in the licence file and the spec notes."""
+    for name in PAGE_SCRIPTS + ("client.js",):
+        body = _code(name)
+        assert "ladder" not in body and "su-rung" not in body and "L.always" not in body, name
+    assert "L.ladder" in _code("admin_notes.js"), "the stages must be explained in the spec notes"
+
+
+def test_the_licence_reaches_a_non_administrator_only_as_a_paused_action():
+    settings = _code("settings.js")
+    assert "Session.licence" not in settings and "scenarios" not in settings and "valid_to" not in settings
+    assert "paused_message" in settings
+    admin = _code("admin.js")
+    assert "need: 'licence.view'" in admin and "window.Session.licence()" in admin
+    assert "r.can.indexOf('licence.view') >= 0 ? s : null" in _code("demo_bar.js"), \
+        "the licence snapshot must reach only someone allowed to view it"
+
+
+@needs_fixture
+def test_every_licence_stage_says_what_it_pauses():
+    scen = _fixture()["simulated"]["licence"]["scenarios"]
+    assert all(isinstance(s["paused"], list) for s in scen.values())
+    assert scen["current"]["paused"] == [] and scen["renewed"]["paused"] == []
+    assert "recompute.run" in scen["read_only"]["paused"] and "analysis.view" in scen["suspended"]["paused"]
+
+
+# --------------------------------------------------------------------------- what the screens may not do
+def test_the_pages_use_only_the_provenance_kinds_and_only_for_counted_facts():
+    used = set()
+    for name in PAGE_SCRIPTS:
+        used |= set(re.findall(r"pv\('([A-Z_]+)'", _code(name)))
     assert used <= PROVENANCE, f"unexpected provenance kinds: {used - PROVENANCE}"
-    assert used == {"OBSERVED"}, "settings shows counted facts only; simulated is a tag, not a provenance"
+    assert used == {"OBSERVED"}, "these pages show counted facts only; simulated is a tag, not a provenance"
 
 
-def test_the_page_never_derives_a_figure_from_two_fixture_fields():
-    body = _code("settings.js")
-    derived = re.findall(r"\b(?:F|r|o|t|g|v|d|s|x|R|D|T)\.\w+\s*/\s*(?:F|r|o|t|g|v|d|s|x|R|D|T)\.\w+", body)
-    assert not derived, f"settings.js is deriving a figure: {derived}"
+def test_the_pages_never_derive_a_figure_from_two_fixture_fields():
+    for name in PAGE_SCRIPTS:
+        derived = re.findall(r"\b(?:F|r|o|t|g|v|d|s|x|R|D|T)\.\w+\s*/\s*(?:F|r|o|t|g|v|d|s|x|R|D|T)\.\w+", _code(name))
+        assert not derived, f"{name} is deriving a figure: {derived}"
 
 
-def test_nothing_leaves_the_browser_and_nothing_is_stored():
-    body = _code("settings.js")
-    for banned in ("fetch(", "XMLHttpRequest", "sendBeacon", "WebSocket", "localStorage",
-                   "sessionStorage", "indexedDB", "document.cookie", "FileReader", ".text()",
-                   ".arrayBuffer("):
-        assert banned not in body, f"settings.js uses {banned}"
+def test_nothing_leaves_the_browser():
+    for name in PAGE_SCRIPTS + ("session.js", "demo_bar.js"):
+        body = _code(name)
+        for banned in ("fetch(", "XMLHttpRequest", "sendBeacon", "WebSocket", "FileReader", ".text()", ".arrayBuffer("):
+            assert banned not in body, f"{name} uses {banned}"
 
 
 def test_the_demo_password_field_is_never_read():
     """A real credential typed into a simulated form must have nowhere to go."""
-    body = _code("settings.js")
-    assert 'id="su-pw"' in body
-    lookups = re.findall(r"(?:getElementById|querySelector(?:All)?)\(\s*['\"][^'\"]*su-pw", body)
-    assert not lookups, "su-pw is looked up in script"
-    assert 'type="password"' in body
+    body = _code("admin.js")
+    assert 'id="su-pw"' in body and 'type="password"' in body
+    for name in PAGE_SCRIPTS:
+        lookups = re.findall(r"(?:getElementById|querySelector(?:All)?)\(\s*['\"][^'\"]*su-pw", _code(name))
+        assert not lookups, f"su-pw is looked up in {name}"
     pw_line = next(line for line in body.splitlines() if 'id="su-pw"' in line)
     assert " name=" not in pw_line, "a named field would be submitted with a form"
 
 
 def test_a_chosen_file_is_never_read_only_named():
-    body = _code("settings.js")
+    body = _code("admin.js")
     assert ".files[0].name" in body
     assert not re.findall(r"\.files\[0\](?!\.name)", body), "a chosen file is used for more than its name"
 
 
 def _page_strings() -> str:
-    """Every string literal settings.js can put on screen, plus the fixture text it prints."""
-    body = _code("settings.js")
-    literals = " ".join(re.findall(r"'((?:[^'\\]|\\.)*)'", body))
+    """Every string literal the pages can put on screen, plus the fixture text they print."""
+    literals = " ".join(" ".join(re.findall(r"'((?:[^'\\]|\\.)*)'", _code(n))) for n in PAGE_SCRIPTS)
     shown = json.dumps(_fixture()["simulated"]) + json.dumps(_fixture()["policy"]) if FIXTURE.exists() else ""
     return literals + " " + shown
 
@@ -168,46 +260,48 @@ DEMO_VOICE = ["the bank gave us", "with the client", "the client has", "by the c
               "nothing was actually", "demo only", "simulated.", "python -m", "in this demo", "client bank"]
 
 
-def test_the_page_speaks_in_product_voice_and_leaves_the_reasoning_to_spec_notes():
+def test_the_pages_speak_in_product_voice_and_leave_the_reasoning_to_spec_notes():
     text = _page_strings().lower()
     found = [p for p in DEMO_VOICE if p in text]
     assert not found, f"demo or vendor voice on the page: {found}"
 
 
-def test_the_part_simulated_banner_shows_only_in_presenter_mode():
-    body = _code("settings.js")
-    assert "PART SIMULATED" not in body
-    assert "(DEV ? caveat(" in body, "the presenter explanation must sit behind the dev flag"
+def test_azentio_is_named_and_the_vendor_never_is():
+    for name in PAGE_SCRIPTS + ("settings_notes.js", "admin_notes.js", "demo_bar.js") + PAGES:
+        assert not re.search(r"\bvendor", _html(name), re.I), name
+    if FIXTURE.exists():
+        assert "vendor" not in json.dumps(_fixture()).lower()
+        assert "Azentio" in json.dumps(_fixture()["simulated"]["licence"])
 
 
-def test_the_administration_group_carries_one_preview_tag_not_one_per_accordion():
-    body = _code("settings.js")
-    accordions = re.findall(r"accordion\('[a-z]+', '[^']+', ([^,]+),", body)
-    assert accordions and all("sim()" not in a for a in accordions), accordions
-    assert re.search(r"function adminHead\(\)[^}]*sim\(\)", body, re.S)
+def test_administration_carries_one_preview_tag_for_the_page_not_one_per_section():
+    body = _code("admin.js")
+    assert len(re.findall(r"sim\(\)", body)) == 1
+    assert not re.findall(r"section\('[a-z]+', '[^']+', sim\(\)", body)
 
 
-def test_the_analysis_inputs_come_before_the_licence():
+def test_settings_puts_the_analysis_inputs_first_and_has_no_licence():
     ids = re.findall(r"\{ id: '([a-z]+)', t: ", _code("settings.js"))
-    assert ids.index("rules") < ids.index("licence") and ids[0] == "rules"
+    assert ids[0] == "rules" and "licence" not in ids
 
 
-def test_the_presenter_controls_appear_only_behind_an_explicit_flag():
-    """`localhost` would put them on screen during a demo run from a laptop."""
-    body = _code("settings.js")
-    dev = re.search(r"var DEV = (.+);", body).group(1)
-    assert "dev=1" in dev and "localhost" not in dev and "hostname" not in dev
+def test_every_spec_note_key_the_pages_use_has_an_entry_and_none_is_orphaned():
+    settings_keys, admin_keys = _keys("settings_notes.js"), _keys("admin_notes.js")
+    assert not settings_keys & admin_keys, f"a key in both would silently override: {sorted(settings_keys & admin_keys)}"
 
+    def tagged(*names):
+        return set().union(*(set(re.findall(r"N\('([a-z_0-9]+)'\)", _code(n))) for n in names))
 
-def test_every_spec_note_key_the_page_uses_has_an_entry_and_none_is_orphaned():
-    key = r"(?m)^    ([a-z_0-9]+): \{"
-    notes = set(re.findall(key, (UI / "settings_notes.js").read_text(encoding="utf-8")))
-    used = set(re.findall(r"N\('([a-z_0-9]+)'\)", _code("settings.js")))
-    # `lic_chip` is tagged in client.html's topbar, not drawn by the script.
-    used |= set(re.findall(r'data-note="([a-z_0-9]+)"', (UI / "client.html").read_text(encoding="utf-8"))) & notes
-    client_notes = set(re.findall(key, (UI / "client_notes.js").read_text(encoding="utf-8")))
-    assert used - notes - client_notes == set(), f"tagged with no note: {sorted(used - notes - client_notes)}"
-    assert notes - used == set(), f"note with nothing tagged: {sorted(notes - used)}"
+    def html(page):
+        return set(re.findall(r'data-note="([a-z_0-9]+)"', _html(page)))
+
+    on_settings = tagged("settings.js", "settings_kit.js", "page_shell.js") | html("settings.html")
+    on_admin = tagged("admin.js", "settings_kit.js", "page_shell.js") | html("admin.html")
+    assert on_settings <= settings_keys, f"tagged on Settings with no note: {sorted(on_settings - settings_keys)}"
+    assert on_admin <= settings_keys | admin_keys, \
+        f"tagged on Administration with no note: {sorted(on_admin - settings_keys - admin_keys)}"
+    assert settings_keys <= on_settings | on_admin, f"note with nothing tagged: {sorted(settings_keys - on_settings - on_admin)}"
+    assert admin_keys <= on_admin, f"note with nothing tagged: {sorted(admin_keys - on_admin)}"
 
 
 # --------------------------------------------------------------------------- fixture shape
@@ -242,7 +336,8 @@ def test_the_three_databases_are_offered_with_their_usual_ports():
 
 
 @needs_fixture
-def test_the_licence_ladder_runs_in_order_and_two_things_never_change():
+def test_the_demo_licence_ladder_runs_in_order_and_two_things_never_change():
+    """The demo licence file's contents. Explained in the spec notes, never drawn."""
     lic = _fixture()["simulated"]["licence"]
     assert [r["id"] for r in lic["ladder"]] == ["active", "expiring", "grace", "read_only", "suspended"]
     joined = " ".join(lic["always"]).lower()
@@ -253,7 +348,7 @@ def test_the_licence_ladder_runs_in_order_and_two_things_never_change():
 @needs_fixture
 def test_every_licence_scenario_carries_the_text_the_page_prints():
     """The page cannot work out days remaining, so every state must ship them."""
-    need = {"status", "status_label", "does", "term", "valid_to", "headline", "remaining", "chip"}
+    need = {"status", "status_label", "does", "term", "valid_to", "headline", "remaining", "paused"}
     for name, snap in _fixture()["simulated"]["licence"]["scenarios"].items():
         assert need <= set(snap), name
     assert {"current", "active", "expiring", "grace", "read_only", "suspended", "renewed"} == \

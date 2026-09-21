@@ -1,6 +1,6 @@
 window.__SETTINGS__ = {
  "meta": {
-  "generated": "2026-09-21 04:48 UTC",
+  "generated": "2026-09-21 05:37 UTC",
   "product": "TWQR",
   "synthetic": true,
   "note": "Rule set, dataset facts, field requirements and policy values are read from the engine. Everything under `simulated` is not."
@@ -737,14 +737,14 @@ window.__SETTINGS__ = {
   ],
   "never_fire_count": 16,
   "replay_seconds": 2.1,
-  "generated": "2026-09-21 04:48 UTC"
+  "generated": "2026-09-21 05:37 UTC"
  },
  "simulated": {
   "simulated": true,
   "licence": {
    "licensee": "Licensed bank",
    "licence_id": "TWQR-2026-0001",
-   "issued_by": "Vendor licence service (offline signing)",
+   "issued_by": "Azentio licence service (offline signing)",
    "entitlements": [
     {
      "key": "Product",
@@ -767,38 +767,54 @@ window.__SETTINGS__ = {
     "algorithm": "Ed25519",
     "verified": true,
     "fingerprint": "9f2c 41ab 07de 5c18",
-    "note": "Verified offline against the vendor public key shipped with the product."
+    "note": "Verified offline against the Azentio public key shipped with the product."
    },
    "ladder": [
     {
      "id": "active",
      "label": "Active",
      "from": "Start of term",
-     "does": "Everything works."
+     "does": "Everything works.",
+     "paused": []
     },
     {
      "id": "expiring",
      "label": "Expiring",
      "from": "1 Dec 2026",
-     "does": "A banner and reminders to the named contacts. Everything still works."
+     "does": "A banner and reminders to the named contacts. Everything still works.",
+     "paused": []
     },
     {
      "id": "grace",
      "label": "Grace",
      "from": "1 Jan 2027",
-     "does": "Everything still works. Daily reminders to administrators."
+     "does": "Everything still works. Daily reminders to administrators.",
+     "paused": []
     },
     {
      "id": "read_only",
      "label": "Read-only",
      "from": "16 Jan 2027",
-     "does": "Screens, analysis and export keep working. New data loads, configuration changes and recomputes are paused."
+     "does": "Screens, analysis and export keep working. New data loads, configuration changes and recomputes are paused.",
+     "paused": [
+      "data.load",
+      "rules.load",
+      "recompute.run",
+      "config.change"
+     ]
     },
     {
      "id": "suspended",
      "label": "Suspended",
      "from": "15 Feb 2027",
-     "does": "Analysis screens lock; this page and export stay open."
+     "does": "Analysis screens lock; this page and export stay open.",
+     "paused": [
+      "data.load",
+      "rules.load",
+      "recompute.run",
+      "config.change",
+      "analysis.view"
+     ]
     }
    ],
    "always": [
@@ -815,6 +831,7 @@ window.__SETTINGS__ = {
      "headline": "Valid until 31 Dec 2026",
      "remaining": "101 days remaining",
      "chip": "Licence · valid to 31 Dec 2026",
+     "paused": [],
      "renewed": false
     },
     "active": {
@@ -826,6 +843,7 @@ window.__SETTINGS__ = {
      "headline": "Valid until 31 Dec 2026",
      "remaining": "100 days remaining",
      "chip": "Licence · valid to 31 Dec 2026",
+     "paused": [],
      "renewed": false
     },
     "expiring": {
@@ -837,6 +855,7 @@ window.__SETTINGS__ = {
      "headline": "Valid until 31 Dec 2026",
      "remaining": "12 days remaining",
      "chip": "Licence · valid to 31 Dec 2026",
+     "paused": [],
      "renewed": false
     },
     "grace": {
@@ -848,6 +867,7 @@ window.__SETTINGS__ = {
      "headline": "Expired on 31 Dec 2026",
      "remaining": "6 days ago",
      "chip": "Licence · grace",
+     "paused": [],
      "renewed": false
     },
     "read_only": {
@@ -859,6 +879,12 @@ window.__SETTINGS__ = {
      "headline": "Expired on 31 Dec 2026",
      "remaining": "25 days ago",
      "chip": "Licence · read-only",
+     "paused": [
+      "data.load",
+      "rules.load",
+      "recompute.run",
+      "config.change"
+     ],
      "renewed": false
     },
     "suspended": {
@@ -870,6 +896,13 @@ window.__SETTINGS__ = {
      "headline": "Expired on 31 Dec 2026",
      "remaining": "60 days ago",
      "chip": "Licence · suspended",
+     "paused": [
+      "data.load",
+      "rules.load",
+      "recompute.run",
+      "config.change",
+      "analysis.view"
+     ],
      "renewed": false
     },
     "renewed": {
@@ -881,6 +914,7 @@ window.__SETTINGS__ = {
      "headline": "Valid until 31 Mar 2027",
      "remaining": "191 days remaining",
      "chip": "Licence · valid to 31 Mar 2027",
+     "paused": [],
      "renewed": true
     }
    },
@@ -888,7 +922,8 @@ window.__SETTINGS__ = {
     "none": "No new licence found. The licence on file is unchanged.",
     "found": "A renewed licence file was found, verified and applied.",
     "apply": "The licence file was verified and applied.",
-    "how": "The deployed product has no outbound internet, so refresh does not ask a server whether payment arrived. It re-reads the licence store and re-verifies the signature. After payment the vendor issues a new signed licence file, delivered through the patch channel or applied here by an administrator."
+    "paused_message": "Paused under the current licence. Contact your administrator.",
+    "how": "The deployed product has no outbound internet, so refresh does not ask a server whether payment arrived. It re-reads the licence store and re-verifies the signature. After payment Azentio issues a new signed licence file, delivered through the patch channel or applied here by an administrator."
    },
    "reminders": {
     "contacts": [
@@ -1441,7 +1476,7 @@ window.__SETTINGS__ = {
    },
    {
     "key": "Patch channel",
-    "value": "Encrypted, vendor-signed; up to date"
+    "value": "Encrypted, signed by Azentio; up to date"
    }
   ],
   "recompute": {
@@ -1457,12 +1492,15 @@ window.__SETTINGS__ = {
    "done": "Recompute is not available in this environment. The figures are unchanged."
   },
   "diagnostics": {
-   "bundle": "A bundle of logs, versions and configuration for the vendor, with no applicant data in it. There is no remote access, so this is how a problem is reported.",
+   "bundle": "A bundle of logs, versions and configuration for Azentio support, with no applicant data in it. There is no remote access, so this is how a problem is reported.",
    "exports": [
+    "Configuration (YAML)",
+    "Audit log (CSV)"
+   ],
+   "results_exports": [
     "Decline drivers (CSV)",
     "Simulator scenarios (CSV)",
-    "Portfolio report (PDF)",
-    "Configuration (YAML)"
+    "Portfolio report (PDF)"
    ],
    "note": "Export is available in every licence state."
   }
