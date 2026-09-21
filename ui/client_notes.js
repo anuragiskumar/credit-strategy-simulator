@@ -327,21 +327,35 @@ window.__NOTES__ = function (F) {
     },
     sim_rules: {
       t: 'Every decline rule',
-      d: 'All the rules that can decline an applicant for this product, busiest first. All are on today. Untick ' +
-         'one to switch it off. A lock means the rule rests on a regulatory or bureau fact, or the bank declared ' +
-         'it untouchable, so it cannot be changed here or by goal-seek. "No effect on its own" means other rules ' +
-         'already catch everyone it declines, so switching it off alone moves nobody.'
+      d: 'All the rules that can decline an applicant for this product, grouped by the stage that evaluates them ' +
+         'and busiest first. It opens on the rules that stop someone on their own, because switching off any other ' +
+         'moves nobody. Search reaches every rule. The status says what your scenario does to each: On as today, ' +
+         'Off, Changed (a threshold moved) or Locked.'
+    },
+    sim_pick: {
+      t: 'Open a rule',
+      d: 'Click a rule to open it. Its detail takes the place of the scenario panel (under the row on a narrow ' +
+         'screen): what it declines in words, the switch, any threshold that can move, and the steps it already ' +
+         'has in your scenario. The rows have no buttons, so nothing changes by accident.'
     },
     sim_alone: {
       t: 'Only this rule stops',
       d: 'Applicants this rule declines that no other rule does. It is the most that switching this one rule off ' +
-         'could release, before later stages (the finance cap, walking away) take their share.'
+         'could release, before later stages (the finance cap, walking away) take their share. The detail shows ' +
+         'how many of them would actually be booked.'
+    },
+    sim_sentence: {
+      t: 'The rule in words',
+      d: 'Written by the engine from the same parsed conditions the replay evaluates, so it cannot say something ' +
+         'the rule does not do. "Applies to" is the rule\'s scope: who it is tested on at all. A locked rule shows ' +
+         'only this and the reason it is locked, with no control that would be refused.'
     },
     sim_edit: {
-      t: 'Edit threshold',
+      t: 'Move a threshold',
       d: 'Move a number inside the rule instead of switching it off, for example the minimum income from 5,000 ' +
-         'to 4,000. It works in both directions. Where the rule has a Pass twin (simati writes <3500 Fail and ' +
-         '>=3500 Pass as a pair), both move together.'
+         'to 4,000: today\'s value on the left, the new one on the right, then Add to scenario. It works in both ' +
+         'directions. Where the rule has a Pass twin (simati writes <3500 Fail and >=3500 Pass as a pair), both ' +
+         'move together.'
     },
     sim_stack: {
       t: 'Your scenario',

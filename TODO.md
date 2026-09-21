@@ -127,7 +127,7 @@ is Portfolio (where am I?) → Decline Drivers (why?) → Simulator (what if?).
 - [x] Decline Drivers is the diagnosis: read-only, no controls. Broaden it beyond rules to every
       reason applicants are lost (hard reject, eligibility caps, walk-aways), and end each row
       with "Try in Simulator →".
-- [ ] Simulator All rules becomes a picker for building a scenario (see C2), not a second ranking.
+- [x] Simulator All rules becomes a picker for building a scenario (see C2), not a second ranking.
 - [x] Simulator *Try a change* presets stop recomputing the Drivers finding. They open with "the
       rules Decline Drivers flagged" and link back to that screen.
 - [ ] Revisit after the demo: merge the two into one "Rules" screen with a Diagnose / Change
@@ -154,14 +154,14 @@ paragraphs; and a second table repeating four rows.
 ### C2. Simulator → All rules — P1 (before the demo)
 Every one of the 113 rows has a checkbox, an "Edit threshold" button and a line of raw conditions,
 so the list reads as a debug table. The checkbox doesn't say what it means.
-- [ ] List on the left, detail on the right. Rows: business name, rule ID, "only this rule stops"
+- [x] List on the left, detail on the right. Rows: business name, rule ID, "only this rule stops"
       count, and a status tag (On / Off / Changed / Locked). No buttons on the rows.
-- [ ] Clicking a row opens its detail in place of the scenario panel (or as a drawer): the
+- [x] Clicking a row opens its detail in place of the scenario panel (or as a drawer): the
       conditions as a readable sentence, an On/Off switch, the threshold editor (current value →
       new value), and "Add to scenario".
-- [ ] Group rows by stage (Hard reject / Credit policy / Eligibility), collapsible. Default filter:
+- [x] Group rows by stage (Hard reject / Credit policy / Eligibility), collapsible. Default filter:
       "Stops someone on its own".
-- [ ] Rules that can't be edited show only the lock and the reason. No button that gets refused.
+- [x] Rules that can't be edited show only the lock and the reason. No button that gets refused.
 
 ### C3. Settings overhaul — P1
 Today it's a read-only list of facts about the build (workbook file names, table roles, config

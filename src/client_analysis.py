@@ -245,6 +245,57 @@ def _condition_text(c) -> str | None:
     return None
 
 
+def _words(values: list[str], joiner: str = "or", cap: int = 6) -> str:
+    if len(values) > cap:
+        return ", ".join(values[:cap]) + f" and {len(values) - cap} more"
+    return values[0] if len(values) == 1 else ", ".join(values[:-1]) + f" {joiner} " + values[-1]
+
+
+def _condition_words(c, labels: dict) -> str | None:
+    """One condition as a phrase a credit committee reads: "SIMAH score is 650 or below"."""
+    if not re.fullmatch(r"[\w.]+", str(c.field)):
+        return f"a calculated condition holds ({c.field})"
+    raw = str(c.field).split(".")[-1]
+    field = labels.get(raw, raw)
+    lo, hi, op = c.value_low, c.value_high, c.operator
+    values = [v for v in str(c.value_set).split("|") if v and v != "nan"]
+    if op == "outside":
+        return f"{field} is outside {_num(lo)}–{_num(hi)}"
+    if op == "between":
+        if float(hi) >= _OPEN_HIGH:
+            return f"{field} is {_num(lo)} or above"
+        return f"{field} is {_num(hi)} or below" if float(lo) == 0 else \
+            f"{field} is between {_num(lo)} and {_num(hi)}"
+    v = lo if pd.notna(lo) else hi
+    phrase = {"lt": "below {}", "lte": "{} or below", "gt": "above {}", "gte": "{} or above"}.get(op)
+    if phrase:
+        return f"{field} is " + phrase.format(_num(v))
+    if op == "in" and values:
+        return f"{field} is {_words(values)}"
+    if op == "not_in" and values:
+        return f"{field} is not {_words(values)}"
+    if op == "eq":
+        return f"{field} is {_words(values) if values else _num(lo)}"
+    if op == "contains" and values:
+        return f"{field} contains {_words(values)}"
+    if op == "income_multiple_exceeded":
+        return f"{field} is above the allowed multiple of income"
+    return None
+
+
+def rule_sentence(conditions: pd.DataFrame, rule_id: str, labels: dict | None = None) -> dict:
+    """What a rule declines, in words: the test (`when`) and who it applies to (`applies_to`).
+
+    Built from the parsed conditions, like `rule_tests`, so it can never disagree with what
+    the replay evaluates. Either part is None when the rule has none.
+    """
+    labels = labels or {}
+    c = conditions[conditions["rule_id"] == rule_id]
+    when = [w for w in (_condition_words(r, labels) for r in c[c["tunability"] != "scope"].itertuples()) if w]
+    scope = [w for w in (_condition_words(r, labels) for r in c[c["tunability"] == "scope"].itertuples()) if w]
+    return {"when": " and ".join(when) or None, "applies_to": "; ".join(scope) or None}
+
+
 def rule_tests(conditions: pd.DataFrame, rule_id: str) -> tuple[str, set[float]]:
     """What a rule actually tests, from its parsed conditions: thresholds first, then scope.
 

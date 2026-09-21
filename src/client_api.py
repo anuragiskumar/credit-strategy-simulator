@@ -75,6 +75,8 @@ def rule_catalogue(base: S.Baseline, inv) -> list[dict]:
     """
     drivers = A.decline_drivers(base.df, base.res, base.outcome, base.cfg)
     stats = drivers.set_index("rule_id") if not drivers.empty else pd.DataFrame()
+    stages = A.funnel_layout(base.cfg)["stages"]
+    labels = base.cfg.get("field_labels") or {}
     rows = []
     for rid, c in base.res.compiled.items():
         if c.kind != "block":
@@ -85,9 +87,11 @@ def rule_catalogue(base: S.Baseline, inv) -> list[dict]:
         tests, _ = A.rule_tests(inv.conditions, rid)
         rows.append({
             "rule_id": rid, "table": c.table, "stage": c.stage,
+            "stage_label": stages.get(c.stage, {}).get("label", c.stage),
             "policy_code": c.policy_code if isinstance(c.policy_code, str) else None,
             "label": A.clean_description(c.description) or rid,
             "tests": tests or None,
+            "sentence": A.rule_sentence(inv.conditions, rid, labels),
             "declines": declines, "declines_alone": alone,
             "locked": c.locked, "fixed_field": c.fixed_field,
             "editable": reason is None, "reason": reason,

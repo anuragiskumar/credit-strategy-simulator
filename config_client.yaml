@@ -400,6 +400,42 @@ drivers:
   # the booked book. Below it, the rule is costing approvals without buying safety.
   earns_place_multiple: 1.15
 
+# How a rule's fields read in a sentence ("Declines when SIMAH score is 650 or below").
+# A field not listed reads as its name in the rule files.
+field_labels:
+  simahcreditscore: SIMAH score
+  crifscore: CRIF score
+  finalscore: final score
+  quickscore: quick score
+  age: age
+  income: income
+  totalincome: total income
+  salarytobsf: salary to BSF
+  tenure: tenure (months)
+  durationinmonth: months in the job
+  lengthofservice: length of service
+  loanamount: loan amount
+  downpaymentper: down payment %
+  nationality: nationality
+  v_nationality: nationality
+  gender: gender
+  customersegment: customer segment
+  employeesegment: employee segment
+  employeetype: employee type
+  typeofemployment: type of employment
+  natureofemployment: nature of employment
+  employername: employer
+  employer_keyword_check: employer keyword check
+  program: programme
+  subproduct: sub-product
+  sourcetype: source
+  pensioner: pensioner
+  relatedtopep: related to a PEP
+  politicallyexposedperson: politically exposed person
+  diplomaticservice: diplomatic service
+  v_simahscore: SIMAH score (bureau)
+  simahscorecarddescription: SIMAH scorecard
+
 # ---------------------------------------------------------------- simulator (step 4)
 simulate:
   riskier_multiple: 1.15      # swap-ins above this x the booked bad rate are "riskier"

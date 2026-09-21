@@ -659,7 +659,7 @@
     });
     root.querySelectorAll('[data-dr-try]').forEach(function (b) {
       b.addEventListener('click', function () {
-        SIM.view = 'rules'; SIM.q = b.getAttribute('data-dr-try'); SIM.filter = 'all'; SIM.showAll = false;
+        SIM.view = 'rules'; SIM.q = b.getAttribute('data-dr-try'); SIM.filter = 'all'; SIM.picked = SIM.q;
         go('simulator');
       });
     });
@@ -691,7 +691,8 @@
     health: null, rules: null,
     view: 'target',      // 'target' | 'try' | 'rules'
     steps: [], out: null, pending: false, error: null, notice: null,
-    q: '', filter: 'all', showAll: false, editing: null,
+    q: '', filter: 'alone', picked: null,   // All rules: search, filter, the rule open in the detail
+    shut: {}, more: {},  // stage groups closed, and stage groups showing every rule
     open: {},            // which disclosures are open, so a re-render keeps them open
     refocus: null,       // selector to focus again after a re-render (a slider, a switch)
     goal: { target: 25, ceiling: null, frozen: [], out: null, pending: false, error: null }
@@ -832,7 +833,6 @@
       if (hi !== null) ch.value_high = hi;
       if (at >= 0) next[at] = ch; else next.push(ch);
     }
-    SIM.editing = null;
     propose(next);
   }
 
@@ -869,7 +869,7 @@
     if (s.type === 'off') return 'Switch off “' + ruleName(s.rule_id) + '”';
     if (s.type === 'cutoff') return (s.to < s.from ? 'Lower' : 'Raise') + ' the ' + fieldLabel(s.field) +
       ' cutoff from ' + num(s.from) + ' to ' + num(s.to);
-    return ruleName(s.rule_id) + ': ' + fieldName(s.field) + ' → ' + num(s.value_low) +
+    return ruleName(s.rule_id) + ': ' + fieldLabel(s.field) + ' → ' + num(s.value_low) +
       (s.value_high !== undefined ? '–' + num(s.value_high) : '');
   }
   function signed(v) { return v === null || v === undefined ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + n0(Math.abs(v)); }
@@ -1153,7 +1153,9 @@
       '</div></div>';
   }
 
-  /* ---- All rules: the analyst's workbench */
+  /* ---- All rules: a picker. The list names each rule and its state; the detail changes it.
+   * Every figure and every word about a rule (its sentence, stage, lock reason) comes from the
+   * engine's rule catalogue; the page only arranges them. */
   function visibleRules() {
     var q = SIM.q.trim().toLowerCase();
     return (SIM.rules || []).filter(function (r) {
@@ -1165,71 +1167,137 @@
     });
   }
 
-  function ruleRow(r, first) {
+  /** On / Off / Changed / Locked, from the rule's lock and this scenario's steps. */
+  function ruleStatus(r) {
+    if (!r.editable) return { id: 'locked', t: 'Locked' };
     var mine = stepsFor(r.rule_id);
-    var off = mine.some(function (s) { return s.type === 'off'; });
-    var canTry = r.editable && (SIM.live || precomputed(r.rule_id));
-    var why = !r.editable ? r.reason : (!canTry ? 'needs the engine running' : '');
-    var state = mine.map(function (s) {
-      return '<span class="simtag">step ' + (SIM.steps.indexOf(s) + 1) + ': ' +
-        esc(s.type === 'off' ? 'off' : fieldName(s.field) + ' → ' + num(s.value_low) +
-            (s.value_high !== undefined ? '–' + num(s.value_high) : '')) + '</span>';
-    }).join('');
-    var editBtn = r.editable && SIM.live && r.thresholds.length && !off
-      ? '<button class="btn ghost sm" data-sim-edit="' + esc(r.rule_id) + '"' + (first ? N('sim_edit') : '') + '>' +
-        (SIM.editing === r.rule_id ? 'Close' : 'Edit threshold') + '</button>' : '';
-    var editor = SIM.editing === r.rule_id ? thresholdEditor(r) : '';
-    return '<li class="simrule' + (off ? ' is-off' : '') + (mine.length && !off ? ' is-edited' : '') + '">' +
-      '<label class="simsw' + (canTry ? '' : ' is-disabled') + '">' +
-        '<input type="checkbox" data-sim-rule="' + esc(r.rule_id) + '"' + (off ? '' : ' checked') +
-        (canTry && !SIM.pending ? '' : ' disabled') + ' aria-label="' + esc(r.rule_id) + ' on"></label>' +
-      '<div class="rn"><span class="rl">' + lockIcon(r) + esc(r.label) + '</span>' +
-        '<span class="rsub"><span class="rid">' + esc(r.rule_id) + '</span>' +
-        (r.tests ? '<span>' + esc(r.tests) + '</span>' : '') +
-        (why ? '<span class="simwhy">' + esc(why) + '</span>' : '') +
-        (r.editable && !r.declines_alone ? '<span class="simwhy">no effect on its own</span>' : '') +
-        state + '</span></div>' +
-      '<div class="rc">' + n0(r.declines_alone) + '<small>only this</small></div>' +
-      '<div class="rcell">' + editBtn + '</div>' + editor + '</li>';
+    if (mine.some(function (s) { return s.type === 'off'; })) return { id: 'off', t: 'Off' };
+    return mine.length ? { id: 'changed', t: 'Changed' } : { id: 'on', t: 'On' };
   }
 
+  function narrowRules() { return !!(window.matchMedia && window.matchMedia('(max-width: 1180px)').matches); }
+
+  function ruleRow(r, first) {
+    var st = ruleStatus(r), picked = SIM.picked === r.rule_id;
+    return '<li class="simrule is-' + st.id + (picked ? ' is-picked' : '') + '">' +
+      '<button type="button" class="simpick" data-sim-pick="' + esc(r.rule_id) + '" aria-expanded="' + picked + '"' +
+        (first ? N('sim_pick') : '') + '>' +
+        '<span class="rn"><span class="rl">' + esc(r.label) + '</span><span class="rid">' + esc(r.rule_id) + '</span></span>' +
+        '<span class="rc">' + n0(r.declines_alone) + '</span>' +
+        '<span class="simstatus is-' + st.id + '">' + (st.id === 'locked' ? lockIcon(r) : '') + st.t + '</span>' +
+      '</button>' +
+      (picked && narrowRules() ? '<div class="simdetail is-inline">' + ruleDetailBody(r) + '</div>' : '') + '</li>';
+  }
+
+  /** Rules by the stage that evaluates them, in the funnel's order. */
+  function stageGroups(list) {
+    var order = (F.funnel || []).map(function (s) { return s.stage; });
+    var by = {};
+    list.forEach(function (r) { (by[r.stage] = by[r.stage] || []).push(r); });
+    return Object.keys(by).sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); }).map(function (id) {
+      return { id: id, label: by[id][0].stage_label || id, rules: by[id] };
+    });
+  }
+
+  function rulesPanel() {
+    if (!SIM.rules) return panel('Rules', '', '<p class="note">Loading the rule list…</p>');
+    var all = visibleRules(), first = true, picked = SIM.picked && ruleById(SIM.picked);
+    var filters = [['alone', 'Stops someone on its own'], ['editable', 'Can be changed'], ['changed', 'Changed'], ['all', 'All']]
+      .map(function (f) {
+        return '<button data-sim-filter="' + f[0] + '" aria-pressed="' + (SIM.filter === f[0]) + '">' + f[1] + '</button>';
+      }).join('');
+    var groups = stageGroups(all).map(function (g) {
+      var more = !SIM.q && !SIM.more[g.id] && g.rules.length > RULE_PAGE;
+      var shown = more ? g.rules.slice(0, RULE_PAGE) : g.rules;
+      // A picked rule stays in view even when it sits below the fold of its group.
+      if (more && picked && g.rules.indexOf(picked) >= RULE_PAGE) shown = shown.concat([picked]);
+      return '<details class="simstage" data-sim-stage="' + esc(g.id) + '"' + (SIM.shut[g.id] ? '' : ' open') + '>' +
+        '<summary><b>' + esc(g.label) + '</b> <span class="fig">' + n0(g.rules.length) + ' ' +
+          (g.rules.length === 1 ? 'rule' : 'rules') + '</span></summary>' +
+        '<ul class="simlist">' + shown.map(function (r) { var h = ruleRow(r, first); first = false; return h; }).join('') + '</ul>' +
+        (more ? '<button class="fmore" data-sim-more="' + esc(g.id) + '">Show all ' + n0(g.rules.length) + '</button>' : '') +
+        '</details>';
+    }).join('');
+    var body =
+      '<div class="simtools"><input type="search" class="siminput simsearch" id="simsearch" placeholder="Search rules, fields, policy codes" ' +
+        'value="' + esc(SIM.q) + '" aria-label="Search rules"><div class="fseg">' + filters + '</div></div>' +
+      (groups
+        ? '<div class="simcols" aria-hidden="true"><span>Rule</span><span' + N('sim_alone') + '>Only this rule stops</span><span>Status</span></div>' + groups
+        : '<p class="simempty">No rule matches' + (SIM.filter !== 'all'
+            ? ' this filter. <button class="drlink" data-sim-filter="all">Show all rules</button></p>' : '.</p>'));
+    var changed = SIM.rules.filter(function (r) { return stepsFor(r.rule_id).length; }).length;
+    return panel(n0(SIM.rules.length) + ' decline rules', changed ? '<span class="fig">' + changed + ' changed</span>' : '',
+      body, N('sim_rules'));
+  }
+
+  function driverFor(rid) { return (F.drivers || []).filter(function (d) { return d.rule_id === rid; })[0]; }
+
+  /** Today's value → the new one, per threshold, and the button that puts it in the scenario. */
   function thresholdEditor(r) {
-    var rows = r.thresholds.map(function (t, i) {
+    return r.thresholds.map(function (t, i) {
       var cur = SIM.steps.filter(function (s) { return s.rule_id === r.rule_id && s.field === t.field; })[0];
       var lo = cur ? cur.value_low : t.value_low;
       var hi = cur && cur.value_high !== undefined ? cur.value_high : t.value_high;
       var range = t.value_high !== null && t.value_high !== undefined;
       return '<div class="simedrow" data-sim-field="' + esc(t.field) + '" data-i="' + i + '">' +
-        '<span class="simedk">Declines when ' + esc(condText(t)) + ' today</span>' +
-        '<span class="simedv">' + esc(fieldName(t.field)) + ' ' +
+        '<span class="simedk">' + esc(fieldLabel(t.field)) + '</span>' +
+        '<span class="simedv"><span class="simednow">today ' + esc(condText(t).slice(fieldName(t.field).length + 1)) + '</span><span aria-hidden="true">→</span>' +
           (range ? esc(t.operator) + ' ' : esc(OPS[t.operator] || t.operator) + ' ') +
-          '<input type="number" step="any" class="siminput" data-bound="lo" value="' + esc(lo) + '" aria-label="' + esc(fieldName(t.field)) + ' threshold">' +
-          (range ? ' and <input type="number" step="any" class="siminput" data-bound="hi" value="' + esc(hi) + '" aria-label="' + esc(fieldName(t.field)) + ' upper bound">' : '') +
-          ' <button class="btn sm" data-sim-apply="' + esc(r.rule_id) + '">Try it</button></span></div>';
+          '<input type="number" step="any" class="siminput" data-bound="lo" value="' + esc(lo) + '" aria-label="New ' + esc(fieldLabel(t.field)) + ' threshold">' +
+          (range ? ' and <input type="number" step="any" class="siminput" data-bound="hi" value="' + esc(hi) + '" aria-label="New ' + esc(fieldLabel(t.field)) + ' upper bound">' : '') +
+        '</span><button class="btn sm" data-sim-apply="' + esc(r.rule_id) + '"' + (SIM.pending ? ' disabled' : '') + '>' +
+          (cur ? 'Update scenario' : 'Add to scenario') + '</button></div>';
     }).join('');
-    return '<div class="simeditor">' + rows +
-      '<p class="simnote">Raising or lowering a threshold can loosen <em>or</em> tighten the rule. The result says which, ' +
-      'and a tightening is the only way anyone approved today is newly declined.</p></div>';
   }
 
-  function rulesPanel() {
-    if (!SIM.rules) return panel('Rules', '', '<p class="note">Loading the rule list…</p>');
-    var all = visibleRules();
-    var shown = SIM.showAll || SIM.q ? all : all.slice(0, RULE_PAGE);
-    var filters = [['all', 'All'], ['alone', 'Stops someone on its own'], ['editable', 'Can be changed'], ['changed', 'Changed']]
-      .map(function (f) {
-        return '<button data-sim-filter="' + f[0] + '" aria-pressed="' + (SIM.filter === f[0]) + '">' + f[1] + '</button>';
-      }).join('');
-    var body =
-      '<div class="simtools"><input type="search" class="siminput simsearch" id="simsearch" placeholder="Search rules, fields, policy codes" ' +
-        'value="' + esc(SIM.q) + '" aria-label="Search rules"><div class="fseg">' + filters + '</div></div>' +
-      '<div class="fdrill-cols simcols"><span></span><span>Rule</span><span' + N('sim_alone') + '>Only this rule stops</span><span></span></div>' +
-      '<ul class="fdrill-list simlist" id="simlist">' +
-        (shown.length ? shown.map(function (r, i) { return ruleRow(r, i === 0); }).join('')
-                      : '<li class="simempty">No rule matches.</li>') + '</ul>' +
-      (all.length > shown.length
-        ? '<button class="fmore" data-sim-more>Show all ' + all.length + ' rules</button>' : '');
-    return panel((SIM.rules.length) + ' decline rules, all on today', '', body, N('sim_rules'));
+  function ruleDetailBody(r) {
+    var st = ruleStatus(r), s = r.sentence || {};
+    var head = '<div class="rdhead"><div><h4 class="rdname">' + esc(r.label) + '</h4>' +
+      '<p class="rdsub"><span class="rid">' + esc(r.rule_id) + '</span>' +
+        (r.policy_code ? ' · ' + esc(r.policy_code) : '') + ' · ' + esc(r.stage_label || r.stage) + '</p></div>' +
+      '<button type="button" class="rdclose" data-sim-close aria-label="Close rule detail">×</button></div>';
+    var what = '<p class="rdwhen"' + N('sim_sentence') + '><b>Declines when</b> ' +
+        esc(s.when || r.tests || 'the rule file gives no testable condition') + '.</p>' +
+      (s.applies_to ? '<p class="rdwhen"><b>Applies to</b> ' + esc(s.applies_to) + '.</p>' : '');
+    if (st.id === 'locked') {
+      var why = r.reason || 'the bank declared it untouchable';
+      return head + what + '<p class="rdlock">' + lockIcon(r) + '<b>Locked.</b> ' +
+        esc(why.charAt(0).toUpperCase() + why.slice(1)) + '.</p>';
+    }
+    var d = driverFor(r.rule_id);
+    var facts = '<dl class="rdfacts">' +
+      '<div><dt>Declines</dt><dd class="fig">' + n0(r.declines) + '</dd></div>' +
+      '<div><dt>Only this rule stops</dt><dd class="fig">' + n0(r.declines_alone) + '</dd></div>' +
+      (d && d.approvals_gained !== null && d.approvals_gained !== undefined
+        ? '<div><dt>Booked if switched off</dt><dd class="fig">+' + n0(d.approvals_gained) + '</dd></div>' : '') +
+      '</dl>' +
+      (d && d.verdict ? '<p class="rdverdict">Decline drivers: <b>' + esc(drGroup(d.verdict).label || d.verdict) + '</b> ' +
+        '<a href="#drivers" class="drlink" data-sim-drivers>Why →</a></p>' : '');
+    var off = st.id === 'off', canTry = SIM.live || precomputed(r.rule_id);
+    var sw = '<label class="simtoggle' + (canTry ? '' : ' is-disabled') + '">' +
+      '<input type="checkbox" role="switch" data-sim-rule="' + esc(r.rule_id) + '"' + (off ? '' : ' checked') +
+      (canTry && !SIM.pending ? '' : ' disabled') + '><i aria-hidden="true"></i>' +
+      '<span class="rn"><span class="rl">' + (off ? 'Switched off in this scenario' : 'On, as today') + '</span>' +
+      '<span class="rsub">' + (canTry ? (off ? 'Switch it back on to take it out of the scenario' : 'Switch off to add that to the scenario')
+                                     : 'Switching it off needs the engine running') + '</span></span></label>';
+    var edit = '';
+    if (r.thresholds.length && !off) {
+      edit = SIM.live
+        ? '<div class="rdsep"' + N('sim_edit') + '>Or move a threshold</div>' + thresholdEditor(r) +
+          '<p class="simnote">Moving a threshold can loosen <em>or</em> tighten the rule. The result says which, ' +
+          'and a tightening is the only way anyone approved today is newly declined.</p>'
+        : '<p class="simnote">Moving a threshold needs the engine running.</p>';
+    }
+    var mine = SIM.steps.map(function (x, i) { return [x, i]; }).filter(function (p) { return p[0].rule_id === r.rule_id; });
+    var inScen = mine.length ? '<div class="rdsep">In your scenario</div><ul class="rdsteps">' + mine.map(function (p) {
+      return '<li><span>Step ' + (p[1] + 1) + ': ' + esc(stepText(p[0])) + '</span>' +
+        '<button class="drlink" data-sim-revert="' + p[1] + '"' + (SIM.pending ? ' disabled' : '') + '>Remove</button></li>';
+    }).join('') + '</ul>' : '';
+    return head + what + facts + sw + edit + inScen;
+  }
+
+  function ruleDetail(r) {
+    return '<section class="panel simdetail" aria-label="Rule detail">' + ruleDetailBody(r) + '</section>';
   }
 
   function sweepPanels() {
@@ -1248,8 +1316,11 @@
   }
 
   function viewRules() {
+    // The detail takes the scenario panel's place; on a narrow screen it opens under its row instead.
+    var r = SIM.picked && ruleById(SIM.picked);
+    var side = r && !narrowRules() ? ruleDetail(r) : waterfall();
     return '<div class="simgrid"><div class="simmain">' + rulesPanel() + '</div>' +
-      '<div class="simside">' + waterfall() + '</div></div>' +
+      '<div class="simside">' + side + '</div></div>' +
       disclose('sweeps', 'Score cutoff sweeps', sweepPanels());
   }
 
@@ -1454,7 +1525,12 @@
     root.style.setProperty('--simside-max', Math.max(240, canvas.clientHeight - top - below - 4) + 'px');
   }
   window.addEventListener('resize', function () {
-    if (S.page === 'simulator') syncStick(document.getElementById('canvaswrap'));
+    if (S.page !== 'simulator') return;
+    // The rule detail moves between the side column and its row when the layout stacks.
+    var narrow = narrowRules();
+    if (SIM.view === 'rules' && SIM.picked && narrow !== syncStick.narrow) { syncStick.narrow = narrow; go('simulator', true); return; }
+    syncStick.narrow = narrow;
+    syncStick(document.getElementById('canvaswrap'));
   });
 
   function wireSimulator(root) {
@@ -1500,19 +1576,34 @@
       b.addEventListener('click', function () { SIM.filter = b.getAttribute('data-sim-filter'); go('simulator', true); });
     });
     root.querySelectorAll('[data-sim-more]').forEach(function (b) {
-      b.addEventListener('click', function () { SIM.showAll = true; go('simulator', true); });
+      b.addEventListener('click', function () { SIM.more[b.getAttribute('data-sim-more')] = true; go('simulator', true); });
+    });
+    root.querySelectorAll('details[data-sim-stage]').forEach(function (d) {
+      d.addEventListener('toggle', function () { SIM.shut[d.getAttribute('data-sim-stage')] = !d.open; });
+    });
+    root.querySelectorAll('[data-sim-pick]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var rid = b.getAttribute('data-sim-pick');
+        SIM.picked = SIM.picked === rid ? null : rid;
+        SIM.refocus = SIM.picked ? '.simdetail [data-sim-close]' : '[data-sim-pick="' + rid + '"]';
+        go('simulator', true);
+      });
+    });
+    root.querySelectorAll('[data-sim-close]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var rid = SIM.picked;
+        SIM.picked = null;
+        SIM.refocus = '[data-sim-pick="' + rid + '"]';
+        go('simulator', true);
+      });
+    });
+    root.querySelectorAll('[data-sim-drivers]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); go('drivers'); });
     });
     root.querySelectorAll('[data-sim-rule]').forEach(function (b) {
       b.addEventListener('change', function () {
         SIM.refocus = '[data-sim-rule="' + b.getAttribute('data-sim-rule') + '"]';
         switchRule(b.getAttribute('data-sim-rule'), b.checked);
-      });
-    });
-    root.querySelectorAll('[data-sim-edit]').forEach(function (b) {
-      b.addEventListener('click', function () {
-        var rid = b.getAttribute('data-sim-edit');
-        SIM.editing = SIM.editing === rid ? null : rid;
-        go('simulator', true);
       });
     });
     root.querySelectorAll('[data-sim-apply]').forEach(function (b) {
@@ -1934,7 +2025,8 @@
     g.out = null; g.error = null; g.pending = false;
     if (F.goal_targets && F.goal_targets.length) g.target = Math.round(F.goal_targets[0] * 100);
     if (!sameProduct) g.frozen = [];
-    SIM.error = null; SIM.editing = null; SIM.steps = []; SIM.out = null; SIM.pending = false; SIM.notice = null;
+    if (!sameProduct) SIM.picked = null;
+    SIM.error = null; SIM.steps = []; SIM.out = null; SIM.pending = false; SIM.notice = null;
     if (SIM.live !== true) {
       SIM.rules = F.rule_catalogue || [];
       if (had.length) SIM.notice = { tag: 'SCENARIO CLEARED', html: 'Your change was cleared: its worked-out result belongs to the previous ' + (sameProduct ? 'period.' : 'product.') };

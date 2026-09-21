@@ -270,27 +270,71 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .simtools .fseg { flex-wrap: wrap; max-width: 100%; }
 .simtools .fseg button { white-space: nowrap; }
 
-.simcols, .simlist li { grid-template-columns: 22px minmax(0, 1fr) 70px max-content; }
-.simcols > span:nth-child(2) { text-align: start; }
-.simcols > span:nth-child(3) { text-align: end; }
-.simlist li { display: grid; gap: 10px; align-items: start; }
-.simlist li.simempty { display: block; color: var(--muted); }
-.simlist .rc { display: flex; flex-direction: column; align-items: flex-end; }
-.simlist .rc small { font-size: 9.5px; color: var(--faint); }
-.simlist .rl { white-space: normal; }
-.simlist li.is-off .rl { text-decoration: line-through; text-decoration-color: var(--faint); color: var(--muted); }
-.simlist li.is-edited { background: var(--sunken); box-shadow: 0 0 0 4px var(--sunken); border-radius: 4px; }
-.simsw { display: grid; place-items: center; padding-top: 2px; cursor: pointer; }
-.simsw input { margin: 0; width: 15px; height: 15px; accent-color: var(--ink-2); cursor: inherit; }
-.simsw.is-disabled { cursor: not-allowed; opacity: .5; }
+.simcols, .simpick { display: grid; grid-template-columns: minmax(0, 1fr) 92px 84px; gap: 12px; align-items: center; }
+.simcols { padding: 0 8px 6px; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint);
+  border-bottom: 1px solid var(--line); }
+.simcols > span:nth-child(n+2) { text-align: end; }
+.simstage { border-bottom: 1px solid var(--line-soft); }
+.simstage > summary { list-style: none; display: flex; align-items: baseline; gap: 8px; padding: 10px 2px 6px; cursor: pointer; }
+.simstage > summary::-webkit-details-marker { display: none; }
+.simstage > summary::before { content: '▸'; color: var(--faint); font-size: 11px; transition: transform .15s; }
+.simstage[open] > summary::before { transform: rotate(90deg); }
+.simstage > summary b { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.simstage > summary .fig { font-size: 11.5px; color: var(--muted); }
+.simstage > .fmore { margin: 2px 0 10px; }
+.simlist { list-style: none; margin: 0 0 6px; padding: 0; }
+.simlist li + li { border-top: 1px solid var(--line-soft); }
+.simpick { width: 100%; padding: 8px; border: 0; border-radius: 5px; background: none; font: inherit; color: inherit;
+  text-align: start; cursor: pointer; }
+.simpick:hover { background: var(--sunken); }
+.simpick:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+.simrule.is-picked > .simpick { background: var(--sunken); box-shadow: inset 3px 0 0 var(--ink-2); }
+.simpick .rn { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.simpick .rl { font-size: 13px; color: var(--ink); white-space: normal; }
+.simpick .rid { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.simpick .rc { font-family: var(--mono); font-size: 13px; text-align: end; color: var(--ink); }
+.simrule.is-off > .simpick .rl { text-decoration: line-through; text-decoration-color: var(--faint); color: var(--muted); }
+.simstatus { justify-self: end; display: inline-flex; align-items: center; font-size: 11px; line-height: 1.6;
+  padding: 0 6px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.simstatus.is-off, .simstatus.is-changed { color: var(--ink); border-color: var(--ink-2); font-weight: 600; }
+.simstatus.is-locked { color: var(--faint); border-color: transparent; padding-inline: 0; }
+.simstatus .rlock { margin-inline-end: 4px; }
+.simempty { color: var(--muted); font-size: 13px; }
 .simwhy { color: var(--faint); font-style: italic; }
 .simtag { color: var(--ink); border: 1px solid var(--line-hard); border-radius: 3px; padding: 0 4px; background: var(--surface); }
-.rcell { display: flex; justify-content: flex-end; }
-.rcell .btn { white-space: nowrap; }
 
-.simeditor { grid-column: 2 / -1; border: 1px solid var(--line); border-radius: 7px; padding: 10px 12px; background: var(--surface); }
-.simedrow { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; padding: 4px 0; }
-.simedk { font-size: 11.5px; color: var(--muted); }
+/* The rule detail: in the side column, or under its row once the layout stacks. */
+.simdetail { padding: 14px 16px; }
+.simdetail.is-inline { margin: 0 0 10px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+.rdhead { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.rdname { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+.rdsub { margin: 3px 0 0; font-size: 11.5px; color: var(--muted); }
+.rdsub .rid { font-family: var(--mono); }
+.rdclose { flex: none; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+  color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+.rdclose:hover { color: var(--ink); border-color: var(--line-hard); }
+.rdwhen { margin: 10px 0 0; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+.rdwhen b { color: var(--ink); font-weight: 600; }
+.rdlock { margin: 12px 0 0; padding: 10px 12px; border-radius: 6px; background: var(--sunken); font-size: 12.5px; color: var(--ink-2); }
+.rdfacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; margin: 14px 0 0; }
+.rdfacts > div { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+.rdfacts dt { font-size: 10.5px; color: var(--muted); }
+.rdfacts dd { margin: 2px 0 0; font-family: var(--mono); font-size: 14px; color: var(--ink); }
+.rdverdict { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.simdetail .simtoggle { margin-top: 10px; border-top: 1px solid var(--line-soft); }
+.rdsep { margin: 12px 0 4px; font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+.rdsteps { list-style: none; margin: 0; padding: 0; font-size: 12.5px; }
+.rdsteps li { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; }
+.simednow { color: var(--muted); }
+@media (max-width: 640px) {
+  .simcols, .simpick { grid-template-columns: minmax(0, 1fr) 56px 70px; gap: 8px; }
+  .simcols > span:nth-child(2) { font-size: 0; }
+  .simcols > span:nth-child(2)::after { content: 'Alone'; font-size: 10.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .simstage > summary::before { transition: none; } }
+
+.simedrow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 6px 0; }
+.simedk { font-size: 11.5px; color: var(--muted); flex-basis: 100%; }
 .simedv { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; font-family: var(--mono); font-size: 12px; }
 .simedv .siminput { width: 96px; }
 .simnote { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
