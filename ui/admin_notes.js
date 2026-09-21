@@ -105,10 +105,15 @@ window.__ADMIN_NOTES__ = function (F) {
       d: 'Which source column supplies each field the rules read. Everyone who works with data sees the result, ' +
          'read-only, on Settings; only an administrator edits it.'
     },
+    mp_state: {
+      t: 'Fields in use',
+      d: 'Counted from the applicant table every screen runs on: how many of the fields the rules read it supplies. ' +
+         'This is the real state, and it is why the analysis runs.'
+    },
     mp_example: {
       t: 'Example bank layout',
-      d: 'An illustration of a real database with its own column names, and what happens when some required fields ' +
-         'are not mapped. It is not the client\'s schema, which has not arrived. Simulated.'
+      d: 'An illustration of mapping a new source with its own column names, and what happens when some required fields ' +
+         'are not mapped. It is not the client\'s schema, which has not arrived, and it does not touch the data in use. Simulated.'
     },
     rp_upload: {
       t: 'Load a rule workbook',
@@ -120,9 +125,19 @@ window.__ADMIN_NOTES__ = function (F) {
     /* ------------------------------------------------------------ the rest */
     oc_head: {
       t: 'Outcomes and performance',
-      d: 'How a loan is called bad, and where the repayment history comes from. Real data has no ground truth for declined ' +
-         'applicants. In the demo the bad flag is generated with the applicants, so every bad rate on the analysis ' +
-         'screens is a property of the synthetic population. Simulated.'
+      d: 'How a loan is called bad. Read from config `outcome`: the days-past-due mark, the months on book it must be reached ' +
+         'within, and the extract date. The engine reads booking_date and bad_date against it and never sees a ground-truth ' +
+         'flag. In the demo those dates are generated with the synthetic applicants, so the rates describe that population.'
+    },
+    oc_judged: {
+      t: 'Loans the definition can judge',
+      d: 'Per product, over every application in the file: loans booked, the ones on book long enough to judge, and how many ' +
+         'went bad. These are the loans behind every bad rate, whatever application period a screen shows.'
+    },
+    oc_planned: {
+      t: 'Planned refinements',
+      d: 'Exclusions (early settlement, fraud) and reading performance straight from the bank\'s collections tables. ' +
+         'Neither is applied yet: every loan booked and old enough is judged. Simulated.'
     },
     oc_recon: {
       t: 'Reconciliation',

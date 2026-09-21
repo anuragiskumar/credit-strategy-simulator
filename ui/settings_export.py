@@ -10,10 +10,11 @@ merged later, so neither may rewrite the other's fixture.
 The fixture has two kinds of content, and the split is the point:
 
   * REAL     read from the engine and the files on disk: the rule workbooks, the applicant
-             table, the field requirements, the policy and risk-appetite values, the replay
-             assumptions, and how long the last replay took.
+             table, the field requirements, the bad definition and the loans it can judge, the
+             policy and risk-appetite values, the replay assumptions, and how long the last
+             replay took.
   * SIMULATED everything the deployed product needs but this demo does not: database
-             connectors, file upload, the licence, outcome definitions, access control,
+             connectors, file upload, the licence, outcome exclusions and reconciliation, access control,
              versions and updates. All of it sits under the single top-level key `simulated`.
              The screen tags anything drawn from that key, and a test asserts nothing
              simulated leaks outside it.
@@ -32,7 +33,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src import client_loader, client_schema
+from src import client_analysis, client_loader, client_schema
 from src.client_generate import load_client_config
 from src.client_replay import compile_rules, locked_rules, replay
 from src.config import resolve_path
@@ -200,6 +201,49 @@ def build_fields(compiled, df: pd.DataFrame | None) -> dict:
         "unsupplied": [{"field": f, "rules": len(ids)} for f, ids in
                        sorted(unsupplied.items(), key=lambda kv: -len(kv[1]))],
     }
+
+
+def build_outcome(cfg: dict, df: pd.DataFrame | None) -> dict:
+    """The bad definition every performance figure is read against, and what it can judge today.
+
+    Read from config `outcome` and the applicant table's `booking_date` / `bad_date`, the same
+    way the engine reads them, so the counts here are the counts behind every bad rate.
+    """
+    bd = client_analysis.bad_definition(cfg)
+    months = bd["within_months"]
+    booked_by = (bd["as_of"] - pd.DateOffset(months=months)).date()
+    out = {
+        "as_of": _date(bd["as_of"].date()),
+        "definition": [
+            {"key": "A loan is bad when it reaches", "value": f"{bd['dpd']} days past due"},
+            {"key": "Within", "value": f"{months} months of booking"},
+            {"key": "Performance read as of", "value": _date(bd["as_of"].date())},
+            {"key": "A loan can be judged once booked on or before", "value": _date(booked_by)},
+        ],
+        "sources": [
+            {"key": "Booked", "value": "booking_date"},
+            {"key": "Went bad", "value": "bad_date"},
+        ],
+        "rule": f"A loan booked less than {months} months before the extract is left out of every "
+                "bad rate. It is not counted as good, because it has not been on book long enough "
+                "to have gone bad.",
+        "products": [],
+    }
+    if df is None:
+        return out
+    perf = client_analysis.observed_performance(df, cfg)
+    booked = df["booking_date"].notna()
+    for product, idx in df.groupby("product", sort=False).groups.items():
+        m = perf.loc[idx, "mature"]
+        bad = perf.loc[idx, "observed_bad"]
+        out["products"].append({
+            "product": str(product),
+            "booked": int(booked.loc[idx].sum()),
+            "judged": int(m.sum()),
+            "bad": int(bad.sum()),
+            "bad_rate": round(float(bad.mean()), 6) if m.any() else None,
+        })
+    return out
 
 
 def build_policy(cfg: dict) -> dict:
@@ -481,18 +525,17 @@ def build_simulated(as_of: dt.date, real_fields: dict) -> dict:
         },
         "example_layout": {
             "source_object": "LOS.APPLICATIONS_V",
-            "note": "An illustrative layout with bank-style column names, not your own schema.",
+            "note": "An illustrative layout with bank-style column names, not your own schema. "
+                    "The data in use is unaffected.",
             "mapping": layout,
             "summary": {"required": len(required),
                         "required_mapped": len(required) - len(unmapped_required),
                         "unmapped_required": unmapped_required},
         },
         "outcomes": {
-            "note": "How a loan is classed as bad, and where its repayment history is read from.",
-            "definition": [
-                {"key": "A loan is bad when it reaches", "value": "90 days past due"},
-                {"key": "Within", "value": "12 months on book"},
-                {"key": "Only loans booked at least", "value": "12 months ago"},
+            "note": "Planned for the deployed product. The bad definition above is applied today; "
+                    "these refinements are not.",
+            "exclusions": [
                 {"key": "Exclude", "value": "Early settlements and fraud cases"},
             ],
             "sources": [
@@ -578,6 +621,7 @@ def build(as_of: dt.date | None = None) -> dict:
     rulepack = build_rulepack(cfg, inv, compiled)
     dataset = build_dataset(cfg, df)
     fields = build_fields(compiled, df)
+    outcome = build_outcome(cfg, df)
     run = build_run(cfg, df, inv, compiled)
     return {
         "meta": {
@@ -590,6 +634,7 @@ def build(as_of: dt.date | None = None) -> dict:
         "rulepack": rulepack,
         "dataset": dataset,
         "fields": fields,
+        "outcome": outcome,
         "policy": build_policy(cfg),
         "run": run,
         "simulated": build_simulated(as_of, fields),

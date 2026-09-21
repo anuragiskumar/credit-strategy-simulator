@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 10:03 UTC",
+  "generated": "2026-09-21 10:45 UTC",
   "product": "TWQR",
   "synthetic": true,
   "note": "Rule set, dataset facts, field requirements and policy values are read from the engine. Everything under `simulated` is not."
@@ -105,7 +105,7 @@
  "dataset": {
   "available": true,
   "label": "Demo dataset (synthetic)",
-  "rows": 50000,
+  "rows": 70000,
   "columns": 36,
   "date_from": "1 Sep 2024",
   "date_to": "31 Aug 2026",
@@ -114,15 +114,15 @@
   "nulls": [
    {
     "column": "military_rank",
-    "share": 0.9212
+    "share": 0.9209
    },
    {
     "column": "military_employee_type",
-    "share": 0.9212
+    "share": 0.9209
    },
    {
     "column": "simah_score",
-    "share": 0.1638
+    "share": 0.1644
    }
   ],
   "preview": {
@@ -245,7 +245,7 @@
     "role": "rule input",
     "need": "Required",
     "rules": 102,
-    "null_share": 0.1638
+    "null_share": 0.1644
    },
    {
     "column": "employment_type",
@@ -290,7 +290,7 @@
     "role": "rule input",
     "need": "Required",
     "rules": 31,
-    "null_share": 0.9212
+    "null_share": 0.9209
    },
    {
     "column": "crif_score",
@@ -353,7 +353,7 @@
     "role": "rule input",
     "need": "Required",
     "rules": 9,
-    "null_share": 0.9212
+    "null_share": 0.9209
    },
    {
     "column": "tenure_months",
@@ -461,7 +461,7 @@
     "role": "analysis",
     "need": "Recommended",
     "rules": 0,
-    "null_share": 0.9861
+    "null_share": 0.9784
    },
    {
     "column": "booking_date",
@@ -470,7 +470,7 @@
     "role": "analysis",
     "need": "Recommended",
     "rules": 0,
-    "null_share": 0.7835
+    "null_share": 0.711
    },
    {
     "column": "downpayment_pct",
@@ -533,6 +533,54 @@
    {
     "field": "count(simahtransform[item.ciinstallmentamount-item.originalinstallmentamount != 0]) > 0",
     "rules": 1
+   }
+  ]
+ },
+ "outcome": {
+  "as_of": "31 Aug 2026",
+  "definition": [
+   {
+    "key": "A loan is bad when it reaches",
+    "value": "90 days past due"
+   },
+   {
+    "key": "Within",
+    "value": "12 months of booking"
+   },
+   {
+    "key": "Performance read as of",
+    "value": "31 Aug 2026"
+   },
+   {
+    "key": "A loan can be judged once booked on or before",
+    "value": "31 Aug 2025"
+   }
+  ],
+  "sources": [
+   {
+    "key": "Booked",
+    "value": "booking_date"
+   },
+   {
+    "key": "Went bad",
+    "value": "bad_date"
+   }
+  ],
+  "rule": "A loan booked less than 12 months before the extract is left out of every bad rate. It is not counted as good, because it has not been on book long enough to have gone bad.",
+  "products": [
+   {
+    "product": "TWQR",
+    "booked": 10823,
+    "judged": 5364,
+    "bad": 455,
+    "bad_rate": 0.084825
+   },
+   {
+    "product": "IJMB",
+    "booked": 9410,
+    "judged": 4628,
+    "bad": 538,
+    "bad_rate": 0.116249
    }
   ]
  },
@@ -713,7 +761,7 @@
  },
  "run": {
   "available": true,
-  "applicants": 50000,
+  "applicants": 70000,
   "rules_in_scope": 227,
   "rules_replayed": 226,
   "unevaluable": [
@@ -753,9 +801,9 @@
     "description": "This rule applies when customer is Saudi, SIMAH score is between 600 and 99999, monthly in"
    }
   ],
-  "never_fire_count": 16,
-  "replay_seconds": 2.1,
-  "generated": "2026-09-21 10:03 UTC"
+  "never_fire_count": 15,
+  "replay_seconds": 2.5,
+  "generated": "2026-09-21 10:45 UTC"
  },
  "simulated": {
   "simulated": true,
@@ -1169,7 +1217,7 @@
   },
   "example_layout": {
    "source_object": "LOS.APPLICATIONS_V",
-   "note": "An illustrative layout with bank-style column names, not your own schema.",
+   "note": "An illustrative layout with bank-style column names, not your own schema. The data in use is unaffected.",
    "mapping": [
     {
      "column": "employer_segment",
@@ -1333,20 +1381,8 @@
    }
   },
   "outcomes": {
-   "note": "How a loan is classed as bad, and where its repayment history is read from.",
-   "definition": [
-    {
-     "key": "A loan is bad when it reaches",
-     "value": "90 days past due"
-    },
-    {
-     "key": "Within",
-     "value": "12 months on book"
-    },
-    {
-     "key": "Only loans booked at least",
-     "value": "12 months ago"
-    },
+   "note": "Planned for the deployed product. The bad definition above is applied today; these refinements are not.",
+   "exclusions": [
     {
      "key": "Exclude",
      "value": "Early settlements and fraud cases"

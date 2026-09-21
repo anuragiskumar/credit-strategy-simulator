@@ -4,8 +4,10 @@
  * the product itself would give. In the deployed product the server refuses every action here
  * whatever this page draws; hiding it is presentation, not security.
  *
- * Everything on this page is drawn from the fixture's `simulated` key, so it carries one PREVIEW tag
- * at the top rather than one per section. Nothing leaves the browser, a chosen file is never read
+ * Most of this page is drawn from the fixture's `simulated` key, so it carries one PREVIEW tag at the
+ * top rather than one per section. The two exceptions are real and say so with OBSERVED: the field
+ * mapping's state (what the data in use supplies) and the bad definition (config `outcome`, with the
+ * loans it can judge). Their example and planned parts are labelled in place. Nothing leaves the browser, a chosen file is never read
  * (only its name is shown), the password field is never read, and nothing here changes a figure on
  * another screen.
  *
@@ -16,7 +18,7 @@
   'use strict';
 
   var K = window.SettingsKit;
-  var esc = K.esc, n0 = K.n0, sim = K.sim, N = K.N;
+  var esc = K.esc, n0 = K.n0, sim = K.sim, pv = K.pv, N = K.N;
   var section = K.section, caveat = K.caveat, table = K.table, kv = K.kv;
   var F = window.__SETTINGS__, SIM = F.simulated, L = SIM.licence;
   var can = window.Session.can, paused = window.Session.paused;
@@ -245,13 +247,18 @@
         '<td><span class="su-tag need-' + esc(r.need.split(' ')[0]) + '">' + esc(r.need) + '</span></td>' +
         '<td class="num">' + (r.rules ? n0(r.rules) : '<span class="nodata">—</span>') + '</td><td>' + src + '</td></tr>';
     });
-    return section('mapping', 'Field mapping', '',
+    var complete = C.required_mapped === C.required;
+    return section('mapping', 'Field mapping', pv('OBSERVED'),
       '<p class="su-lead">Which source column supplies each field the rules read.</p>' +
+      caveat(complete ? 'obs' : 'warn', 'IN USE',
+        '<strong>' + n0(C.required_mapped) + ' of ' + n0(C.required) + ' required fields supplied by the data in use.</strong> ' +
+        (complete ? 'Every replay runs on it.' : 'Rules that read a missing field are not evaluated.'), N('mp_state')) +
+      '<div class="su-sub su-gap"' + N('mp_example') + '>Mapping a new source · example</div>' +
       caveat(ex.summary.unmapped_required.length ? 'warn' : '', 'EXAMPLE',
-        '<strong>' + n0(ex.summary.required_mapped) + ' of ' + n0(ex.summary.required) + ' required fields mapped.</strong> ' +
-        'Nothing can run until the rest are mapped or supplied. ' + esc(ex.note), N('mp_example')) +
+        '<strong>' + esc(ex.source_object) + ': ' + n0(ex.summary.required_mapped) + ' of ' + n0(ex.summary.required) +
+        ' required fields mapped.</strong> This source could not be analysed until the rest are mapped or supplied. ' + esc(ex.note)) +
       '<div class="su-scroll su-gap"><div class="tablewrap"><table class="t su-compact"><thead><tr><th>Field</th><th>Type</th>' +
-      '<th>Need</th><th class="num">Rules</th><th>Source column</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div></div>',
+      '<th>Need</th><th class="num">Rules</th><th>Example source column</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div></div>',
       N('mp_admin'));
   }
 
@@ -268,12 +275,22 @@
 
   /* ================================================================ the rest */
   function secOutcomes() {
-    var O = SIM.outcomes;
-    return section('outcomes', 'Outcomes and performance', '',
-      '<p class="su-lead">' + esc(O.note) + '</p>' +
+    var O = F.outcome, P = SIM.outcomes;
+    var judged = O.products.length ? table('<th>Product</th><th class="num">Booked</th><th class="num">Old enough to judge</th>' +
+      '<th class="num">Went bad</th><th class="num">Bad rate</th>', O.products.map(function (r) {
+        return '<tr><td>' + esc(r.product) + '</td><td class="num">' + n0(r.booked) + '</td><td class="num">' + n0(r.judged) + '</td>' +
+          '<td class="num">' + n0(r.bad) + '</td><td class="num">' + (r.bad_rate === null ? '<span class="nodata">—</span>' :
+          (100 * r.bad_rate).toFixed(1) + '%') + '</td></tr>';
+      })) : '';
+    return section('outcomes', 'Outcomes and performance', pv('OBSERVED'),
+      '<p class="su-lead">How a loan is classed as bad. Every bad rate in the product is read against this definition.</p>' +
       '<div class="cols2"><div><div class="su-sub">What counts as bad</div>' + kv(O.definition) + '</div>' +
-      '<div><div class="su-sub">Where the outcome comes from</div>' + kv(O.sources, true) + '</div></div>' +
-      '<div class="su-gap">' + caveat('', 'RECONCILE', esc(O.reconciliation), N('oc_recon')) + '</div>', N('oc_head'));
+      '<div><div class="su-sub">Read from</div>' + kv(O.sources, true) + '<p class="su-help su-gap">' + esc(O.rule) + '</p></div></div>' +
+      (judged ? '<div class="su-sub su-gap"' + N('oc_judged') + '>Loans the definition can judge</div>' + judged : '') +
+      '<div class="su-sub su-gap"' + N('oc_planned') + '>Planned · not applied yet</div>' +
+      '<p class="su-help">' + esc(P.note) + '</p>' +
+      '<div class="cols2"><div>' + kv(P.exclusions) + '</div><div>' + kv(P.sources, true) + '</div></div>' +
+      '<div class="su-gap">' + caveat('', 'RECONCILE', esc(P.reconciliation), N('oc_recon')) + '</div>', N('oc_head'));
   }
   function secPlatform() {
     var groups = SIM.governance.map(function (g) { return '<div><div class="su-sub">' + esc(g.group) + '</div>' + kv(g.items) + '</div>'; }).join('');
@@ -318,7 +335,8 @@
           ' <a href="settings.html">Go to Settings</a>.', N('ad_refused'));
     }
     return '<div class="pagehead"><div class="su-row"><h2' + N('ad_head') + '>Administration</h2>' + sim() + '</div>' +
-      '<p>How the installed product is licensed, fed, secured and maintained.</p></div>' +
+      '<p>How the installed product is licensed, fed, secured and maintained. Sections marked OBSERVED are read from ' +
+      'the data in use; the rest is a preview.</p></div>' +
       visible().map(function (s) { return s.build(); }).join('');
   }
 

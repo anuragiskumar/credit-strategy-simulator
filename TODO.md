@@ -185,9 +185,9 @@ has access, and does anything need me?"
 - [ ] **Licence moves to the bottom.** Fold "signature verified" into the status line, keep
       Licence ID (support reference), and move Algorithm and Fingerprint under "Technical details"
       or drop them. They are for Azentio support, not the client.
-- [ ] **Field mapping is inconsistent:** it says "11 of 24 mapped. Nothing can run" while the app
+- [x] **Field mapping is inconsistent:** it says "11 of 24 mapped. Nothing can run" while the app
       runs. Show the real state, or make it a clearly labelled mapping wizard.
-- [ ] **"Outcomes and performance" claims something the engine doesn't do** (90 DPD / 12 months,
+- [x] **"Outcomes and performance" claims something the engine doesn't do** (90 DPD / 12 months,
       performance source). Label it as planned configuration or remove it until A1 lands.
 - [ ] **Add the missing admin work:** Users & access (who has which role, SSO status) and an
       audit log you can view and filter, not only export.

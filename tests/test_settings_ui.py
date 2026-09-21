@@ -19,6 +19,7 @@ import json
 import re
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from src.client_generate import load_client_config
@@ -33,7 +34,7 @@ HAS_RULES = bool(list(REPO.glob("business-rules-*.xlsx")))
 needs_fixture = pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not built")
 
 PROVENANCE = {"OBSERVED", "PREDICTED", "INFERRED", "NOT_MODELLED", "BLENDED"}
-TOP_LEVEL = {"meta", "rulepack", "dataset", "fields", "policy", "run", "simulated"}
+TOP_LEVEL = {"meta", "rulepack", "dataset", "fields", "outcome", "policy", "run", "simulated"}
 PAGES = ("client.html", "settings.html", "admin.html")
 PAGE_SCRIPTS = ("settings_kit.js", "page_shell.js", "settings.js", "admin.js")
 ROLE_NAMES = ("Business user", "Analyst", "Risk approver", "Administrator",
@@ -417,6 +418,35 @@ def test_the_example_layout_states_how_many_required_fields_are_unmapped():
     assert s["required_mapped"] + len(s["unmapped_required"]) == s["required"]
     # It must still disclaim being the bank's own schema, in the bank's voice.
     assert "illustrative" in ex["note"].lower() and "not your own schema" in ex["note"].lower()
+
+
+def test_the_field_mapping_leads_with_the_data_in_use_not_the_example():
+    body = _code("admin.js")
+    sec = body[body.index("function secMapping"):body.index("function secRules")]
+    assert "Nothing can run" not in sec
+    assert sec.index("'IN USE'") < sec.index("'EXAMPLE'")
+    assert "C.required_mapped" in sec
+
+
+@needs_fixture
+def test_the_outcome_block_is_the_engines_bad_definition():
+    from src import client_analysis as A
+    cfg = load_client_config()
+    o = _fixture()["outcome"]
+    bd = A.bad_definition(cfg)
+    shown = {d["key"]: d["value"] for d in o["definition"]}
+    assert shown["A loan is bad when it reaches"] == f"{bd['dpd']} days past due"
+    assert shown["Within"] == f"{bd['within_months']} months of booking"
+    assert {s["value"] for s in o["sources"]} == {"booking_date", "bad_date"}
+    # The suite repoints data_path at the Streamlit dataset, so read the file the fixture was built from.
+    path = REPO / "data" / "client_applications.parquet"
+    if not path.exists():
+        pytest.skip("client dataset not built")
+    perf = A.observed_performance(pd.read_parquet(path), cfg)
+    assert sum(p["judged"] for p in o["products"]) == int(perf["mature"].sum())
+    # What the engine does not do yet stays under `simulated`, labelled as planned.
+    assert "Exclude" not in json.dumps(o)
+    assert "planned" in _fixture()["simulated"]["outcomes"]["note"].lower()
 
 
 @needs_fixture
