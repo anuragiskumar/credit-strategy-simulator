@@ -4,6 +4,7 @@
     engine.rules()                             # every decline rule, with what can be edited
     engine.simulate([{"type": "threshold", "rule_id": "racAndPolicies#028",
                       "field": "income", "value_low": 4000}])
+    engine.simulate([{"type": "cutoff", "field": "simahcreditscore", "from": 600, "to": 580}])
     engine.goal_seek(target=0.30, ceiling=0.11, frozen=["racAndPolicies#012"])
 
 `ui/serve.py` puts these behind HTTP. They live here, not there, so the tests call exactly what
@@ -23,10 +24,22 @@ import numpy as np
 import pandas as pd
 
 from src import client_analysis as A, client_optimise as O, client_simulate as S
+from src.client_replay import locked_rules
 
 MAX_CHANGES = 12
 """How many changes one scenario may stack. Each step is re-simulated to show its own effect,
 so the cap keeps a request to well under a second; nobody takes twelve changes to committee."""
+
+
+CUTOFFS = [
+    {"field": "simahcreditscore", "label": "SIMAH score cutoff", "from": 600,
+     "values": [560, 570, 580, 590, 600, 610, 620, 630, 640]},
+    {"field": "crifscore", "label": "CRIF score cutoff", "from": 605,
+     "values": [565, 575, 585, 595, 605, 615, 625, 635, 645]},
+]
+"""The score cutoffs the screen offers as sliders: every rule testing the score at `from` moves
+together. Below `from` loosens, above it tightens. Goal-seek's own cutoff moves come from config
+and are sent back as the same `cutoff` change, so an option can be applied as a scenario."""
 
 
 class ApiError(ValueError):
@@ -89,6 +102,8 @@ def lever_for(base: S.Baseline, inv, change: dict) -> S.Lever:
     try:
         if kind == "off":
             return S.off_lever(base, str(change.get("rule_id")))
+        if kind == "cutoff":
+            return cutoff_lever(base, inv, change)
         if kind == "threshold":
             return S.threshold_lever(base, inv, str(change.get("rule_id")),
                                      str(change.get("field")),
@@ -96,7 +111,37 @@ def lever_for(base: S.Baseline, inv, change: dict) -> S.Lever:
                                      value_high=_as_float(change.get("value_high")))
     except S.NotEditable as e:
         raise ApiError(str(e)) from None
-    raise ApiError(f"unknown change type {kind!r}: use 'off' or 'threshold'")
+    raise ApiError(f"unknown change type {kind!r}: use 'off', 'threshold' or 'cutoff'")
+
+
+def cutoff_lever(base: S.Baseline, inv, change: dict) -> S.Lever:
+    """Move every rule testing `field` at `from` to `to`, as the sweep and goal-seek do.
+
+    Lowering a score or income cutoff loosens; raising it tightens, and a person who asked for
+    a tightening gets exactly that, so the move is made whichever way each rule points.
+    """
+    field = change.get("field")
+    lo, to = _as_float(change.get("from")), _as_float(change.get("to"))
+    if not isinstance(field, str) or lo is None or to is None:
+        raise ApiError("a cutoff change needs a field, a from and a to")
+    if lo == to:
+        raise ApiError(f"{field} is already at {lo:g}")
+    tighten = to > lo
+    try:
+        lever = S.field_lever(inv, field, lo, to, product=base.cfg["product"],
+                              locked=locked_rules(base.cfg), allow_tighten=tighten,
+                              label=f"{field} cutoff {lo:g} to {to:g}")
+    except ValueError as e:
+        raise ApiError(str(e)) from None
+    object.__setattr__(lever, "direction", "tighten" if tighten else "loosen")
+    return lever
+
+
+def _change_key(ch: dict) -> tuple:
+    """What a change touches, for refusing the same thing twice in one scenario."""
+    if ch.get("type") == "cutoff":
+        return ("cutoff", ch.get("field"), _as_float(ch.get("from")))
+    return (ch.get("rule_id"), ch.get("field") if ch.get("type") == "threshold" else None)
 
 
 def _as_float(v):
@@ -151,14 +196,15 @@ def simulate_changes(base: S.Baseline, inv, changes: list) -> dict:
     off: dict[str, int] = {}
     for i, ch in enumerate(changes):
         rid = ch.get("rule_id")
-        key = (rid, ch.get("field") if ch.get("type") == "threshold" else None)
+        key = _change_key(ch)
         clash = seen.get(key)
         if clash is None and ch.get("type") == "off":
-            clash = next((j for (r, _), j in seen.items() if r == rid), None)
-        if clash is None and rid in off:
+            clash = next((j for k, j in seen.items() if len(k) == 2 and k[0] == rid), None)
+        if clash is None and ch.get("type") != "cutoff" and rid in off:
             clash = off[rid]
         if clash is not None:
-            raise ApiError(f"{rid} appears twice (steps {clash + 1} and {i + 1}); "
+            what = f"the {ch.get('field')} cutoff" if ch.get("type") == "cutoff" else rid
+            raise ApiError(f"{what} appears twice (steps {clash + 1} and {i + 1}); "
                            f"edit the existing step instead")
         seen[key] = i
         if ch.get("type") == "off":
@@ -203,7 +249,7 @@ def run_goal_seek(base: S.Baseline, inv, target, ceiling=None, frozen=None) -> d
     out = O.goal_seek(base, inv, t, base.cfg, ceiling=c, frozen=frozen)
     options = []
     for row in out.to_dict("records"):
-        options.append({k: (_num(v) if not isinstance(v, str) else v) for k, v in row.items()})
+        options.append({k: (v if isinstance(v, (str, list)) else _num(v)) for k, v in row.items()})
     return {"target": t, "reached": bool(out.attrs.get("reached")),
             "ceiling": _num(out.attrs.get("ceiling")), "frozen": sorted(frozen),
             "options": options}
@@ -250,7 +296,8 @@ class Engine:
                 "booked_bad_rate": _num(self.base.booked_bad_rate),
                 "bad_rate_ceiling": _num(self.base.cfg["optimise"]["max_bad_rate"]),
                 "max_changes": MAX_CHANGES,
-                "goal_search": goal_search_space(self.base.cfg)}
+                "goal_search": goal_search_space(self.base.cfg),
+                "cutoffs": CUTOFFS}
 
     def rules(self) -> list[dict]:
         with self._lock:

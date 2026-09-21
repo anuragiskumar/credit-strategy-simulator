@@ -258,6 +258,45 @@ window.__NOTES__ = function (F) {
          'applicants under the changed rules, so "newly approved" is a set of actual applicants, not a projected ' +
          'percentage.'
     },
+    sim_views: {
+      t: 'Three views',
+      d: 'Set a target answers "how do we reach X% approval?". Try a change answers "what if?" with a few ' +
+         'ready-made stories, the two score cutoffs and the busiest rules. All rules is the analyst\'s ' +
+         'workbench: every rule, every threshold. Try a change and All rules share one scenario.'
+    },
+    sim_outcome: {
+      t: 'The outcome bar',
+      d: 'The whole book with every change in the scenario applied, against today. It stays at the top of the ' +
+         'screen while you change things below it, so the answer is always in view.'
+    },
+    sim_legend: {
+      t: 'What the colours mean',
+      d: 'Colour says how a figure is known, never whether it is good. Green is counted from the replay. Orange ' +
+         'is estimated, because the newly approved have never been booked, so nobody has seen them repay. Grey ' +
+         'means no estimate is possible.'
+    },
+    sim_chart: {
+      t: 'Approval against bad rate',
+      d: 'Each dot is a whole book: today, your scenario or a goal-seek option. Right means more approvals; up ' +
+         'means a higher bad rate. The dashed red line is the bad-rate limit, and anything in the shaded band ' +
+         'above it is out of bounds. The line from Today shows the trade each change makes.'
+    },
+    sim_presets: {
+      t: 'Ready-made stories',
+      d: 'One click sets up a scenario worth talking about. The bottleneck is the rule that stops the most ' +
+         'applicants on its own. "Safely" picks the rules whose release, one at a time, kept the bad rate at or ' +
+         'below today\'s. The downturn raises a score cutoff, so some applicants approved today are turned away.'
+    },
+    sim_cutoff: {
+      t: 'Score cutoffs',
+      d: 'Moving a cutoff moves every rule that tests that score at today\'s value, together. Left loosens, ' +
+         'right tightens. The mark on the track is today\'s setting.'
+    },
+    sim_levers: {
+      t: 'The busiest rules',
+      d: 'The rules that, on their own, stop the most applicants. Switch one off to release them. The count is the ' +
+         'most switching it off could release, before later stages take their share.'
+    },
     sim_mode: {
       t: 'Engine or precomputed',
       d: 'With the engine running (python -m ui.serve) every change is replayed live, in a fraction of a second. ' +
@@ -271,7 +310,7 @@ window.__NOTES__ = function (F) {
          'already catch everyone it declines, so switching it off alone moves nobody.'
     },
     sim_alone: {
-      t: 'Declines alone',
+      t: 'Only this rule stops',
       d: 'Applicants this rule declines that no other rule does. It is the most that switching this one rule off ' +
          'could release, before later stages (the finance cap, walking away) take their share.'
     },
@@ -283,19 +322,15 @@ window.__NOTES__ = function (F) {
     },
     sim_stack: {
       t: 'Your scenario',
-      d: 'The changes so far, in order. Each step is replayed on top of the ones above it. Revert removes one ' +
-         'step and replays the rest, so a change can be tried, judged and undone without starting again.'
+      d: 'The changes so far, as a waterfall: today\'s approval rate, what each step added on top of the ones ' +
+         'before it, and where they end up. × removes one step and replays the rest, so a change can be tried, ' +
+         'judged and undone without starting again.'
     },
     sim_added: {
       t: 'What a step added',
       d: 'The change in approval rate, and in approved and declined applicants, that this step made on top of ' +
          'the steps before it. Steps overlap: a rule switched off after another may release fewer people than it ' +
          'would alone, because some were already released.'
-    },
-    sw_panel: {
-      t: 'After the changes',
-      d: 'The whole book with every step in the scenario applied, against today. Compare it with the current ' +
-         'position on the Portfolio screen.'
     },
     t_approval: {
       t: 'Approval rate (after the change)',
@@ -361,19 +396,32 @@ window.__NOTES__ = function (F) {
       d: 'The rules the search is allowed to switch off: the busiest ones the bank may change. Click a rule to ' +
          'keep it on, and the search will not touch it. The cutoff moves it may also try are listed below.'
     },
+    goal_reco: {
+      t: 'The recommendation',
+      d: 'The best package of changes the search found, in one sentence: the cheapest in extra bad rate among those ' +
+         'that reach the target within the limit. If none does, the closest it could get.'
+    },
+    goal_apply: {
+      t: 'Try this as a scenario',
+      d: 'Loads the option\'s changes into Try a change, so you can see what each one adds and adjust from there.'
+    },
+    goal_more: {
+      t: 'More options',
+      d: 'The runners-up, best first. An option above the bad-rate limit is flagged and never ranked first, ' +
+         'however many approvals it buys.'
+    },
     goal_tag: {
-      t: 'REACHED / OUT OF REACH',
+      t: 'Reached / Out of reach',
       d: 'Whether any combination reaches the target within the ceiling. If it can, options are ranked by risk ' +
          'cost, not by the size of the change. If not, they are ranked by how close they get.'
     },
     opt_head: {
       t: 'Option',
-      d: 'One candidate package of changes, best first. REACHES TARGET or FALLS SHORT says whether it gets there. ' +
-         'BREACHES BAD-RATE CEILING means it would push the expected bad rate over the ceiling, so it is never ' +
-         'ranked first however high its approval rate.'
+      d: 'One candidate package of changes. It says whether it reaches the target, falls short, or would push the ' +
+         'expected bad rate above the limit.'
     },
     opt_risk: {
-      t: 'Risk cost',
+      t: 'Bad rate and its change',
       d: 'How far the expected bad rate rises above today\'s, in percentage points. It is the price of the extra ' +
          'approvals and the key the options are ranked by. A dash means it could not be priced, and unpriced ' +
          'options are ranked last.'

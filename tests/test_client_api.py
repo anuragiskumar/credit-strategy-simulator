@@ -104,7 +104,54 @@ def test_a_tightening_is_where_newly_declined_comes_from(engine):
     assert sum(v["swap_out"] for v in out["swap_in_by_channel"].values()) == out["swap_out"]
 
 
+# --------------------------------------------------------------------------- score cutoffs
+SIMAH = {"type": "cutoff", "field": "simahcreditscore", "from": 600}
+
+
+def test_lowering_a_cutoff_loosens_and_matches_the_sweep(engine, inv):
+    ladder = engine.simulate([{**SIMAH, "to": 580}])
+    out = ladder["result"]
+    assert ladder["steps"][0]["change_direction"] == "loosen"
+    assert out["swap_in"] > 0 and out["swap_out"] == 0
+    curve = S.sweep(engine.base, inv, "simahcreditscore", 600, [580],
+                    product=engine.base.cfg["product"])
+    assert out["swap_in"] == int(curve.iloc[0]["swap_in"])
+
+
+def test_raising_a_cutoff_tightens_and_declines_people_approved_today(engine):
+    out = engine.simulate([{**SIMAH, "to": 640}])
+    assert out["steps"][0]["change_direction"] == "tighten"
+    # Mostly swap-outs; a rule written the other way round can still release the odd applicant.
+    assert out["result"]["swap_out"] > out["result"]["swap_in"]
+
+
+def test_a_cutoff_stacks_with_rule_changes(engine):
+    top = engine.rules()[0]["rule_id"]
+    out = engine.simulate([{"type": "off", "rule_id": top}, {**SIMAH, "to": 560}])
+    assert len(out["steps"]) == 2
+    assert out["result"]["swap_in"] >= out["steps"][0]["swap_in"]
+
+
+def test_health_lists_the_cutoff_sliders(engine):
+    h = engine.health()
+    assert {c["field"] for c in h["cutoffs"]} == {"simahcreditscore", "crifscore"}
+    for c in h["cutoffs"]:
+        assert c["from"] in c["values"]
+
+
+def test_goal_seek_options_come_back_as_changes_the_simulator_accepts(engine):
+    out = engine.goal_seek(target=engine.base.approval_rate + 0.01)
+    best = out["options"][0]
+    assert best["changes"]
+    again = engine.simulate(best["changes"])["result"]
+    assert again["approval_rate"] == pytest.approx(best["approval_rate"], abs=1e-4)
+
+
 @pytest.mark.parametrize("changes, match", [
+    ([{**SIMAH, "to": 600}], "already at"),
+    ([{"type": "cutoff", "field": "simahcreditscore"}], "needs a field"),
+    ([{**SIMAH, "to": 580}, {**SIMAH, "to": 570}], "appears twice"),
+    ([{"type": "cutoff", "field": "simahcreditscore", "from": 1, "to": 2}], "no .* rule tests"),
     ([], "at least one"),
     ("off", "must be a list"),
     ([{"type": "delete", "rule_id": "x"}], "unknown change type"),

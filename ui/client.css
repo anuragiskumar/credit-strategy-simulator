@@ -314,3 +314,138 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .simfrozen { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .simfrozen .simnote { flex-basis: 100%; }
 .simfrozen .chip[aria-pressed="true"] { background: var(--sunken); color: var(--muted); text-decoration: line-through; }
+
+/* ------------------------------------------------------------ simulator: CEO view
+   Three views behind one segmented control. The outcome bar sticks to the top of the canvas so
+   the answer is always in view. Chroma is still provenance only: --obs for counted figures,
+   --inf for estimates, --nm for no estimate, --breach for the bad-rate limit alone. */
+.simhead { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; }
+.simhead p { margin: 4px 0 0; }
+.simviews button { font-size: 13px; padding: 6px 14px; }
+.simmode { margin: -8px 0 14px; font-size: 12px; color: var(--muted); }
+.simmode code { font-family: var(--mono); font-size: 11px; }
+
+.c-obs { color: var(--obs); }
+.c-inf { color: var(--inf); }
+.c-nm  { color: var(--nm); }
+
+.simsticky { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 6px 0 2px; margin: -6px 0 14px; }
+.simout { display: flex; flex-wrap: wrap; gap: 1px; background: var(--line); border: 1px solid var(--line);
+          border-radius: 9px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.simout .so { flex: 1 1 180px; background: var(--surface); padding: 12px 16px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.simout .so .k { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.simout .so .v { font-family: var(--mono); font-size: 24px; letter-spacing: -.02em; color: var(--ink); white-space: nowrap; }
+.simout .so .v s { font-size: 15px; color: var(--faint); text-decoration-thickness: 1px; }
+.simout .so .d { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.simout .so.is-breach { box-shadow: inset 0 -3px 0 var(--breach); }
+.simout .so.is-breach .d { color: var(--breach); }
+.simout .so-hint { justify-content: center; font-size: 13px; color: var(--muted); }
+.simout.is-today .so .v { font-size: 20px; }
+
+.simmore { margin-top: 8px; }
+.simmore > summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); width: max-content; max-width: 100%;
+                     list-style: none; display: inline-flex; align-items: center; gap: 6px; }
+.simmore > summary::-webkit-details-marker { display: none; }
+.simmore > summary::before { content: '▸'; font-size: 12px; color: var(--faint); transition: transform .15s; }
+.simmore[open] > summary::before { transform: rotate(90deg); }
+.simmore > summary:hover { color: var(--ink); }
+.simmorebody { margin-top: 8px; }
+.simsticky .simmorebody { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+                          max-height: 40vh; overflow: auto; }
+.simverdict { margin: 0 0 10px; font-size: 13px; line-height: 1.55; color: var(--ink-2); }
+
+.simlegend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+.simlegend span { display: inline-flex; align-items: center; gap: 6px; }
+.simlegend i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+
+/* the chart */
+.simchart svg { display: block; width: 100%; height: auto; font-family: var(--mono); }
+.simchart .grid { stroke: var(--line-soft); stroke-width: 1; }
+.simchart .tick { fill: var(--faint); font-size: 11.5px; }
+.simchart .axis { fill: var(--muted); font-size: 12px; font-family: var(--ui); }
+.simchart .over { fill: var(--breach-wash); opacity: .7; }
+.simchart .ceil { stroke: var(--breach); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.simchart .ceil-t { fill: var(--breach); }
+.simchart .tgt { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 3 4; }
+.simchart .lbl { fill: var(--ink-2); font-size: 12.5px; font-family: var(--ui); font-weight: 600; }
+.simchart .tgt-t { font-weight: 500; fill: var(--muted); }
+.simchart .move { stroke: var(--line-hard); stroke-width: 1.3; }
+.simchart .pt circle { stroke: var(--surface); stroke-width: 2; }
+.simchart .pt.is-today circle { fill: var(--obs); }
+.simchart .pt.is-obs circle { fill: var(--obs); }
+.simchart .pt.is-inf circle { fill: var(--inf); }
+.simchart .pt.is-breach circle { fill: var(--inf); stroke: var(--breach); stroke-width: 2.5; }
+
+/* presets */
+.simpresets { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.simpreset { text-align: start; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); padding: 13px 15px;
+             cursor: pointer; display: flex; flex-direction: column; gap: 5px; font-family: var(--ui); color: var(--ink-2);
+             transition: border-color .15s, background .15s; }
+.simpreset:hover:not(:disabled) { border-color: var(--line-hard); background: var(--sunken); }
+.simpreset b { font-size: 14px; color: var(--ink); font-weight: 600; }
+.simpreset span { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.simpreset em { font-size: 11px; color: var(--faint); }
+.simpreset.is-on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.simpreset:disabled { cursor: not-allowed; opacity: .6; }
+
+/* sliders */
+.simslider + .simslider { margin-top: 18px; }
+.sshead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.sshead b { font-size: 13px; font-weight: 600; color: var(--ink); }
+.sshead .fig { font-family: var(--mono); font-size: 18px; color: var(--ink); }
+.sshead small { font-size: 10.5px; color: var(--faint); }
+.simslider input[type="range"] { width: 100%; margin: 10px 0 4px; accent-color: var(--ink-2); cursor: pointer;
+  background: linear-gradient(var(--ink-2), var(--ink-2)) no-repeat var(--today) 50% / 2px 14px; }
+.simslider input[type="range"]:disabled { cursor: progress; opacity: .6; }
+.ssends { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+
+/* the busiest rules as switches */
+.simswitches { list-style: none; margin: 0 0 4px; padding: 0; }
+.simswitches li + li { border-top: 1px solid var(--line-soft); }
+.simtoggle { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: center; padding: 9px 0; cursor: pointer; }
+.simtoggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.simtoggle i { width: 32px; height: 18px; border-radius: 9px; background: var(--line-hard); position: relative; transition: background .15s; }
+.simtoggle i::after { content: ''; position: absolute; top: 2px; inset-inline-start: 2px; width: 14px; height: 14px; border-radius: 50%;
+                      background: var(--surface); transition: transform .15s; }
+.simtoggle input:checked + i { background: var(--ink-2); }
+.simtoggle input:checked + i::after { transform: translateX(14px); }
+.simtoggle input:focus-visible + i { outline: 2px solid var(--pred); outline-offset: 2px; }
+.simtoggle.is-disabled { cursor: not-allowed; opacity: .55; }
+.simtoggle .rn { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.simtoggle .rl { font-size: 13px; color: var(--ink); }
+.simtoggle .rsub { font-size: 11.5px; color: var(--muted); }
+.simswitches li.is-off .rl { text-decoration: line-through; text-decoration-color: var(--faint); color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .simtoggle i, .simtoggle i::after { transition: none; } }
+
+/* the waterfall */
+.wfall { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(70px, 1fr) max-content 28px; column-gap: 10px; row-gap: 6px; }
+.wrow { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; align-items: center; min-height: 30px; }
+.wl { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+.wl > span:last-child { display: flex; flex-direction: column; gap: 1px; }
+.wl small { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.wt { position: relative; height: 16px; background: var(--sunken); border-radius: 3px; }
+.wt i { position: absolute; inset-block: 0; display: block; border-radius: 3px; background: var(--obs); }
+.wrow.is-base .wt i { background: var(--ink-2); opacity: .35; }
+.wrow.is-total .wt i { opacity: .7; }
+.wrow.is-down .wt i { background: var(--ink-2); }
+.wrow.is-total { border-top: 1px solid var(--line); padding-top: 6px; font-weight: 600; }
+.wv { font-family: var(--mono); font-size: 12.5px; text-align: end; color: var(--ink); white-space: nowrap; }
+.iconbtn.sm { width: 24px; height: 24px; font-size: 13px; }
+
+/* goal-seek */
+.simgrid.is-goal { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); margin-top: 16px; }
+@media (max-width: 1180px) { .simgrid.is-goal { grid-template-columns: minmax(0, 1fr); } }
+.simreco { border: 1px solid var(--line); border-inline-start: 3px solid var(--obs); border-radius: 8px; padding: 14px 16px; background: var(--surface); }
+.simreco.is-short { border-inline-start-color: var(--nm); }
+.simreco .rtag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.simreco .rhead { margin: 6px 0 8px; font-size: 16px; line-height: 1.5; color: var(--ink-2); }
+.simreco .rhead b { color: var(--ink); }
+.rfig { margin: 0 0 10px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+.rfig .fig { font-family: var(--mono); color: var(--ink); }
+.opt h4 small { font-weight: 400; color: var(--muted); font-size: 11.5px; }
+.simfoot { margin: 12px 0 0; font-size: 11.5px; color: var(--faint); }
+.simgoal .simfield > span:first-child { font-size: 13px; }
+/* The outcome bar is the sticky element here; a sticky side column would slide under it. */
+.simsticky ~ .simgrid .simside { position: static; }
+.simsticky > .specnum { position: absolute; top: 0; inset-inline-end: -10px; }
+.simkicker { margin: 0 0 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
