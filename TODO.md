@@ -317,4 +317,63 @@ a 1920px desk monitor.
 - [ ] Manual pass: a full presenter-mode funnel pour, the Simulator's sticky columns while
       scrolling, the product/period menu and tooltips at each width, the print pack unchanged.
 
+## E. Azentio's own AI for Ask — on-prem, no Gemini · TO DECIDE
+
+From the discussion on 2026-09-21. Banks can't call Gemini from their servers, so Ask needs a
+model that runs inside the bank. Nothing here is decided yet.
+
+**Not doing:** training an LLM from scratch. It costs millions, needs trillions of words and a
+research team, and the result would be worse than free open-weights models.
+
+**Why a small model is enough.** The model only picks changes from a closed rule list and returns a
+fixed plan format; the engine computes every figure. Output can be forced into the plan format
+(vLLM / llama.cpp / Ollama), `validate_plan` refuses bad plans and asks once for a fix, and the
+keyword fallback still answers the simple requests. A weaker model can pick worse changes, never
+report wrong figures.
+
+**Options, in order:**
+1. **Host an open-weights model on-prem.** For Ask this is a config change: `provider: http`,
+   `base_url: http://<bank-host>/v1`. Prefer Apache 2.0 weights (Qwen, Mistral); check Llama and
+   Gemma terms before bundling. Test Arabic if staff will type in it (Qwen family, ALLaM).
+2. **Fine-tune one shared small model (3–8B, QLoRA)** on thousands of made-up rule lists and
+   requests. No bank data. It learns the skill, not any bank's rules.
+3. **Per-bank add-on (LoRA), optional.** Trained only on that bank's rule list, kept at that bank.
+   It learns their wording, not their rules. Build it only if the test set shows a gain over the
+   shared model with the bank's rules in the prompt.
+
+**Per-bank rules stay in the prompt, not in the weights.** Rules change monthly; a model trained
+on old rules would keep suggesting rules that no longer exist. Bank A's rules never reach the
+shared model or Bank B's add-on, and no applicant data is used at any step.
+
+**Pros:** data never leaves the bank (the consent question goes away), predictable cost, works
+air-gapped, fast (about 1s on a GPU), something only Azentio has (branding: "Azentio's model,
+built on <base model>", never "trained from scratch").
+**Cons:** hardware (CPU only is 10–30s per request, one GPU is about $10–25k per bank and
+purchasing takes months); weaker on multi-constraint goal-seeks until fine-tuned; Azentio runs and
+patches the model; the bank's model-risk review; licence terms of the weights.
+
+### E1. Plan for the two of us — about 1 week of work, 1.5–2 weeks on the calendar
+- [ ] **Day 1:** run an open model (Qwen ~8B) locally with Ollama, Ask pointed at it, output forced
+      into the plan format. A test set of about 50 requests with expected plans, plus a scoring
+      script. Score Gemini, the local model and the keyword fallback.
+      _Could be in the CxO demo: "the AI runs inside your bank, nothing leaves the building." Pick
+      the demo requests from the scores; keep Gemini as a switch in config for comparison._
+- [ ] **Days 2–3:** generator for made-up rule lists and requests in English and Arabic. Gemini
+      writes the plans; keep only those `validate_plan` and the engine accept. About 10k examples.
+- [ ] **Days 3–5:** QLoRA fine-tune on Kaggle's free GPUs or MLX on the Mac. A few hours per run,
+      2–3 rounds fixing the data in between.
+- [ ] **Days 6–7:** package: a quantised model file, a llama.cpp or vLLM server in a container,
+      config, install guide, and a test on a CPU-only machine for the real response time.
+- [ ] A one-page model description for the bank's security and model-risk review: which model, its
+      licence, training data, how it was tested, and that the engine decides every figure.
+- [ ] A native reader checks a sample of the Arabic requests.
+
+**Cost:** training under $100 per run on a rented A100/H100, a per-bank add-on a few dollars,
+training data tens of dollars. A per-bank add-on then takes about 1–2 days per new bank, mostly
+automated. If a bank won't let its rule text out, its add-on trains on their own hardware (a GPU
+with 24GB or more), or is skipped.
+
+**Outside our control:** the bank's hardware and purchasing, their security and model-risk
+approval (weeks), and Arabic quality.
+
 <!-- Add new items here. -->
