@@ -33,7 +33,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src import client_analysis, client_loader, client_schema
+from src import client_analysis, client_context, client_loader, client_policy, client_schema
+from src.client_api import window_presets
 from src.client_generate import load_client_config
 from src.client_replay import compile_rules, locked_rules, replay
 from src.config import resolve_path
@@ -117,7 +118,11 @@ def build_rulepack(cfg: dict, inv, compiled) -> dict:
             "tables": tables,
         })
     all_tables = [t for f in files for t in f["tables"]]
+    latest = max((path.stat().st_mtime for path in folder.glob("business-rules-*.xlsx")), default=None)
     return {
+        # One identifier for the set of workbooks: it changes whenever any workbook does.
+        "version": hashlib.sha256("".join(f["sha12"] for f in files).encode()).hexdigest()[:8],
+        "updated": _date(dt.date.fromtimestamp(latest)) if latest else None,
         "files": files,
         "totals": {"files": len(files), "tables": len(all_tables),
                    "rules": sum(t["rules"] for t in all_tables),
@@ -247,20 +252,13 @@ def build_outcome(cfg: dict, df: pd.DataFrame | None) -> dict:
 
 
 def build_policy(cfg: dict) -> dict:
-    """The values a risk committee owns. Read from config, shown, not editable in a static page."""
+    """The values the analysis uses that are set in the configuration file only.
+
+    The risk appetite and the replay assumptions are governed settings (src/client_policy.py)
+    and are exported under `governed`, with who approved each; they are not repeated here.
+    """
     rep, opt = cfg["replay"], cfg["optimise"]
     return {
-        "appetite": [
-            {"key": "Bad-rate ceiling", "value": opt["max_bad_rate"], "fmt": "pct0",
-             "help": "No recommended strategy may exceed this expected bad rate."},
-            {"key": "Rule earns its place above", "value": cfg["drivers"]["earns_place_multiple"],
-             "fmt": "x2", "help": "A rule is keeping its place if the applicants it alone declines "
-                                    "are at least this many times riskier than the booked book."},
-            {"key": "Riskier swap-ins above", "value": cfg["simulate"]["riskier_multiple"], "fmt": "x2",
-             "help": "Newly approved applicants above this multiple of the booked bad rate are called riskier."},
-            {"key": "Safer swap-ins below", "value": cfg["simulate"]["safer_multiple"], "fmt": "x2",
-             "help": "Newly approved applicants below this multiple are called safer."},
-        ],
         "model": [
             {"key": "Minimum group size", "value": cfg["risk_model"]["min_group_size"], "fmt": "n0",
              "help": "A group smaller than this gets no risk estimate, however tempting."},
@@ -283,24 +281,42 @@ def build_policy(cfg: dict) -> dict:
             {"key": "Minimum acceptable offer", "value": cfg["funnel"]["min_acceptable_offer_ratio"],
              "fmt": "pct0", "help": "Share of the request an applicant will still accept."},
         ],
-        # The three decisions the rule files do not make. Each is an open question with the client.
-        "assumptions": [
-            {"key": "A missing value satisfies a condition",
-             "value": "Yes" if rep["condition_on_missing_value_matches"] else "No",
-             "help": "16% of applicants have no bureau score and about 100 rules test it, so this one "
-                     "switch moves a lot of people."},
-            {"key": "An applicant no rule catches",
-             "value": rep["no_rule_matched"].capitalize(),
-             "help": "Whether an applicant no rule declines is approved or declined."},
-            {"key": "Include inactive rules",
-             "value": "Yes" if rep["include_inactive_rules"] else "No",
-             "help": "The 10 inactive rules stay off, as in production."},
-        ],
         "hard_reject_fields": list(rep["hard_reject_fields"]),
         "hard_reject": [{"field": f, "label": HARD_REJECT_LABELS.get(f, f)} for f in rep["hard_reject_fields"]],
         "levers": [{"field": m["field"], "from": m["from"], "to": m["to"], "label": m["label"]}
                    for m in opt["field_moves"]],
     }
+
+
+PRODUCT_NAMES = {"TWQR": "Tawarruq personal finance", "IJMB": "Ijara"}
+
+
+def build_context(cache) -> dict:
+    """The products and periods an analyst can choose, as the analysis screens offer them.
+
+    The same presets as `client_export` writes for client.html, so a choice made on Settings
+    opens the same worked-out figures there.
+    """
+    cfg = cache.cfg
+    months = cfg["analysis"]["default_window"].get("last_months")
+    products = {}
+    for p in cache.products():
+        lo, hi = client_context.data_range(cache.product_df(p))
+        products[p] = {"name": PRODUCT_NAMES.get(p, p), "presets": window_presets(cache, p),
+                       "data_range": {"app_from": f"{lo:%Y-%m-%d}", "app_to": f"{hi:%Y-%m-%d}"}}
+    return {"default_product": cfg["product"],
+            "default_preset": f"last_{months}m" if months else "all",
+            "products": products}
+
+
+def build_governed(file_cfg: dict, cfg: dict, cache, inv) -> dict:
+    """The governed settings as the figures were computed, and what each replay assumption decides."""
+    store = client_policy.PolicyStore(resolve_path(file_cfg["policy"]["path"]))
+    state = store.state(file_cfg, cfg)
+    state["impacts"] = {p: {"product": p, **client_policy.assumption_impacts(cache.full(p), inv,
+                                                                             cache.cfg_for_product(p))}
+                        for p in cache.products()}
+    return state
 
 
 def build_run(cfg: dict, df: pd.DataFrame | None, inv, compiled) -> dict:
@@ -610,7 +626,9 @@ def load_dataset(cfg: dict) -> pd.DataFrame | None:
 
 def build(as_of: dt.date | None = None) -> dict:
     as_of = as_of or dt.date.today()
-    cfg = load_client_config()
+    file_cfg = load_client_config()
+    # The figures are computed on the config plus every approved setting, as the engine does.
+    cfg = client_policy.PolicyStore(resolve_path(file_cfg["policy"]["path"])).effective(file_cfg)
     rep = cfg["replay"]
     inv = build_inventory(rep["rules_folder"])
     compiled = compile_rules(inv, product=cfg["product"],
@@ -623,6 +641,7 @@ def build(as_of: dt.date | None = None) -> dict:
     fields = build_fields(compiled, df)
     outcome = build_outcome(cfg, df)
     run = build_run(cfg, df, inv, compiled)
+    cache = client_context.ContextCache(df, inv, cfg) if df is not None else None
     return {
         "meta": {
             "generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -637,6 +656,8 @@ def build(as_of: dt.date | None = None) -> dict:
         "outcome": outcome,
         "policy": build_policy(cfg),
         "run": run,
+        "context": build_context(cache) if cache else None,
+        "governed": build_governed(file_cfg, cfg, cache, inv) if cache else None,
         "simulated": build_simulated(as_of, fields),
     }
 

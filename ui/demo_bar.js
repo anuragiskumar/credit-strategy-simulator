@@ -16,8 +16,8 @@
 
   var ROLES = [
     { id: 'business', label: 'Business user', can: [] },
-    { id: 'analyst', label: 'Analyst', can: ['data.view', 'recompute.run'] },
-    { id: 'approver', label: 'Risk approver', can: ['data.view', 'audit.view'] },
+    { id: 'analyst', label: 'Analyst', can: ['data.view', 'recompute.run', 'policy.propose'] },
+    { id: 'approver', label: 'Risk approver', can: ['data.view', 'audit.view', 'recompute.run', 'policy.approve', 'assumptions.change'] },
     { id: 'admin', label: 'Administrator', can: ['data.view', 'audit.view', 'admin.view', 'licence.view'] }
   ];
   var STAGES = [

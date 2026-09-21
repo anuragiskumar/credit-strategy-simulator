@@ -262,15 +262,49 @@
       N('mp_admin'));
   }
 
-  /* ================================================================ rule workbook */
+  /* ================================================================ rule workbooks */
+  /** The workbooks and decision tables in use. Business users see one line of this on Settings. */
+  function inventory() {
+    var RP = F.rulepack, T = RP.totals, R = F.run;
+    var rows = [];
+    RP.files.forEach(function (f) {
+      f.tables.forEach(function (t, i) {
+        rows.push('<tr><td class="su-file-cell">' +
+          (i === 0 ? '<b title="SHA-256 ' + esc(f.sha12) + '…">' + esc(f.file) + '</b><span>updated ' + esc(f.modified) + '</span>' : '') + '</td>' +
+          '<td><span class="rid">' + esc(t.table) + '</span></td><td>' + esc(t.role) + '</td>' +
+          '<td>' + (t.stage ? esc(t.stage.replace(/_/g, ' ')) : '<span class="nodata">—</span>') + '</td>' +
+          '<td class="num">' + n0(t.rules) + '</td><td class="num">' + n0(t.in_scope) + '</td><td class="num">' + n0(t.inactive) + '</td></tr>');
+      });
+    });
+    rows.push('<tr class="is-total"><td>' + n0(T.files) + ' workbooks</td><td>' + n0(T.tables) + ' tables</td><td></td><td></td>' +
+      '<td class="num">' + n0(T.rules) + '</td><td class="num">' + n0(T.in_scope) + '</td><td class="num">' + n0(T.inactive) + '</td></tr>');
+    return '<div class="su-sub">In use · rule pack ' + esc(RP.version) + ' ' + pv('OBSERVED') + '</div>' +
+      table('<th>Workbook</th><th' + N('rp_table') + '>Table</th><th' + N('rp_role') + '>Role</th><th>Stage</th>' +
+            '<th class="num">Rules</th><th class="num"' + N('rp_scope') + '>In scope for ' + esc(RP.product) + '</th><th class="num">Inactive</th>', rows) +
+      '<p class="su-help su-gap">' + n0(R.rules_replayed) + ' rules replayed for ' + esc(RP.product) +
+      '. Inactive rules are ' + (RP.options.include_inactive_rules ? 'replayed' : 'left off') + ', a replay assumption the risk approver sets on ' +
+      '<a href="settings.html#assumptions">Settings</a>.</p>';
+  }
   function secRules() {
     return section('rules', 'Rule workbooks', '',
-      '<p class="su-lead">Load a new or replacement rule workbook. The rule set in use is on <a href="settings.html#sec-rules">Settings</a>.</p>' +
+      '<p class="su-lead">The rule pack the analysis replays, and where a new or replacement workbook is loaded.</p>' +
+      inventory() +
+      '<div class="su-sub su-gap">Load a workbook</div>' +
       '<div class="su-drop"' + N('rp_upload') + '><p><b>Drop a workbook here</b>, or choose one. Accepted: ' + esc(SIM.upload.accept_rules) + '.</p>' +
       '<button type="button" class="btn ghost sm" data-act="pick" data-for="rules"' + dis('rules.load') + '>Choose file</button>' +
       '<input type="file" id="su-file-rules" data-file="rules" accept="' + esc(SIM.upload.accept_rules) + '" hidden></div>' +
       pausedNote('rules.load') +
-      (S.up.rules ? '<p class="su-help su-gap" role="status"><span class="su-file">' + esc(S.up.rules) + '</span> · ' + esc(SIM.upload.rules) + '</p>' : ''));
+      (S.up.rules ? '<p class="su-help su-gap" role="status"><span class="su-file">' + esc(S.up.rules) + '</span> · ' + esc(SIM.upload.rules) + '</p>' : ''), N('rp_head'));
+  }
+
+  /* ================================================================ audit log */
+  function secAudit() {
+    return section('audit', 'Audit log', '',
+      '<p class="su-lead">Who did what, across the product. Changes to the risk appetite and the replay assumptions, with ' +
+      'who proposed and approved each, are recorded for real on <a href="settings.html#appetite">Settings</a>.</p>' +
+      table('<th>When</th><th>Who</th><th>What</th>', SIM.audit.map(function (a) {
+        return '<tr><td class="su-mono su-muted">' + esc(a.when) + '</td><td>' + esc(a.who) + '</td><td>' + esc(a.what) + '</td></tr>';
+      })), N('au_head'));
   }
 
   /* ================================================================ the rest */
@@ -318,6 +352,7 @@
     { id: 'mapping', t: 'Field mapping', build: secMapping },
     { id: 'rules', t: 'Rule workbooks', build: secRules },
     { id: 'outcomes', t: 'Outcomes', build: secOutcomes },
+    { id: 'audit', t: 'Audit log', build: secAudit, need: 'audit.view' },
     { id: 'platform', t: 'Platform and security', build: secPlatform },
     { id: 'versions', t: 'Versions and updates', build: secVersions },
     { id: 'diagnostics', t: 'Diagnostics and export', build: secDiagnostics }

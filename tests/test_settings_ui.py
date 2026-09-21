@@ -34,7 +34,7 @@ HAS_RULES = bool(list(REPO.glob("business-rules-*.xlsx")))
 needs_fixture = pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not built")
 
 PROVENANCE = {"OBSERVED", "PREDICTED", "INFERRED", "NOT_MODELLED", "BLENDED"}
-TOP_LEVEL = {"meta", "rulepack", "dataset", "fields", "outcome", "policy", "run", "simulated"}
+TOP_LEVEL = {"meta", "rulepack", "dataset", "fields", "outcome", "policy", "run", "context", "governed", "simulated"}
 PAGES = ("client.html", "settings.html", "admin.html")
 PAGE_SCRIPTS = ("settings_kit.js", "page_shell.js", "settings.js", "admin.js")
 ROLE_NAMES = ("Business user", "Analyst", "Risk approver", "Administrator",
@@ -225,11 +225,19 @@ def test_the_pages_never_derive_a_figure_from_two_fixture_fields():
         assert not derived, f"{name} is deriving a figure: {derived}"
 
 
-def test_nothing_leaves_the_browser():
-    for name in PAGE_SCRIPTS + ("session.js", "demo_bar.js"):
+def test_nothing_leaves_the_browser_but_the_settings_api():
+    """Settings talks to the engine about governed settings and nothing else; the rest talk to no one."""
+    for name in PAGE_SCRIPTS + ("session.js", "demo_bar.js", "context_store.js"):
         body = _code(name)
-        for banned in ("fetch(", "XMLHttpRequest", "sendBeacon", "WebSocket", "FileReader", ".text()", ".arrayBuffer("):
+        for banned in ("XMLHttpRequest", "sendBeacon", "WebSocket", "FileReader", ".text()", ".arrayBuffer("):
             assert banned not in body, f"{name} uses {banned}"
+        if name != "settings.js":
+            assert "fetch(" not in body, f"{name} uses fetch("
+    body = _code("settings.js")
+    assert body.count("fetch(") == 1, "one api() helper, so every call is visible in one place"
+    paths = set(re.findall(r"'(/api/[a-z/-]+)", body))
+    assert paths == {"/api/settings", "/api/settings/propose", "/api/settings/decide", "/api/settings/change",
+                     "/api/recompute"}, paths
 
 
 def test_the_demo_password_field_is_never_read():
@@ -281,9 +289,50 @@ def test_administration_carries_one_preview_tag_for_the_page_not_one_per_section
     assert not re.findall(r"section\('[a-z]+', '[^']+', sim\(\)", body)
 
 
-def test_settings_puts_the_analysis_inputs_first_and_has_no_licence():
+def test_settings_is_four_tabs_analysis_first_and_has_no_licence():
     ids = re.findall(r"\{ id: '([a-z]+)', t: ", _code("settings.js"))
-    assert ids[0] == "rules" and "licence" not in ids
+    assert ids == ["analysis", "appetite", "assumptions", "health"]
+    body = _code("settings.js")
+    assert "licence" not in " ".join(ids) and "Session.licence" not in body
+
+
+def test_the_workbook_inventory_and_audit_log_live_on_administration():
+    settings, admin = _code("settings.js"), _code("admin.js")
+    assert "RP.files" not in settings and "SIM.audit" not in settings
+    assert "RP.files" in admin and "SIM.audit" in admin and "need: 'audit.view'" in admin
+    assert "' rules replayed for ' + esc(RP.product) + ', from ' + n0(RP.totals.files)" in settings, "business users see one line"
+
+
+def test_the_product_and_period_are_kept_in_one_place():
+    """client.html and Settings share one per-viewer store; neither touches browser storage itself."""
+    assert "localStorage" in _code("context_store.js")
+    for name in ("client.js", "settings.js"):
+        body = _code(name)
+        assert "window.AnalysisContext." in body, name
+        assert "cso.context" not in body, name
+    for page in ("client.html", "settings.html"):
+        html = _html(page)
+        assert html.index('src="context_store.js"') < html.index('src="client.js"' if page == "client.html" else 'src="settings.js"')
+
+
+def test_settings_offers_each_change_only_to_the_role_that_makes_it():
+    body = _code("settings.js")
+    assert "can('policy.propose')" in _fn(body, "proposeForm")
+    assert "can('policy.approve')" in _fn(body, "pending")
+    assert "mine" in _fn(body, "pending"), "the proposer is offered Withdraw, never Approve"
+    assert "can('assumptions.change')" in _fn(body, "secAssumptions")
+    assert "can('recompute.run')" in _fn(body, "secRecompute")
+
+
+def test_an_approved_value_is_never_shown_as_if_the_figures_used_it():
+    body = _code("settings.js")
+    assert "awaiting_recompute" in _fn(body, "status") and "until the next recompute" in _fn(body, "status")
+    assert "awaiting()" in body
+
+
+def _fn(js, name):
+    start = js.index("function " + name + "(")
+    return js[start:js.index("\n  function ", start + 1)]
 
 
 def test_every_spec_note_key_the_pages_use_has_an_entry_and_none_is_orphaned():
@@ -452,5 +501,6 @@ def test_the_outcome_block_is_the_engines_bad_definition():
 @needs_fixture
 def test_the_policy_values_are_the_configs_values():
     cfg = load_client_config()
-    ap = {p["key"]: p["value"] for p in _fixture()["policy"]["appetite"]}
-    assert ap["Bad-rate ceiling"] == cfg["optimise"]["max_bad_rate"]
+    gov = {p["key"]: p for p in _fixture()["governed"]["settings"]}
+    assert gov["bad_rate_ceiling"]["configured"] == cfg["optimise"]["max_bad_rate"]
+    assert gov["missing_value_matches"]["configured"] == cfg["replay"]["condition_on_missing_value_matches"]

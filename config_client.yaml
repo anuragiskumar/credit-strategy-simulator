@@ -415,6 +415,12 @@ scenarios:
   path: data/scenarios.json
   compare_max: 4                 # how many scenarios the compare view puts side by side
 
+# Governed settings (TODO C3): the risk appetite and the replay assumptions changed from the
+# Settings screen. Every proposal, approval and change is kept here, with who and when; an
+# approved value is laid over this config on the next recompute. Kept out of git with data/.
+policy:
+  path: data/policy_changes.json
+
 # How a rule's fields read in a sentence ("Declines when SIMAH score is 650 or below").
 # A field not listed reads as its name in the rule files.
 field_labels:

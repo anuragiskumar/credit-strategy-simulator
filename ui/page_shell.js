@@ -3,7 +3,8 @@
  * look the same and link to each other.
  *
  * A page hands over four things: what it draws, which sections it has (for the rail), its spec
- * notes, and an optional click handler. The shell redraws the page when Session changes, so a
+ * notes, and an optional click handler. A page of tabs also hands over `select(id)`: the rail
+ * then switches tabs instead of scrolling, and marks the section flagged `current`. The shell redraws the page when Session changes, so a
  * different person, or a licence stage that pauses something, shows at once.
  */
 (function () {
@@ -47,7 +48,8 @@
       }).join('') + '</div>' +
       order.map(function (g, i) {
         return '<div class="railgroup"><h4' + (i === 0 ? N('sh_sections') : '') + '>' + esc(g) + '</h4>' + groups[g].map(function (s) {
-          return '<button type="button" class="navitem" data-jump="' + s.id + '"><span class="lbl">' + esc(s.t) + '</span></button>';
+          return '<button type="button" class="navitem" data-jump="' + s.id + '"' + (s.current ? ' aria-current="true"' : '') +
+            '><span class="lbl">' + esc(s.t) + '</span></button>';
         }).join('') + '</div>';
       }).join('') +
       '<div class="railgroup"><h4' + N('sh_tags') + '>Tags</h4><div style="padding:6px 10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start">' +
@@ -92,7 +94,8 @@
   function watch() {
     if (spy) spy.disconnect();
     spy = null;
-    if (!('IntersectionObserver' in window)) return;
+    // A page of tabs marks the tab it shows, not the section in view.
+    if (P.select || !('IntersectionObserver' in window)) return;
     spy = new IntersectionObserver(function (entries) {
       entries.forEach(function (en) { if (en.isIntersecting) mark(en.target.id.replace('sec-', '')); });
     }, { root: canvas, rootMargin: '-15% 0px -75% 0px' });
@@ -187,7 +190,10 @@
 
     rail.addEventListener('click', function (e) {
       var j = e.target.closest('[data-jump]');
-      if (j) { e.preventDefault(); jump(j.getAttribute('data-jump')); toggleRail(false); }
+      if (!j) return;
+      e.preventDefault();
+      if (P.select) P.select(j.getAttribute('data-jump')); else jump(j.getAttribute('data-jump'));
+      toggleRail(false);
     });
     wrap.addEventListener('click', function (e) {
       if (P.click && P.click(e)) return;
@@ -205,6 +211,7 @@
     window.Session.onChange(function () { draw(true); });
     draw(false);
     if (location.hash.indexOf('#sec-') === 0) jump(location.hash.slice(5));
+    window.addEventListener('hashchange', function () { if (P.select) P.select(location.hash.slice(1)); });
   }
 
   window.PageShell = { start: start, draw: draw, update: update, refreshSpec: applySpec, jump: jump };

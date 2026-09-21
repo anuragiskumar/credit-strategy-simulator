@@ -1,11 +1,13 @@
 {
  "meta": {
-  "generated": "2026-09-21 10:45 UTC",
+  "generated": "2026-09-21 12:13 UTC",
   "product": "TWQR",
   "synthetic": true,
   "note": "Rule set, dataset facts, field requirements and policy values are read from the engine. Everything under `simulated` is not."
  },
  "rulepack": {
+  "version": "1b01578f",
+  "updated": "20 Sep 2026",
   "files": [
    {
     "file": "business-rules-racAndPolicies-1788085705618.xlsx",
@@ -585,32 +587,6 @@
   ]
  },
  "policy": {
-  "appetite": [
-   {
-    "key": "Bad-rate ceiling",
-    "value": 0.11,
-    "fmt": "pct0",
-    "help": "No recommended strategy may exceed this expected bad rate."
-   },
-   {
-    "key": "Rule earns its place above",
-    "value": 1.15,
-    "fmt": "x2",
-    "help": "A rule is keeping its place if the applicants it alone declines are at least this many times riskier than the booked book."
-   },
-   {
-    "key": "Riskier swap-ins above",
-    "value": 1.15,
-    "fmt": "x2",
-    "help": "Newly approved applicants above this multiple of the booked bad rate are called riskier."
-   },
-   {
-    "key": "Safer swap-ins below",
-    "value": 0.85,
-    "fmt": "x2",
-    "help": "Newly approved applicants below this multiple are called safer."
-   }
-  ],
   "model": [
    {
     "key": "Minimum group size",
@@ -671,23 +647,6 @@
     "value": 0.6,
     "fmt": "pct0",
     "help": "Share of the request an applicant will still accept."
-   }
-  ],
-  "assumptions": [
-   {
-    "key": "A missing value satisfies a condition",
-    "value": "No",
-    "help": "16% of applicants have no bureau score and about 100 rules test it, so this one switch moves a lot of people."
-   },
-   {
-    "key": "An applicant no rule catches",
-    "value": "Approve",
-    "help": "Whether an applicant no rule declines is approved or declined."
-   },
-   {
-    "key": "Include inactive rules",
-    "value": "No",
-    "help": "The 10 inactive rules stay off, as in production."
    }
   ],
   "hard_reject_fields": [
@@ -802,8 +761,224 @@
    }
   ],
   "never_fire_count": 15,
-  "replay_seconds": 2.5,
-  "generated": "2026-09-21 10:45 UTC"
+  "replay_seconds": 2.9,
+  "generated": "2026-09-21 12:13 UTC"
+ },
+ "context": {
+  "default_product": "TWQR",
+  "default_preset": "last_12m",
+  "products": {
+   "TWQR": {
+    "name": "Tawarruq personal finance",
+    "presets": [
+     {
+      "id": "last_6m",
+      "name": "Last 6 months",
+      "app_from": "2026-03-01",
+      "app_to": "2026-08-31",
+      "performance_months": 12,
+      "label": "1 Mar – 31 Aug 2026"
+     },
+     {
+      "id": "last_12m",
+      "name": "Last 12 months",
+      "app_from": "2025-09-01",
+      "app_to": "2026-08-31",
+      "performance_months": 12,
+      "label": "1 Sep 2025 – 31 Aug 2026"
+     },
+     {
+      "id": "all",
+      "name": "All applications",
+      "app_from": "2024-09-01",
+      "app_to": "2026-08-31",
+      "performance_months": 12,
+      "label": "1 Sep 2024 – 31 Aug 2026"
+     }
+    ],
+    "data_range": {
+     "app_from": "2024-09-01",
+     "app_to": "2026-08-31"
+    }
+   },
+   "IJMB": {
+    "name": "Ijara",
+    "presets": [
+     {
+      "id": "last_6m",
+      "name": "Last 6 months",
+      "app_from": "2026-03-01",
+      "app_to": "2026-08-31",
+      "performance_months": 12,
+      "label": "1 Mar – 31 Aug 2026"
+     },
+     {
+      "id": "last_12m",
+      "name": "Last 12 months",
+      "app_from": "2025-09-01",
+      "app_to": "2026-08-31",
+      "performance_months": 12,
+      "label": "1 Sep 2025 – 31 Aug 2026"
+     },
+     {
+      "id": "all",
+      "name": "All applications",
+      "app_from": "2024-09-01",
+      "app_to": "2026-08-31",
+      "performance_months": 12,
+      "label": "1 Sep 2024 – 31 Aug 2026"
+     }
+    ],
+    "data_range": {
+     "app_from": "2024-09-01",
+     "app_to": "2026-08-31"
+    }
+   }
+  }
+ },
+ "governed": {
+  "settings": [
+   {
+    "key": "bad_rate_ceiling",
+    "group": "appetite",
+    "label": "Bad-rate ceiling",
+    "unit": "rate",
+    "help": "No recommended strategy may exceed this expected bad rate.",
+    "route": "maker-checker",
+    "lo": 0.01,
+    "hi": 0.4,
+    "configured": 0.11,
+    "value": 0.11,
+    "applied": 0.11,
+    "awaiting_recompute": false,
+    "approved": null,
+    "pending": null
+   },
+   {
+    "key": "earns_place_multiple",
+    "group": "advanced",
+    "label": "A rule earns its place above",
+    "unit": "multiple",
+    "help": "A rule keeps its place if the applicants it alone declines are at least this many times riskier than the booked book.",
+    "route": "maker-checker",
+    "lo": 1.0,
+    "hi": 5.0,
+    "configured": 1.15,
+    "value": 1.15,
+    "applied": 1.15,
+    "awaiting_recompute": false,
+    "approved": null,
+    "pending": null
+   },
+   {
+    "key": "riskier_multiple",
+    "group": "advanced",
+    "label": "Riskier swap-ins above",
+    "unit": "multiple",
+    "help": "Newly approved applicants above this multiple of the booked bad rate are called riskier.",
+    "route": "maker-checker",
+    "lo": 1.0,
+    "hi": 5.0,
+    "configured": 1.15,
+    "value": 1.15,
+    "applied": 1.15,
+    "awaiting_recompute": false,
+    "approved": null,
+    "pending": null
+   },
+   {
+    "key": "safer_multiple",
+    "group": "advanced",
+    "label": "Safer swap-ins below",
+    "unit": "multiple",
+    "help": "Newly approved applicants below this multiple are called safer.",
+    "route": "maker-checker",
+    "lo": 0.1,
+    "hi": 1.0,
+    "configured": 0.85,
+    "value": 0.85,
+    "applied": 0.85,
+    "awaiting_recompute": false,
+    "approved": null,
+    "pending": null
+   },
+   {
+    "key": "missing_value_matches",
+    "group": "assumption",
+    "label": "When a rule tests a value the applicant does not have, the rule applies",
+    "unit": "bool",
+    "help": "Yes: an applicant with no bureau score is caught by every rule on the score. No: they pass those rules.",
+    "route": "direct",
+    "lo": null,
+    "hi": null,
+    "configured": false,
+    "value": false,
+    "applied": false,
+    "awaiting_recompute": false,
+    "approved": null,
+    "pending": null
+   },
+   {
+    "key": "include_inactive_rules",
+    "group": "assumption",
+    "label": "Replay the rules marked inactive in the rule files",
+    "unit": "bool",
+    "help": "No keeps them off, as in production.",
+    "route": "direct",
+    "lo": null,
+    "hi": null,
+    "configured": false,
+    "value": false,
+    "applied": false,
+    "awaiting_recompute": false,
+    "approved": null,
+    "pending": null
+   }
+  ],
+  "history": [],
+  "awaiting_recompute": false,
+  "impacts": {
+   "TWQR": {
+    "product": "TWQR",
+    "applicants": 50000,
+    "missing_value_matches": {
+     "changed": 1339,
+     "share": 0.0268,
+     "newly_declined": 1339,
+     "newly_passed": 0
+    },
+    "include_inactive_rules": {
+     "changed": 0,
+     "share": 0.0,
+     "newly_declined": 0,
+     "newly_passed": 0
+    },
+    "no_rule_matched": {
+     "applies": 4490,
+     "share": 0.0898
+    }
+   },
+   "IJMB": {
+    "product": "IJMB",
+    "applicants": 20000,
+    "missing_value_matches": {
+     "changed": 81,
+     "share": 0.004,
+     "newly_declined": 81,
+     "newly_passed": 0
+    },
+    "include_inactive_rules": {
+     "changed": 0,
+     "share": 0.0,
+     "newly_declined": 0,
+     "newly_passed": 0
+    },
+    "no_rule_matched": {
+     "applies": 1384,
+     "share": 0.0692
+    }
+   }
+  }
  },
  "simulated": {
   "simulated": true,

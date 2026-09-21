@@ -16,6 +16,11 @@ routes HTTP to it.
     POST /api/scenarios            {"name", "changes", "product", "window", "preset", "who"}
     POST /api/scenarios/compare    {"ids": [...]}
     POST /api/scenarios/delete     {"id", "who"}
+    GET  /api/settings             the governed settings, their history, replay-assumption impact
+    POST /api/settings/propose     {"setting", "to", "reason", "who"}    risk appetite: the maker
+    POST /api/settings/decide      {"id", "approve", "note", "who"}      the checker (or a withdrawal)
+    POST /api/settings/change      {"setting", "to", "who"}              a replay assumption
+    POST /api/recompute            {"who"}   rebuild every figure on the approved settings
 
 Bound to 127.0.0.1 only. This is a single-user demo server, not a deployment.
 """
@@ -44,6 +49,8 @@ def _load_engine() -> None:
         from src.client_api import Engine
         ENGINE["engine"] = Engine.load()
         print("engine ready", flush=True)
+        if ENGINE["engine"].policy is not None:
+            ENGINE["engine"].impacts()              # warm, so Settings opens without a wait
     except Exception as e:                      # the static pages must survive a broken engine
         ENGINE["error"] = f"{type(e).__name__}: {e}"
         traceback.print_exc()
@@ -111,6 +118,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 eng = self._engine()
                 return eng and self._json(200, {"rules": eng.rules(self._window_query(),
                                                                    self._product_query())})
+            if path == "/api/settings":
+                eng = self._engine()
+                return eng and self._json(200, eng.settings(self._product_query()))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         except Exception as e:                  # report, never hang the page
@@ -149,6 +159,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, eng.compare_scenarios(body.get("ids")))
             if path == "/api/scenarios/delete":
                 return self._json(200, eng.delete_scenario(body.get("id"), body.get("who")))
+            if path == "/api/settings/propose":
+                return self._json(200, eng.propose_setting(body))
+            if path == "/api/settings/decide":
+                return self._json(200, eng.decide_setting(body))
+            if path == "/api/settings/change":
+                return self._json(200, eng.change_setting(body))
+            if path == "/api/recompute":
+                return self._json(200, eng.recompute(body.get("who")))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         except Exception as e:                  # report, never hang the page

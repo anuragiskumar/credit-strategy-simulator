@@ -2440,7 +2440,6 @@
    * running, any period can be asked for, and the screens are refetched from /api/view. */
   var PRODUCT_NAMES = { TWQR: 'Tawarruq personal finance', IJMB: 'Ijara' };
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var STORE = 'cso.context';
 
   function ctxWindow(w) {
     w = w || CTX.window;
@@ -2644,7 +2643,7 @@
     CTX.window = payload.meta.window;
     CTX.loading = false; CTX.open = false; CTX.error = null;
     CTX.seq++;
-    try { localStorage.setItem(STORE, JSON.stringify({ product: CTX.product, preset: CTX.preset, window: ctxWindow() })); } catch (e) { /* per-viewer convenience only */ }
+    window.AnalysisContext.write({ product: CTX.product, preset: CTX.preset, window: ctxWindow() });
     renderCtx();
     simOnContext(sameProduct);
     go(S.page, true);
@@ -2695,8 +2694,7 @@
 
   /** The last context this viewer chose, if it still exists. A preset is restored at once; a custom period waits for the engine. */
   function restoreContext() {
-    var saved = null;
-    try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { saved = null; }
+    var saved = window.AnalysisContext.read();
     if (!saved || !MENU || !MENU.products[saved.product]) return null;
     var fixture = fixturePayload(saved);
     if (fixture) {

@@ -19,6 +19,9 @@
  * Actions the screens use:
  *   data.view       applicant data facts and the field mapping (read-only)
  *   recompute.run   start a recompute
+ *   policy.propose  propose a new risk-appetite value (the maker)
+ *   policy.approve  approve or reject someone else's proposal (the checker)
+ *   assumptions.change  change a replay assumption
  *   audit.view      the audit log
  *   admin.view      the Administration screen
  *   licence.view    licence status and entitlements

@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src import client_analysis as A, client_api as API, client_context as C
+from src import client_analysis as A, client_api as API, client_context as C, client_policy
 from src.client_generate import load_client_config
 from src.client_view import clean, build_view  # noqa: F401 — `clean` is part of this module's API
 from src.config import resolve_path
@@ -86,7 +86,9 @@ def main(argv=None) -> int:
     ap.add_argument("--quick", action="store_true")
     args = ap.parse_args(argv)
 
-    cfg = load_client_config()
+    # The config file plus every approved setting (src/client_policy.py), as the engine loads it.
+    file_cfg = load_client_config()
+    cfg = client_policy.PolicyStore(resolve_path(file_cfg["policy"]["path"])).effective(file_cfg)
     payload = build(cfg, build_inventory(cfg["replay"]["rules_folder"]), quick=args.quick)
 
     out = Path(args.out)

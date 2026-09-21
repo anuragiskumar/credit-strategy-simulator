@@ -10,7 +10,7 @@
 window.__SETTINGS_NOTES__ = function (F) {
   'use strict';
   var count = function (v) { return Number(v).toLocaleString('en-US'); };
-  var R = F.run || {}, D = F.dataset || {}, T = F.rulepack.totals;
+  var R = F.run || {}, T = F.rulepack.totals;
 
   return {
     /* ------------------------------------------------------------ shell */
@@ -40,37 +40,163 @@ window.__SETTINGS_NOTES__ = function (F) {
     /* ------------------------------------------------------------ page */
     pg_head: {
       t: 'Settings',
-      d: 'What the analysis runs on, read from the engine: the rule set, policy values, the last run and, for those who ' +
-         'work with data, the applicant table and field mapping. Every signed-in person sees this page; what they see on ' +
-         'it depends on their role. The licence and platform items are on Administration, for administrators only.'
+      d: 'What the analysis runs on, and the values the risk committee owns. Every signed-in person sees this page; what ' +
+         'each one may change on it depends on their role. The licence, the data source, the rule workbooks and the ' +
+         'audit log are on Administration, for administrators only.'
     },
-    ready: {
-      t: 'Readiness',
-      d: 'Three tiles that answer "is this set up?" at a glance. Each one is explained below.'
-    },
-    t_rules: {
-      t: 'Rule set tile',
-      d: count(R.rules_replayed) + ' rules were replayed against every applicant, out of ' + count(T.rules) +
-         ' rows across ' + count(T.files) + ' workbooks. The difference is rules for other products, lookup rows and rules ' +
-         'switched off. Counted.'
-    },
-    t_data: {
-      t: 'Applicant data tile',
-      d: 'How many applicants the analysis ran on and the period they cover. In the demo these are generated; the ' +
-         'strip at the top of every screen says so. Counted.'
-    },
-    t_fields: {
-      t: 'Field coverage tile',
-      d: 'How many of the fields the rules require the applicant table supplies. A rule cannot be evaluated on a field ' +
-         'that is missing. Counted.'
+    pg_tabs: {
+      t: 'Four tabs',
+      d: 'Analysis: what the figures cover. Risk appetite: the bad-rate ceiling and the values under it, changed by one ' +
+         'person and approved by another. Replay assumptions: what the replay does where the rule files are silent, with ' +
+         'what each decides. Data health: what the data cannot answer.'
     },
 
-    /* ------------------------------------------------------------ rule set */
+    /* ------------------------------------------------------------ analysis */
+    an_head: {
+      t: 'What the figures cover',
+      d: 'The product and period this person is looking at, the bad definition every bad rate is read against, the rule ' +
+         'pack (one line: ' + count(T.rules) + ' rules from ' + count(T.files) + ' workbooks; the table-by-table inventory ' +
+         'is on Administration), and when the figures were computed. The rule pack version is a fingerprint of the ' +
+         'workbooks: it changes whenever any of them does, so two sets of figures can be checked against the same rules.'
+    },
+    an_choose: {
+      t: 'Product and period',
+      d: 'The same choice as the period control at the top of every analysis screen, kept in this browser. It is each ' +
+         'person\'s own view: it changes nothing anyone else sees, so it needs no approval. Custom ranges and a different ' +
+         'performance window are chosen on the analysis screens, where the engine works them out.'
+    },
+    an_recompute_head: {
+      t: 'Recompute',
+      d: 'Rebuilds every figure on the rules, the data and the approved settings. An approved value changes nothing until ' +
+         'this runs, so a figure is never read as if it already used a value it does not. With the engine running this is ' +
+         'real: the engine rebuilds in the background and swaps the new figures in when they are ready.'
+    },
+    an_recompute: {
+      t: 'Recompute button',
+      d: 'Shown to analysts and risk approvers. When the licence stage pauses recomputes, the button is disabled with a ' +
+         'plain message and no licence dates. The worked-out figures used without the engine are refreshed by the export.'
+    },
+    gv_waiting: {
+      t: 'Approved, not applied',
+      d: 'An approved value waits for the next recompute. Until then every screen still shows figures computed on the ' +
+         'old value, and this line says which values are waiting.'
+    },
+
+    /* ------------------------------------------------------------ risk appetite */
+    ra_head: {
+      t: 'Bad-rate ceiling',
+      d: 'The one number that bounds every recommendation: goal-seek never proposes a strategy above it, and the ' +
+         'Simulator flags a scenario that breaches it. Without it, "maximise approvals" is solved by approving everyone.'
+    },
+    ra_ceiling: {
+      t: 'The value in force',
+      d: 'The approved value, or the configuration file\'s where nothing has been approved. The line below says who ' +
+         'approved it and when, and whether the figures use it yet.'
+    },
+    ra_pending: {
+      t: 'Waiting for approval',
+      d: 'Maker and checker. One person proposes a value with a reason; a different person approves or rejects it. The ' +
+         'engine refuses an approval from the person who proposed the change, whatever the screen shows, and allows ' +
+         'only one open proposal per setting. The proposer may withdraw it.'
+    },
+    ra_propose: {
+      t: 'Propose a change',
+      d: 'Shown to analysts. The engine checks the value is in range and that the setting has not moved since, and ' +
+         'records the proposal with who and when. Nothing changes until someone else approves it and a recompute runs.'
+    },
+    ra_advanced: {
+      t: 'Advanced',
+      d: 'The multiples that class swap-ins as riskier or safer and decide whether a rule earns its place. Same maker and ' +
+         'checker route as the ceiling. Kept under Advanced because a committee rarely moves them.'
+    },
+    ra_history: {
+      t: 'Changes',
+      d: 'Every proposal, approval, rejection, withdrawal and direct change, newest first, with who and when. Nothing is ' +
+         'ever removed from it: the history of a value is its audit. Until sign-in is built, "who" is the name the ' +
+         'signed-in role sends; the field is where the single sign-on identity goes.'
+    },
+    ra_other: {
+      t: 'Other values',
+      d: 'Values the analysis uses that are set in the configuration file only: the risk model\'s minimums, the ' +
+         'portfolio thresholds and the product limits.'
+    },
+    po_head: {
+      t: 'What the optimiser may touch',
+      d: 'Two lists that bound the search, set in the configuration file.'
+    },
+    po_hard: {
+      t: 'Never relaxed',
+      d: 'Rules resting on a regulatory or staff fact are never offered as a relaxation, whatever they cost in approvals. ' +
+         'Code can measure what a rule costs; it cannot know a bank may drop it. Hover a check for the engine field.'
+    },
+    po_levers: {
+      t: 'What goal-seek may move',
+      d: 'The thresholds goal-seek may move when it searches for a strategy, and the size of each move. Hover a row for ' +
+         'the engine field it moves.'
+    },
+
+    /* ------------------------------------------------------------ replay assumptions */
+    as_head: {
+      t: 'Replay assumptions',
+      d: 'The rule files say what each rule tests, not what to do where they are silent. These fill the gap. Each is a ' +
+         'decision, not a fact, and each is an open question with the bank. Only the risk approver changes one; the ' +
+         'change is recorded and applies on the next recompute.'
+    },
+    as_impact: {
+      t: 'What it decides',
+      d: 'Counted by replaying every application with the switch flipped and comparing who a rule declines. A switch ' +
+         'that moves nobody is said to move nobody, so a committee does not spend time on it. Counted on the figures in ' +
+         'use, for the product being viewed.'
+    },
+    as_fixed: {
+      t: 'Fixed, not a switch',
+      d: 'The configuration file has a setting for this, but the engine never reads it: the rule files only decline, so ' +
+         'an applicant no rule catches is approved. It is shown as fixed rather than as a switch that does nothing.'
+    },
+
+    /* ------------------------------------------------------------ data health */
+    dh_head: {
+      t: 'Data health',
+      d: 'What the data cannot answer. A rule on a missing field declines no one, which looks exactly like a rule that ' +
+         'never fires; this tab says which is which. Counted.'
+    },
+    dh_fields: {
+      t: 'Required fields',
+      d: 'How many of the fields the rules require the applicant table supplies.'
+    },
+    dh_uneval: {
+      t: 'Rules not evaluated',
+      d: 'A rule that names data the applicant table does not carry. It is named here rather than silently treated as a ' +
+         'rule that never fires. The value is often a whole expression over the bureau record, so the page names it in ' +
+         'a tooltip on "derived value".'
+    },
+    rn_never: {
+      t: 'Rules that catch nobody',
+      d: 'Out of ' + count(R.rules_replayed) + ' replayed rules, ' + count(R.never_fire_count) + ' matched no applicant. ' +
+         'Either the rule is redundant or it reads a field the data never populates. The list is on Decline drivers.'
+    },
+    rn_nulls: {
+      t: 'Fields with missing values',
+      d: 'A missing bureau score is not a blank to fill in: those applicants are a segment of their own, and about a hundred ' +
+         'rules test the score.'
+    },
+    mp_head: {
+      t: 'Fields the rules read',
+      d: 'Every field the engine reads, what kind it is, how many rules need it, and how often it is missing. Shown to ' +
+         'those who work with data. An administrator edits the mapping on Administration.'
+    },
+    mp_need: {
+      t: 'Need',
+      d: 'Required: read by at least one rule that applies. Needed for the funnel: the walk-away outcome. Recommended: ' +
+         'used by the analysis, not by a rule. Columns that exist only in the synthetic data are not listed.'
+    },
+
+    /* ------------------------------------------------------------ on Administration, shared with it */
     rp_head: {
-      t: 'Rule set',
+      t: 'Rule workbooks',
       d: 'The decision tables the bank supplied. Each workbook holds one or more tables; each table row is one rule: ' +
-         'conditions on an applicant that end in a decline, a pass, or a cap on the amount offered. Counted. An ' +
-         'administrator loads new workbooks on Administration.'
+         'conditions on an applicant that end in a decline, a pass, or a cap on the amount offered. Counted. Business ' +
+         'users see one line of this on Settings.'
     },
     rp_table: {
       t: 'Table',
@@ -85,99 +211,15 @@ window.__SETTINGS_NOTES__ = function (F) {
       t: 'In scope',
       d: 'Rules that apply to ' + F.rulepack.product + ' and are switched on. Only these are replayed.'
     },
-    rp_uneval: {
-      t: 'Rules not evaluated',
-      d: 'A rule that names a field the applicant data does not carry. It is named here rather than silently treated as ' +
-         'a rule that never fires, which would hide a gap. Field mapping shows which value is missing.'
-    },
-
-    /* ------------------------------------------------------------ policy */
-    po_head: {
-      t: 'Policy and risk appetite',
-      d: 'The numbers a risk committee owns, read from the engine\'s configuration. The page shows them and does not ' +
-         'edit them, because changing one is a committee decision followed by a recompute. In the deployed product an ' +
-         'analyst proposes a change and a risk approver accepts it.'
-    },
-    po_assume: {
-      t: 'Replay assumptions',
-      d: 'The rule files say what each rule tests but not how rules combine or what happens to an applicant no rule ' +
-         'catches. ' + count(F.policy.assumptions.length) + ' assumptions fill that gap. Each is still to be confirmed ' +
-         'with the client, and the funnel moves when one changes. Raise them in the meeting; the page states them neutrally.'
-    },
-    po_hard: {
-      t: 'Never relaxed',
-      d: 'Rules resting on a regulatory or staff fact are never offered as a relaxation, whatever they cost in approvals. ' +
-         'Code can measure what a rule costs; it cannot know a bank may drop it. Hover a check for the engine field.'
-    },
-    po_levers: {
-      t: 'Thresholds the optimiser may move',
-      d: 'The thresholds the optimiser is allowed to move when it searches for a strategy, and the size of each move. ' +
-         'Hover a row for the engine field it moves.'
-    },
-
-    /* ------------------------------------------------------------ run */
-    rn_head: {
-      t: 'Run and data quality',
-      d: 'What the last analysis run looked like and whether the data behaved. The counts and the timing are measured, ' +
-         'not quoted.'
-    },
-    rn_never: {
-      t: 'Rules that catch nobody',
-      d: 'Out of ' + count(R.rules_replayed) + ' replayed rules, ' + count(R.never_fire_count) + ' matched no applicant. ' +
-         'Either the rule is redundant or it reads a field the data never populates. The list is on Decline drivers, ' +
-         'with the rules it would otherwise sit beside; on a real book it is the first thing to check.'
-    },
-    rn_nulls: {
-      t: 'Fields with missing values',
-      d: 'A missing bureau score is not a blank to fill in: those applicants are a segment of their own, and about a hundred ' +
-         'rules test the score.'
-    },
-    rn_recompute: {
-      t: 'Recompute',
-      d: 'Reruns the analysis after the data, the rules or a policy value changes. Shown to analysts. The real run takes ' +
-         'minutes and works as a background job. When the licence stage pauses recomputes, the button is disabled with ' +
-         'a plain message and no licence dates. Simulated.'
-    },
-
-    /* ------------------------------------------------------------ applicant data */
-    ds_head: {
-      t: 'Applicant data',
-      d: 'The applicant table the analysis runs on. Shown to those who work with data: analysts, risk approvers and ' +
-         'administrators. Where it comes from is managed on Administration.'
-    },
-    ds_demo: {
-      t: 'Demo dataset facts',
-      d: count(D.rows) + ' generated applicants. No figure on any screen describes a real customer. Counted from the table.'
-    },
     ds_preview: {
       t: 'Example rows',
       d: 'A few rows from the source, with personal fields masked in the deployed product. In the demo they come from ' +
          'the generated table; for a simulated connection they are the same example rows.'
     },
-
-    /* ------------------------------------------------------------ mapping */
-    mp_head: {
-      t: 'Field mapping',
-      d: 'Every field the engine reads, what kind it is, how many rules need it, and which source column supplies it. ' +
-         'This is the list a bank\'s data team works from. Read-only here; an administrator edits it on Administration. ' +
-         'Counted from the rules.'
-    },
-    mp_need: {
-      t: 'Need',
-      d: 'Required: read by at least one rule that applies. Needed for the funnel: the walk-away outcome. Recommended: ' +
-         'used by the analysis, not by a rule. Columns that exist only in the synthetic data are not listed.'
-    },
-    mp_unsupplied: {
-      t: 'Not supplied',
-      d: 'A rule that names data the applicant table does not carry. It cannot be evaluated until the data is supplied. ' +
-         'The value is often a whole expression over the bureau record, so the page names it in a tooltip on "derived value".'
-    },
-
-    /* ------------------------------------------------------------ audit */
     au_head: {
       t: 'Audit log',
-      d: 'Who did what and when: uploads, runs, configuration changes and access decisions. Shown to risk approvers and ' +
-         'administrators, because governance is part of their job. Simulated.'
+      d: 'Who did what and when across the product: uploads, runs and access decisions. A preview. Changes to the risk ' +
+         'appetite and the replay assumptions are recorded for real, on Settings.'
     }
   };
 };

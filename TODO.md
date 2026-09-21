@@ -171,16 +171,25 @@ so the list reads as a debug table. The checkbox doesn't say what it means.
 ### C3. Settings overhaul — P1
 Today it's a read-only list of facts about the build (workbook file names, table roles, config
 values). Nothing on it can be changed, and some of it belongs to IT or to other screens.
-- [ ] **Analysis tab:** period and product, which the analyst can change (the home for A4 and
+- [x] **Analysis tab:** period and product, which the analyst can change (the home for A4 and
       B1), plus rule pack version and last refresh. Everyone else can read it.
-- [ ] **Risk appetite tab:** bad-rate ceiling as the headline, the multiples under "Advanced".
+      _Built: product and period are each viewer's own view (the same store as the period
+      control on every screen), so anyone may change them; it changes nothing anyone else sees.
+      Making them an analyst-owned default for everyone would need a server-side setting._
+- [x] **Risk appetite tab:** bad-rate ceiling as the headline, the multiples under "Advanced".
       Maker/checker editing: propose → approve → takes effect on next recompute, with who
       approved each value and when. It also takes in "Never relaxed" and "What goal-seek may move".
-- [ ] **Replay assumptions tab:** the three switches in plain language, with the impact beside
+      _Built on `src/client_policy.py`: the engine refuses an approval by the proposer. Recompute
+      is real with the engine running. "Never relaxed" and the goal-seek moves are shown here and
+      still set in config._
+- [x] **Replay assumptions tab:** the three switches in plain language, with the impact beside
       each (for example "affects 16% of applicants"). Only the approver can edit them.
-- [ ] **Data health tab:** fields with missing values, and rules the data can't evaluate.
-- [ ] Move the workbook and table inventory to Administration → Data. Business users see one
+      _The impact is counted by replaying with each switch flipped: missing values 2.7% of TWQR,
+      inactive rules 0%. `no_rule_matched` is never read by the engine, so it is shown as fixed._
+- [x] **Data health tab:** fields with missing values, and rules the data can't evaluate.
+- [x] Move the workbook and table inventory to Administration → Data. Business users see one
       line: "226 rules from 4 workbooks, updated 20 Sep".
+      _Moved to Administration → Rule workbooks, with the audit log._
 
 ### C4. Administration overhaul — P1
 User: the bank's IT or application admin. They want to know "is it healthy, is data flowing, who

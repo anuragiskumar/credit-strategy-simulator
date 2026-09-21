@@ -28,7 +28,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from src import client_analysis as A, client_optimise as O, client_scenarios as SC, client_simulate as S
+from src import client_analysis as A, client_optimise as O, client_policy as PO, client_scenarios as SC, \
+    client_simulate as S
 from src.client_replay import locked_rules
 
 MAX_CHANGES = 12
@@ -341,10 +342,17 @@ class Engine:
     inv: object
     cache: object = None               # client_context.ContextCache
     store: object = None               # client_scenarios.ScenarioStore; None: saving is off
+    policy: object = None              # client_policy.PolicyStore; None: settings are read-only
+    file_cfg: dict = None              # the config file as written, before approved values
+    load_cfg: object = None            # reads the config file again on a recompute; default the real one
 
     def __post_init__(self):
         self._lock = threading.Lock()
         self._rules: dict = {}
+        self._impacts: dict = {}
+        self.computed_at = PO._now()
+        self.recompute_state = {"running": False, "started_at": None, "finished_at": None,
+                                "by": None, "error": None}
 
     @classmethod
     def load(cls) -> "Engine":
@@ -352,12 +360,15 @@ class Engine:
         from src.client_generate import load_client_config
         from src.config import resolve_path
         from src.rule_inventory import build_inventory
-        cfg = load_client_config()
+        file_cfg = load_client_config()
+        policy = PO.PolicyStore(resolve_path(file_cfg["policy"]["path"])) if file_cfg.get("policy") else None
+        # Approved settings are laid over the file here, and only here: a recompute is a reload.
+        cfg = policy.effective(file_cfg) if policy else file_cfg
         inv = build_inventory(cfg["replay"]["rules_folder"])
         df = pd.read_parquet(resolve_path(cfg["data_path"]))
         cache = C.ContextCache(df, inv, cfg)
         store = SC.ScenarioStore(resolve_path(cfg["scenarios"]["path"])) if cfg.get("scenarios") else None
-        return cls(base=cache.baseline(), inv=inv, cache=cache, store=store)
+        return cls(base=cache.baseline(), inv=inv, cache=cache, store=store, policy=policy, file_cfg=file_cfg)
 
     def baseline(self, window=None, product=None) -> S.Baseline:
         """The baseline for a request's product and window, or a refusal in words."""
@@ -503,3 +514,96 @@ class Engine:
                                       r["scenario"]["window"].get("app_to"),
                                       r["scenario"]["window"].get("performance_months"))
                                      for r in rows}) == 1}
+
+    # ------------------------------------------------------------------ governed settings
+    def _policy(self):
+        if self.policy is None:
+            raise ApiError("changing settings is not configured on this engine", 501)
+        return self.policy
+
+    def _applied_cfg(self) -> dict:
+        return self.cache.cfg if self.cache is not None else self.base.cfg
+
+    def impacts(self, product=None) -> dict:
+        """What each replay assumption decides for one product, on the figures as computed."""
+        with self._lock:
+            if self.cache is None:
+                full, cfg = S.FullReplay(df=self.base.df, frames=self.base.frames, res=self.base.res), self.base.cfg
+            else:
+                cfg = self.cache.cfg_for_product(product)
+                full = self.cache.full(product)
+            key = cfg["product"]
+            if key not in self._impacts:
+                self._impacts[key] = PO.assumption_impacts(full, self.inv, cfg)
+            return {"product": key, **self._impacts[key]}
+
+    def settings(self, product=None) -> dict:
+        """The governed settings, their history, and whether the figures use them yet."""
+        policy = self._policy()
+        applied = self._applied_cfg()
+        try:
+            out = policy.state(self.file_cfg or applied, applied)
+        except PO.PolicyError as e:
+            raise ApiError(str(e), e.status) from None
+        out.update(computed_at=self.computed_at, recompute=dict(self.recompute_state),
+                   impacts=self.impacts(product))
+        return out
+
+    def _policy_call(self, fn, *args, **kw):
+        try:
+            return fn(*args, **kw)
+        except PO.PolicyError as e:
+            raise ApiError(str(e), e.status) from None
+
+    def propose_setting(self, body: dict) -> dict:
+        return self._policy_call(self._policy().propose, body.get("setting"), body.get("to"),
+                                 body.get("reason"), _who(body), self.file_cfg or self._applied_cfg())
+
+    def decide_setting(self, body: dict) -> dict:
+        return self._policy_call(self._policy().decide, str(body.get("id")), body.get("approve") is True,
+                                 _who(body), body.get("note"), self.file_cfg or self._applied_cfg())
+
+    def change_setting(self, body: dict) -> dict:
+        return self._policy_call(self._policy().change, body.get("setting"), body.get("to"),
+                                 _who(body), self.file_cfg or self._applied_cfg())
+
+    def recompute(self, who=None, wait: bool = False) -> dict:
+        """Rebuild every figure on the config file plus every approved value.
+
+        Runs in the background: the old figures keep answering until the new ones are ready,
+        then everything cached (views, rule lists, impacts) is dropped at once.
+        """
+        from src import client_context as C
+        from src.client_generate import load_client_config
+        if self.cache is None:
+            raise ApiError("this engine was loaded for one product and window only; restart it instead", 501)
+        with self._lock:
+            if self.recompute_state["running"]:
+                raise ApiError("a recompute is already running", 409)
+            self.recompute_state = {"running": True, "started_at": PO._now(), "finished_at": None,
+                                    "by": str(who or "").strip() or None, "error": None}
+
+        def run():
+            try:
+                file_cfg = (self.load_cfg or load_client_config)()
+                cfg = self.policy.effective(file_cfg) if self.policy else file_cfg
+                cache = C.ContextCache(self.cache.df, self.inv, cfg)
+                base = cache.baseline()
+                with self._lock:
+                    self.cache, self.base, self.file_cfg = cache, base, file_cfg
+                    self._rules, self._impacts = {}, {}
+                    self.computed_at = PO._now()
+                    self.recompute_state.update(running=False, finished_at=self.computed_at)
+            except Exception as e:              # report it on the screen; keep the old figures
+                with self._lock:
+                    self.recompute_state.update(running=False, finished_at=PO._now(),
+                                                error=f"{type(e).__name__}: {e}")
+        if wait:
+            run()
+        else:
+            threading.Thread(target=run, daemon=True).start()
+        return dict(self.recompute_state)
+
+
+def _who(body: dict):
+    return str(body.get("who") or "").strip() or None
