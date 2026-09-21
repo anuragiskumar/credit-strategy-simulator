@@ -116,6 +116,8 @@ def build(cfg: dict, inv, *, quick: bool = False) -> dict:
                 (df["requested_amount"] - outcome["offered_amount"]).median()),
         },
         "funnel": clean(funnel.to_dict("records")),
+        "funnel_layout": clean(A.funnel_layout(cfg)),
+        "funnel_rules": clean(A.funnel_rules(res, outcome, cfg)),
         "by_channel": _records(A.by_source(df, outcome, "channel"), "channel"),
         "by_agent": _records(A.by_source(df, outcome, "agent_id").head(12), "agent_id"),
         "portfolio": book_by,

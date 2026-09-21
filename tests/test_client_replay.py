@@ -107,6 +107,58 @@ def test_funnel_stages_account_for_the_whole_population(df, outcome):
     # Each stage's survivors equal the previous stage's minus its drop-outs.
     for i in range(1, len(table) - 1):
         assert table.iloc[i]["left"] == table.iloc[i - 1]["left"] - table.iloc[i]["dropped"]
+        # A stage's loss rate is measured against those who reached it, not all applicants.
+        assert table.iloc[i]["entered"] == table.iloc[i - 1]["left"]
+        assert table.iloc[i]["dropped_pct_of_entered"] == pytest.approx(
+            100 * table.iloc[i]["dropped"] / table.iloc[i]["entered"], abs=0.05)
+
+
+def test_eligibility_records_which_of_its_two_conditions_failed(df, res, outcome, cfg):
+    elig = outcome[outcome["stage"] == "eligibility"]
+    reasons = set(elig["reason_rule"].unique())
+    assert reasons <= {A.ELIG_PRODUCT_MIN, A.ELIG_MIN_SHARE}
+    assert (elig["reason_rule"] == A.ELIG_PRODUCT_MIN).sum() + \
+           (elig["reason_rule"] == A.ELIG_MIN_SHARE).sum() == len(elig)
+    fn = cfg["funnel"]
+    offer, req = elig["offered_amount"], df.loc[elig.index, "requested_amount"]
+    below_min = elig["reason_rule"] == A.ELIG_PRODUCT_MIN
+    assert (offer[below_min] < fn["product_min_amount"]).all()
+    # An offer failing both conditions is credited to the product minimum, never to the share.
+    share_only = ~below_min
+    assert (offer[share_only] >= fn["product_min_amount"]).all()
+    assert (offer[share_only] < req[share_only] * fn["min_acceptable_offer_ratio"]).all()
+
+
+def test_funnel_rules_sum_to_each_stage_and_are_not_capped(res, outcome, cfg):
+    table = A.funnel(pd.DataFrame(index=outcome.index), outcome).set_index("stage")
+    for block in A.funnel_rules(res, outcome, cfg):
+        stage = block["stage"]
+        assert block["total"] == block["counted"] == table.loc[stage, "dropped"]
+        assert sum(r["count"] for r in block["rules"]) == block["total"], stage
+        # No top-N cut: every distinct reason on the stage is listed.
+        distinct = outcome.loc[outcome["stage"] == stage, "reason_rule"].nunique(dropna=False)
+        assert block["n_rules"] == len(block["rules"]) == distinct, stage
+        counts = [r["count"] for r in block["rules"]]
+        assert counts == sorted(counts, reverse=True)
+
+
+def test_funnel_layout_comes_from_config_not_row_position(cfg):
+    import copy
+    layout = A.funnel_layout(cfg)
+    assert layout["order"] == A.STAGES
+    for s in A.STAGES[1:-1]:
+        assert layout["stages"][s]["group"] in layout["groups"]
+    moved = copy.deepcopy(cfg)
+    moved["funnel"]["stages"]["eligibility"]["group"] = "customer_choice"
+    assert A.funnel_layout(moved)["stages"]["eligibility"]["group"] == "customer_choice"
+    broken = copy.deepcopy(cfg)
+    del broken["funnel"]["stages"]["walked_away"]
+    with pytest.raises(ValueError):
+        A.funnel_layout(broken)
+    grouped_endpoint = copy.deepcopy(cfg)
+    grouped_endpoint["funnel"]["stages"]["booked"]["group"] = "risk_declines"
+    with pytest.raises(ValueError):
+        A.funnel_layout(grouped_endpoint)
 
 
 def test_decline_reason_is_always_a_rule_that_actually_matched(res, outcome):

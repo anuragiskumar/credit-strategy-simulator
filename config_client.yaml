@@ -309,6 +309,30 @@ funnel:
   # below requested, or below product minimum". This is the share of the request they will
   # still accept; below it they are counted as an eligibility drop-out.
   min_acceptable_offer_ratio: 0.60
+  # How many rules the headline names ("Top 3 of 61 rules account for ...").
+  headline_top_n: 3
+  # How many rules a stage's drill-down lists before "+N more rules".
+  drill_top_n: 5
+  # Grouping and loss type are declared here, never inferred from row order. loss_type is who
+  # ended the application: the lender (a rule or product limit) or the customer.
+  groups:
+    risk_declines:       {label: Risk declines,       loss_type: lender}
+    product_constraints: {label: Product constraints, loss_type: lender}
+    customer_choice:     {label: Customer choice,     loss_type: customer}
+  # applied and booked are endpoints: totals the funnel starts and ends on, with no loss.
+  # drill: false marks a stage with a single recorded reason, which has nothing to open.
+  stages:
+    applied:       {label: Applied,       endpoint: start}
+    hard_reject:   {label: Hard reject,   sublabel: failed basic checks,      group: risk_declines}
+    credit_policy: {label: Credit policy, sublabel: declined by policy rules, group: risk_declines}
+    eligibility:   {label: Eligibility,   sublabel: offer below minimum,      group: product_constraints}
+    walked_away:   {label: Walked away,   sublabel: did not take the offer,   group: customer_choice, drill: false}
+    booked:        {label: Booked,        endpoint: end}
+  # Labels for reasons no replayed rule decides (ids in src/client_analysis.py).
+  reasons:
+    elig.product_min: Offer below the product minimum amount
+    elig.min_share:   Offer below the acceptable share of the request
+    walk.elsewhere:   Customer went elsewhere
 
 portfolio:
   over_exposed_multiple: 2.0      # x an even split across slices

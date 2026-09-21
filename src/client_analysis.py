@@ -15,6 +15,11 @@ import pandas as pd
 
 STAGES = ["applied", "hard_reject", "credit_policy", "eligibility", "walked_away", "booked"]
 
+# Reasons for the stages no replayed rule decides. Labels live in config under funnel.reasons.
+ELIG_PRODUCT_MIN = "elig.product_min"
+ELIG_MIN_SHARE = "elig.min_share"
+WALKED_ELSEWHERE = "walk.elsewhere"
+
 
 def _blocking(res, stage: str | None = None) -> pd.DataFrame:
     r = res.rules
@@ -72,16 +77,20 @@ def stage_outcome(df: pd.DataFrame, res, cfg: dict) -> pd.DataFrame:
         lookup = res.rules.set_index("rule_id")
         reason_code.loc[caught] = first.map(lookup["policy_code"]).to_numpy()
 
+    # Eligibility has two conditions, recorded separately so the stage can be drilled into.
+    # An offer failing both is credited to the product minimum: it is the absolute limit, and
+    # raising the acceptable share would not rescue it.
     offer = offered_amount(df, res, cfg)
     survived = stage.eq("booked")
-    too_small = survived & ((offer < df["requested_amount"] * fn["min_acceptable_offer_ratio"])
-                            | (offer < fn["product_min_amount"]))
-    stage.loc[too_small] = "eligibility"
-    reason.loc[too_small] = "offer below acceptable share of request"
+    below_min = survived & (offer < fn["product_min_amount"])
+    below_share = survived & ~below_min & (offer < df["requested_amount"] * fn["min_acceptable_offer_ratio"])
+    stage.loc[below_min | below_share] = "eligibility"
+    reason.loc[below_min] = ELIG_PRODUCT_MIN
+    reason.loc[below_share] = ELIG_MIN_SHARE
 
     walked = stage.eq("booked") & df["walked_away"]
     stage.loc[walked] = "walked_away"
-    reason.loc[walked] = "customer went elsewhere"
+    reason.loc[walked] = WALKED_ELSEWHERE
 
     return pd.DataFrame({
         "stage": pd.Categorical(stage, categories=STAGES, ordered=True),
@@ -95,21 +104,90 @@ def stage_outcome(df: pd.DataFrame, res, cfg: dict) -> pd.DataFrame:
 
 
 def funnel(df: pd.DataFrame, outcome: pd.DataFrame) -> pd.DataFrame:
-    """Guru's stage-by-stage table: how many drop out where, and how many are left."""
+    """Guru's stage-by-stage table: how many drop out where, and how many are left.
+
+    `entered` is how many reach a stage, and `dropped_pct_of_entered` is that stage's own loss
+    rate — the figure that says how hard a stage bites, which a share of all applicants hides.
+    """
     n = len(df)
     counts = outcome["stage"].value_counts().reindex(STAGES[1:], fill_value=0)
     rows, left = [], n
-    rows.append({"stage": "applied", "dropped": 0, "left": n, "left_pct": 100.0,
-                 "per_100": 100.0})
+    rows.append({"stage": "applied", "entered": n, "dropped": 0, "left": n, "left_pct": 100.0,
+                 "per_100": 100.0, "dropped_pct_of_entered": 0.0, "dropped_pct_of_total": 0.0})
     for s in STAGES[1:-1]:
-        dropped = int(counts[s])
+        dropped, entered = int(counts[s]), left
         left -= dropped
-        rows.append({"stage": s, "dropped": dropped, "left": left,
-                     "left_pct": round(100 * left / n, 1), "per_100": round(100 * left / n, 1)})
+        rows.append({"stage": s, "entered": entered, "dropped": dropped, "left": left,
+                     "left_pct": round(100 * left / n, 1), "per_100": round(100 * left / n, 1),
+                     "dropped_pct_of_entered": round(100 * dropped / entered, 1) if entered else 0.0,
+                     "dropped_pct_of_total": round(100 * dropped / n, 1)})
     booked = int(counts["booked"])
-    rows.append({"stage": "booked", "dropped": 0, "left": booked,
-                 "left_pct": round(100 * booked / n, 1), "per_100": round(100 * booked / n, 1)})
+    rows.append({"stage": "booked", "entered": booked, "dropped": 0, "left": booked,
+                 "left_pct": round(100 * booked / n, 1), "per_100": round(100 * booked / n, 1),
+                 "dropped_pct_of_entered": 0.0, "dropped_pct_of_total": 0.0})
     return pd.DataFrame(rows)
+
+
+def funnel_layout(cfg: dict) -> dict:
+    """The funnel's labels, groups and loss types, read from config and checked here.
+
+    Grouping is declared, never inferred from row order, so moving a stage between groups is a
+    config edit. Every stage must be described, and every evaluation stage must name a group
+    that exists; an endpoint (applied, booked) has no group and no loss.
+    """
+    fn = cfg["funnel"]
+    groups, stages = fn["groups"], fn["stages"]
+    missing = [s for s in STAGES if s not in stages]
+    if missing:
+        raise ValueError(f"funnel.stages has no entry for {missing}")
+    for s in STAGES:
+        st = stages[s]
+        if s in (STAGES[0], STAGES[-1]):
+            if "group" in st:
+                raise ValueError(f"{s} is an endpoint and cannot belong to a group")
+        elif st.get("group") not in groups:
+            raise ValueError(f"funnel.stages.{s}.group must be one of {sorted(groups)}")
+    for g, spec in groups.items():
+        if spec.get("loss_type") not in ("lender", "customer"):
+            raise ValueError(f"funnel.groups.{g}.loss_type must be lender or customer")
+    return {"order": STAGES, "groups": groups, "stages": {s: stages[s] for s in STAGES},
+            "headline_top_n": int(fn["headline_top_n"]), "drill_top_n": int(fn["drill_top_n"])}
+
+
+def funnel_rules(res, outcome: pd.DataFrame, cfg: dict) -> list[dict]:
+    """Per evaluation stage, how many applicants each rule caught FIRST: the funnel drill-down.
+
+    Counted from `reason_rule`, one reason per applicant, so a stage's rules sum to its total
+    (`counted` is exported beside `total` so the screen can show it if they ever disagree).
+    No top-N cut: every rule that caught anyone is listed and the screen decides how many to show.
+    Not `decline_drivers`, whose counts are any-match and overlap.
+    """
+    top_n = int(cfg["funnel"]["headline_top_n"])
+    labels = cfg["funnel"].get("reasons", {})
+    lookup = res.rules.drop_duplicates("rule_id").set_index("rule_id")
+    out = []
+    for stage in STAGES[1:-1]:
+        reasons = outcome.loc[outcome["stage"] == stage, "reason_rule"].astype("object")
+        total = int(len(reasons))
+        counts = reasons.fillna("unrecorded").value_counts()
+        ordered = sorted(counts.items(), key=lambda kv: (-kv[1], str(kv[0])))
+        rows = []
+        for rid, count in ordered:
+            row = {"rule_id": rid, "count": int(count),
+                   "pct_of_stage": round(100 * count / total, 1) if total else 0.0}
+            if rid in lookup.index:
+                r = lookup.loc[rid]
+                row.update(label=r["description"], policy_code=r["policy_code"],
+                           relaxable=bool(r["relaxable"]))
+            else:
+                row.update(label=labels.get(rid, rid), policy_code=None, relaxable=None)
+            rows.append(row)
+        top = sum(c for _, c in ordered[:top_n])
+        out.append({"stage": stage, "total": total, "counted": int(counts.sum()),
+                    "n_rules": len(rows), "top_n": top_n,
+                    "top_n_pct": round(100 * top / total, 1) if total else 0.0,
+                    "rules": rows})
+    return out
 
 
 def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,

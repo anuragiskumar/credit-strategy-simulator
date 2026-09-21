@@ -63,11 +63,17 @@ def test_the_page_never_derives_a_rate_from_two_fixture_fields():
     that makes a screen disagree with the CLI. Formatting arithmetic (a percentage, a bar
     width, a thousands separator) is fine and is what the helpers at the top do.
     """
-    js = (UI / "client.js").read_text(encoding="utf-8")
-    body = "\n".join(line for line in js.splitlines()
-                      if not line.strip().startswith(("*", "//", "/*")))
-    derived = re.findall(r"\b(?:F|r|o|t|g|v)\.\w+\s*/\s*(?:F|r|o|t|g|v)\.\w+", body)
-    assert not derived, f"the page is deriving a figure: {derived}"
+    for name in ("client.js", "client_funnel_model.js"):
+        js = (UI / name).read_text(encoding="utf-8")
+        body = "\n".join(line for line in js.splitlines()
+                          if not line.strip().startswith(("*", "//", "/*")))
+        derived = re.findall(r"\b(?:F|r|o|t|g|v|d|s|x)\.\w+\s*/\s*(?:F|r|o|t|g|v|d|s|x)\.\w+", body)
+        assert not derived, f"{name} is deriving a figure: {derived}"
+
+
+def test_the_funnel_model_loads_before_the_page_script():
+    html = (UI / "client.html").read_text(encoding="utf-8")
+    assert html.index('src="client_funnel_model.js"') < html.index('src="client.js"')
 
 
 @pytest.mark.skipif(not FIXTURE.exists(), reason="fixture not built")
@@ -267,3 +273,27 @@ def test_the_notes_file_is_text_only():
     assert "fetch(" not in text and "XMLHttpRequest" not in text
     body = "\n".join(l for l in text.splitlines() if not l.strip().startswith(("*", "//", "/*")))
     assert not re.findall(r"\bF\.\w+\s*/\s*F\.\w+", body)
+
+
+def test_funnel_losses_are_grey_never_a_hue_or_a_hatch():
+    """Colour means provenance and hatching means NOT MODELLED, so a loss can be neither."""
+    css = (UI / "client.css").read_text(encoding="utf-8")
+    start = css.index("/* ------------------------------------------------------------------ funnel")
+    end = css.index("/* ------------------------------------------------------------------ bars in tables */")
+    block = css[start:end]
+    assert "var(--loss-lender)" in block and "var(--loss-customer)" in block
+    # Focus rings use the app-wide focus colour (tokens.css :focus-visible), so focus rules are exempt.
+    drawn = "\n".join(line for line in block.splitlines() if "focus" not in line)
+    assert not re.search(r"var\(--(breach|inf|pred|warn|nm)\b", drawn), \
+        "the funnel may use --obs for still-in and the loss greys, nothing else chromatic"
+    assert "repeating-linear-gradient" not in block and "pattern" not in block
+    tokens = (UI / "tokens.css").read_text(encoding="utf-8")
+    assert tokens.count("--loss-lender:") == 3, "light, dark (media) and dark (data-theme)"
+
+
+def test_the_funnel_panel_uses_a_true_minus_sign():
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    model = (UI / "client_funnel_model.js").read_text(encoding="utf-8")
+    assert re.search(r"−'\s*\+\s*n0\(s\.lost\)", js)
+    assert "'−' + s.lost.toLocaleString" in model
+    assert "'-' + n0(" not in js

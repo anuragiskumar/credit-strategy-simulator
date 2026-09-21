@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 01:51 UTC",
+  "generated": "2026-09-21 03:22 UTC",
   "product": "TWQR",
   "applicants": 50000,
   "rules_replayed": 226,
@@ -38,45 +38,786 @@
  "funnel": [
   {
    "stage": "applied",
+   "entered": 50000,
    "dropped": 0,
    "left": 50000,
    "left_pct": 100.0,
-   "per_100": 100.0
+   "per_100": 100.0,
+   "dropped_pct_of_entered": 0.0,
+   "dropped_pct_of_total": 0.0
   },
   {
    "stage": "hard_reject",
+   "entered": 50000,
    "dropped": 9978,
    "left": 40022,
    "left_pct": 80.0,
-   "per_100": 80.0
+   "per_100": 80.0,
+   "dropped_pct_of_entered": 20.0,
+   "dropped_pct_of_total": 20.0
   },
   {
    "stage": "credit_policy",
+   "entered": 40022,
    "dropped": 20838,
    "left": 19184,
    "left_pct": 38.4,
-   "per_100": 38.4
+   "per_100": 38.4,
+   "dropped_pct_of_entered": 52.1,
+   "dropped_pct_of_total": 41.7
   },
   {
    "stage": "eligibility",
+   "entered": 19184,
    "dropped": 7108,
    "left": 12076,
    "left_pct": 24.2,
-   "per_100": 24.2
+   "per_100": 24.2,
+   "dropped_pct_of_entered": 37.1,
+   "dropped_pct_of_total": 14.2
   },
   {
    "stage": "walked_away",
+   "entered": 12076,
    "dropped": 1136,
    "left": 10940,
    "left_pct": 21.9,
-   "per_100": 21.9
+   "per_100": 21.9,
+   "dropped_pct_of_entered": 9.4,
+   "dropped_pct_of_total": 2.3
   },
   {
    "stage": "booked",
+   "entered": 10940,
    "dropped": 0,
    "left": 10940,
    "left_pct": 21.9,
-   "per_100": 21.9
+   "per_100": 21.9,
+   "dropped_pct_of_entered": 0.0,
+   "dropped_pct_of_total": 0.0
+  }
+ ],
+ "funnel_layout": {
+  "order": [
+   "applied",
+   "hard_reject",
+   "credit_policy",
+   "eligibility",
+   "walked_away",
+   "booked"
+  ],
+  "groups": {
+   "risk_declines": {
+    "label": "Risk declines",
+    "loss_type": "lender"
+   },
+   "product_constraints": {
+    "label": "Product constraints",
+    "loss_type": "lender"
+   },
+   "customer_choice": {
+    "label": "Customer choice",
+    "loss_type": "customer"
+   }
+  },
+  "stages": {
+   "applied": {
+    "label": "Applied",
+    "endpoint": "start"
+   },
+   "hard_reject": {
+    "label": "Hard reject",
+    "sublabel": "failed basic checks",
+    "group": "risk_declines"
+   },
+   "credit_policy": {
+    "label": "Credit policy",
+    "sublabel": "declined by policy rules",
+    "group": "risk_declines"
+   },
+   "eligibility": {
+    "label": "Eligibility",
+    "sublabel": "offer below minimum",
+    "group": "product_constraints"
+   },
+   "walked_away": {
+    "label": "Walked away",
+    "sublabel": "did not take the offer",
+    "group": "customer_choice",
+    "drill": false
+   },
+   "booked": {
+    "label": "Booked",
+    "endpoint": "end"
+   }
+  },
+  "headline_top_n": 3,
+  "drill_top_n": 5
+ },
+ "funnel_rules": [
+  {
+   "stage": "hard_reject",
+   "total": 9978,
+   "counted": 9978,
+   "n_rules": 14,
+   "top_n": 3,
+   "top_n_pct": 91.7,
+   "rules": [
+    {
+     "rule_id": "yknBasicCheckValidation#016",
+     "count": 6016,
+     "pct_of_stage": 60.3,
+     "label": "Age is not between 20 or 70",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yakeen-post-validation#004",
+     "count": 2406,
+     "pct_of_stage": 24.1,
+     "label": "Age is greater than 60",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yakeen-post-validation#002",
+     "count": 727,
+     "pct_of_stage": 7.3,
+     "label": "Age is less than 20",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#014",
+     "count": 255,
+     "pct_of_stage": 2.6,
+     "label": "Age is not between 20 or 60",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#015",
+     "count": 116,
+     "pct_of_stage": 1.2,
+     "label": "Age is not between 20 or 70",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yakeen-post-validation#003",
+     "count": 101,
+     "pct_of_stage": 1.0,
+     "label": "Age is greater than 75",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#003",
+     "count": 76,
+     "pct_of_stage": 0.8,
+     "label": "Age is not between 20 or 44",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#006",
+     "count": 63,
+     "pct_of_stage": 0.6,
+     "label": "Age is not between 20 or 50",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#005",
+     "count": 59,
+     "pct_of_stage": 0.6,
+     "label": "Age is not between 20 or 48",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#009",
+     "count": 54,
+     "pct_of_stage": 0.5,
+     "label": "Age is not between 20 or 42",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#004",
+     "count": 52,
+     "pct_of_stage": 0.5,
+     "label": "Age is not between 20 or 46",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#008",
+     "count": 47,
+     "pct_of_stage": 0.5,
+     "label": "Age is not between 20 or 52",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#007",
+     "count": 4,
+     "pct_of_stage": 0.0,
+     "label": "Age is not between 20 or 54",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "yknBasicCheckValidation#010",
+     "count": 2,
+     "pct_of_stage": 0.0,
+     "label": "Age is not between 20 or 56",
+     "policy_code": null,
+     "relaxable": true
+    }
+   ]
+  },
+  {
+   "stage": "credit_policy",
+   "total": 20838,
+   "counted": 20838,
+   "n_rules": 61,
+   "top_n": 3,
+   "top_n_pct": 57.4,
+   "rules": [
+    {
+     "rule_id": "racAndPolicies#012",
+     "count": 7333,
+     "pct_of_stage": 35.2,
+     "label": "CRIF SCORE <= 570 and SIMAH SCORE <=650",
+     "policy_code": "PCAPL182",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#015",
+     "count": 2971,
+     "pct_of_stage": 14.3,
+     "label": "Employer Keyword present and CRIF SCORE < 626 and SIMAH SCORE <= 700",
+     "policy_code": "PCAPL189",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#004",
+     "count": 1662,
+     "pct_of_stage": 8.0,
+     "label": "PF - Minimum Customer Salary – for Civillian except Retired is 3500",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#028",
+     "count": 1315,
+     "pct_of_stage": 6.3,
+     "label": "Minimum Income Non Saudi",
+     "policy_code": "PCTW16",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#010",
+     "count": 1083,
+     "pct_of_stage": 5.2,
+     "label": "PVTSML & Keyword CRIF SCORE <= 626 and SIMAH SCORE <600",
+     "policy_code": "PCAPL192",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#008",
+     "count": 959,
+     "pct_of_stage": 4.6,
+     "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE <600",
+     "policy_code": "PCAPL190",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#221",
+     "count": 923,
+     "pct_of_stage": 4.4,
+     "label": "Tenure Non Saudi",
+     "policy_code": "PCTW6",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#006",
+     "count": 870,
+     "pct_of_stage": 4.2,
+     "label": "PF - Minimum Customer Salary – for Military is 10000",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#006",
+     "count": 656,
+     "pct_of_stage": 3.1,
+     "label": "Military CRIF SCORE <= 615 and SIMAH SCORE <600",
+     "policy_code": "PCAPL188",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#222",
+     "count": 283,
+     "pct_of_stage": 1.4,
+     "label": "Tenure Saudi",
+     "policy_code": "PCTW5",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#189",
+     "count": 273,
+     "pct_of_stage": 1.3,
+     "label": "Tenure Saudi",
+     "policy_code": "PCTW11",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#101",
+     "count": 222,
+     "pct_of_stage": 1.1,
+     "label": "Customer Related to Politically Exposed person",
+     "policy_code": "PCAPL179",
+     "relaxable": false
+    },
+    {
+     "rule_id": "simati_chk_IAF#032",
+     "count": 213,
+     "pct_of_stage": 1.0,
+     "label": "Pay Slip older than 2 months",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#199",
+     "count": 197,
+     "pct_of_stage": 0.9,
+     "label": "Tenure Saudi & Non Saudi",
+     "policy_code": "PCTW38",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#011",
+     "count": 180,
+     "pct_of_stage": 0.9,
+     "label": "PVTSML & KeywordCRIF SCORE <= 571 and SIMAH SCORE >=600",
+     "policy_code": "PCAPL193",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#007",
+     "count": 179,
+     "pct_of_stage": 0.9,
+     "label": "Military CRIF SCORE <= 588 and SIMAH SCORE >=600",
+     "policy_code": "PCAPL189",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#009",
+     "count": 150,
+     "pct_of_stage": 0.7,
+     "label": "PVTSML CRIF SCORE <= 571 and SIMAH SCORE >=600",
+     "policy_code": "PCAPL191",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#010",
+     "count": 145,
+     "pct_of_stage": 0.7,
+     "label": "PF - Minimum Customer Salary – for Retired is 1980",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#223",
+     "count": 137,
+     "pct_of_stage": 0.7,
+     "label": "Tenure Saudi & Non Saudi",
+     "policy_code": "PCTW39",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#191",
+     "count": 98,
+     "pct_of_stage": 0.5,
+     "label": "LOS Saudi",
+     "policy_code": "PCTW13",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#100",
+     "count": 97,
+     "pct_of_stage": 0.5,
+     "label": "Customer is Political Exposed Person",
+     "policy_code": "PCAPL178",
+     "relaxable": false
+    },
+    {
+     "rule_id": "simati_chk_IAF#017",
+     "count": 75,
+     "pct_of_stage": 0.4,
+     "label": "PF - Minimum Length of Service - Saudi for Employer segment (Gov, Semi Gov, PVTL) is 1 month",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#011",
+     "count": 70,
+     "pct_of_stage": 0.3,
+     "label": "PF - Minimum Length of Service - Saudi for Employer segment (PS) is 3 months",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#190",
+     "count": 69,
+     "pct_of_stage": 0.3,
+     "label": "Tenure Non Saudi",
+     "policy_code": "PCTW12",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#099",
+     "count": 55,
+     "pct_of_stage": 0.3,
+     "label": "Customer is under Diplomcatic Service",
+     "policy_code": "PCAPL177",
+     "relaxable": false
+    },
+    {
+     "rule_id": "simati_chk_IAF#031",
+     "count": 49,
+     "pct_of_stage": 0.2,
+     "label": "PF - Bank Staff not allowed",
+     "policy_code": null,
+     "relaxable": false
+    },
+    {
+     "rule_id": "racAndPolicies#245",
+     "count": 48,
+     "pct_of_stage": 0.2,
+     "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE <600",
+     "policy_code": "PCAPL189",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#238",
+     "count": 44,
+     "pct_of_stage": 0.2,
+     "label": "LOS Saudi",
+     "policy_code": "PCTW40",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#002",
+     "count": 44,
+     "pct_of_stage": 0.2,
+     "label": "PF - Age is less than 21 for Saudi",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#196",
+     "count": 42,
+     "pct_of_stage": 0.2,
+     "label": "Tenure Saudi",
+     "policy_code": "PCTW32",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#013",
+     "count": 36,
+     "pct_of_stage": 0.2,
+     "label": "CRIF SCORE <= 570 and SIMAH SCORE <=650",
+     "policy_code": "PCAPL183",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#243",
+     "count": 36,
+     "pct_of_stage": 0.2,
+     "label": "Military CRIF SCORE <= 615 and SIMAH SCORE <600",
+     "policy_code": "PCAPL187",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#014",
+     "count": 35,
+     "pct_of_stage": 0.2,
+     "label": "Employer Keyword present and CRIF SCORE < 626 and SIMAH SCORE <= 600",
+     "policy_code": "PCAPL185",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#019",
+     "count": 27,
+     "pct_of_stage": 0.1,
+     "label": "PF - Minimum Length of Service - Non Saudi for Employer segment (Gov, Semi Gov, PVTL) is 3 months",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#192",
+     "count": 25,
+     "pct_of_stage": 0.1,
+     "label": "LOS Non Saudi",
+     "policy_code": "PCTW14",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#244",
+     "count": 25,
+     "pct_of_stage": 0.1,
+     "label": "Military CRIF SCORE <= 588 and SIMAH SCORE >=600",
+     "policy_code": "PCAPL188",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#016",
+     "count": 20,
+     "pct_of_stage": 0.1,
+     "label": "Finance Amount Saudi GOV-SEMI-PVTL",
+     "policy_code": "PCTW3",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#024",
+     "count": 19,
+     "pct_of_stage": 0.1,
+     "label": "Minimum Income Saudi",
+     "policy_code": "PCTW43",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#193",
+     "count": 19,
+     "pct_of_stage": 0.1,
+     "label": "Customer Age (Hijri)",
+     "policy_code": "PCTW20",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#003",
+     "count": 18,
+     "pct_of_stage": 0.1,
+     "label": "PF - Age is less than 23 for Non Saudi",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#015",
+     "count": 17,
+     "pct_of_stage": 0.1,
+     "label": "PF - Minimum Length of Service - Non Saudi for Employer segment (PS) is 6 months",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#184",
+     "count": 16,
+     "pct_of_stage": 0.1,
+     "label": "Age – Non-Officer Sargent (Non-Pilot)",
+     "policy_code": "PCIJH82",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#203",
+     "count": 15,
+     "pct_of_stage": 0.1,
+     "label": "Customer Age (Hijri)",
+     "policy_code": "PCTW49",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#246",
+     "count": 11,
+     "pct_of_stage": 0.1,
+     "label": "PVTSML CRIF SCORE <= 605 and SIMAH SCORE >=600",
+     "policy_code": "PCAPL190",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#181",
+     "count": 10,
+     "pct_of_stage": 0.0,
+     "label": "Age – Non-Officer Private & Private 1st Class (Non-Pilot)",
+     "policy_code": "PCIJH79",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#017",
+     "count": 9,
+     "pct_of_stage": 0.0,
+     "label": "Min. Finance Amount GOV-SEMI-PVTL-PVTS",
+     "policy_code": "PCTW4",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#167",
+     "count": 9,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer 1st & 2nd Lieutenant (Non-Pilot)",
+     "policy_code": "PCIJH65",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#104",
+     "count": 7,
+     "pct_of_stage": 0.0,
+     "label": "TRADITIONAL, PRIVATE SMALL,SAUDI,INCOME>10000,CRIF <588",
+     "policy_code": "PCAPL184",
+     "relaxable": false
+    },
+    {
+     "rule_id": "racAndPolicies#168",
+     "count": 7,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer 1st & 2nd Lieutenant (Pilot)",
+     "policy_code": "PCIJH66",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#230",
+     "count": 7,
+     "pct_of_stage": 0.0,
+     "label": "LOS Non Saudi",
+     "policy_code": "PCTW41",
+     "relaxable": true
+    },
+    {
+     "rule_id": "simati_chk_IAF#008",
+     "count": 6,
+     "pct_of_stage": 0.0,
+     "label": "PF - Minimum Length of Service – Military is 1 month",
+     "policy_code": null,
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#169",
+     "count": 4,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer Captain (Non-Pilot)",
+     "policy_code": "PCIJH67",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#170",
+     "count": 3,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer Captain (Pilot)",
+     "policy_code": "PCIJH68",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#171",
+     "count": 3,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer Major (Non-Pilot)",
+     "policy_code": "PCIJH69",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#209",
+     "count": 3,
+     "pct_of_stage": 0.0,
+     "label": "Customer Age (Hijri)",
+     "policy_code": "PCTW55",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#180",
+     "count": 2,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer Major General (Pilot)",
+     "policy_code": "PCIJH78",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#183",
+     "count": 2,
+     "pct_of_stage": 0.0,
+     "label": "Age – Non-Officer Vice Sargent (Non-Pilot)",
+     "policy_code": "PCIJH81",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#204",
+     "count": 2,
+     "pct_of_stage": 0.0,
+     "label": "Customer Age (Hijri)",
+     "policy_code": "PCTW50",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#172",
+     "count": 1,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer Major (Pilot)",
+     "policy_code": "PCIJH70",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#174",
+     "count": 1,
+     "pct_of_stage": 0.0,
+     "label": "Age – Officer Lieutenant Colonel (Pilot)",
+     "policy_code": "PCIJH72",
+     "relaxable": true
+    },
+    {
+     "rule_id": "racAndPolicies#182",
+     "count": 1,
+     "pct_of_stage": 0.0,
+     "label": "Age – Non-Officer Corporal (Non-Pilot)",
+     "policy_code": "PCIJH80",
+     "relaxable": true
+    }
+   ]
+  },
+  {
+   "stage": "eligibility",
+   "total": 7108,
+   "counted": 7108,
+   "n_rules": 2,
+   "top_n": 3,
+   "top_n_pct": 100.0,
+   "rules": [
+    {
+     "rule_id": "elig.min_share",
+     "count": 7068,
+     "pct_of_stage": 99.4,
+     "label": "Offer below the acceptable share of the request",
+     "policy_code": null,
+     "relaxable": null
+    },
+    {
+     "rule_id": "elig.product_min",
+     "count": 40,
+     "pct_of_stage": 0.6,
+     "label": "Offer below the product minimum amount",
+     "policy_code": null,
+     "relaxable": null
+    }
+   ]
+  },
+  {
+   "stage": "walked_away",
+   "total": 1136,
+   "counted": 1136,
+   "n_rules": 1,
+   "top_n": 3,
+   "top_n_pct": 100.0,
+   "rules": [
+    {
+     "rule_id": "walk.elsewhere",
+     "count": 1136,
+     "pct_of_stage": 100.0,
+     "label": "Customer went elsewhere",
+     "policy_code": null,
+     "relaxable": null
+    }
+   ]
   }
  ],
  "by_channel": [

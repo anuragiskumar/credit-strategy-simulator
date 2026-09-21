@@ -14,7 +14,8 @@
   'use strict';
 
   var F = window.__CLIENT__;
-  var S = { page: 'portfolio', slice: 'employer_segment', toggle: 0, goal: 0, spec: false };
+  var S = { page: 'portfolio', slice: 'employer_segment', toggle: 0, goal: 0, spec: false,
+            fview: 'funnel', fdrill: null };
 
   /* ------------------------------------------------------------- formatting */
   function esc(s) {
@@ -82,24 +83,7 @@
            'requested minus offered', '', N('k_gap')) +
       '</div>';
 
-    var max = F.funnel[0].left;
-    var steps = F.funnel.map(function (r) {
-      var isDrop = r.dropped > 0;
-      return '<div class="rulestep' + (isDrop ? ' is-drop' : '') + '">' +
-        '<div class="lbl"' + N('stage_' + r.stage) + '>' + esc(r.stage.replace(/_/g, ' ')) + '</div>' +
-        '<div class="bar"><i style="width:' + ((r.left / max) * 100).toFixed(1) + '%"></i>' +
-        '<b>' + n0(r.left) + ' in · ' + r.left_pct.toFixed(1) + '%</b></div>' +
-        '<div class="drop">' + (isDrop ? '−' + n0(r.dropped) : '') + '</div></div>';
-    }).join('');
-
-    var funnelPanel = panel('Where applicants drop out', pv('OBSERVED'),
-      '<div class="rulefunnel">' +
-        '<div class="rulestep rulehead" aria-hidden="true"><div class="lbl">Stage</div>' +
-        '<div class="bar-h">Still in<span class="hide-sm"> after this stage</span></div>' +
-        '<div class="drop">Lost here</div></div>' + steps + '</div>' +
-      caveat('', 'NOTE',
-        'Every stage here is derived by replaying the rules, never assigned. The reason ' +
-        'attached to each declined applicant is the rule that actually caught them.'), N('funnel'));
+    var funnelPanel = funnelPanelHtml();
 
     var sliceBtns = ['employer_segment', 'sector', 'channel', 'score_band', 'nationality']
       .map(function (k) {
@@ -136,6 +120,284 @@
       '<p>What the current strategy books, and what that book is made of.</p></div>' +
       tiles + funnelPanel + portfolioPanel + sourcePanel();
   }
+
+  /* ------------------------------------------------ where applicants drop out
+   * One panel, one model (client_funnel_model.js), two views. The header, headline, legend,
+   * note and drill-down are shared; only funnelBarsHtml() and drawFunnel() differ, and they
+   * only draw: every label, group, count and rate comes from the model, which reads the export.
+   *
+   * Loss is shown in achromatic greys by who ended the application (lender or customer), so
+   * colour still means provenance only and hatching stays reserved for NOT MODELLED. */
+  var DEV = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || /[?&]dev=1\b/.test(location.search);
+  var FM = null;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function funnelModel() {
+    if (FM) return FM;
+    FM = window.FunnelModel.build(F);
+    // Dev-only: each stage's "in" must equal the previous "in" minus the previous "lost".
+    if (DEV) FM.issues.forEach(function (i) { console.error('[funnel] ' + i.msg); });
+    return FM;
+  }
+  function stageById(M, id) { return M.stages.filter(function (s) { return s.id === id; })[0] || null; }
+
+  function drillTrigger(s, extraCls) {
+    var open = S.fdrill === s.id;
+    return '<button type="button" class="fchev ' + (extraCls || '') + '" data-drill="' + esc(s.id) + '"' +
+      ' aria-expanded="' + open + '" aria-controls="fdrill"' +
+      ' aria-label="' + (open ? 'Hide' : 'Show') + ' the rules behind ' + esc(s.label) + '">' +
+      '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2.5 7.5 6 4 9.5" fill="none" ' +
+      'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+  }
+
+  /* Bars view. A waterfall: each stage row draws everyone who reached it, split into the solid
+   * part that goes on and the grey part lost here, so the drop is seen, not subtracted. */
+  function funnelBarsHtml(M) {
+    function w(v) { return ((v / M.total) * 100).toFixed(3) + '%'; }
+    var worst = M.headline.worst;
+
+    function endRow(e, cls, figure) {
+      return '<div class="frow ' + cls + '">' +
+        '<div class="lbl"><b' + N('stage_' + e.id) + '>' + esc(e.label) + '</b></div>' +
+        '<div class="track"><i class="go" style="width:' + w(e.stillIn) + '"></i></div>' +
+        '<div class="fig-r">' + figure + '</div><div class="chev"></div></div>';
+    }
+
+    var body = M.groups.map(function (g, gi) {
+      var head = '<div class="fgroup"><span class="gl">' + esc(g.label) + '</span>' +
+        (gi === 0 ? '<span class="colhead">Lost here<small>% of those reaching it</small></span>' : '') + '</div>';
+      return head + g.stages.map(function (s) {
+        var tip = n0(s.entered) + ' reached this stage · ' + n0(s.lost) + ' lost · ' + n0(s.stillIn) + ' went on';
+        return '<div class="frow is-' + s.lossType + (s === worst ? ' is-worst' : '') + '" data-stage="' + esc(s.id) + '">' +
+          '<div class="lbl"><b' + N('stage_' + s.id) + '>' + esc(s.label) + '</b>' +
+            '<span class="why hide-sm">' + esc(s.sublabel) + '</span></div>' +
+          '<div class="track" role="img" aria-label="' + esc(s.label + ': ' + tip) + '" title="' + esc(tip) + '">' +
+            '<i class="go" style="width:' + w(s.stillIn) + '"></i>' +
+            '<i class="lost" style="left:' + w(s.stillIn) + ';width:calc(max(4px, ' + w(s.lost) + ') + 2px)"></i></div>' +
+          '<div class="fig-r"><b>−' + n0(s.lost) + '</b>' +
+            '<span>' + s.pctLostOfReaching.toFixed(0) + '% of ' + n0(s.entered) +
+            '<span class="hide-sm"> · ' + s.pctLostOfTotal.toFixed(0) + '% of all</span></span></div>' +
+          '<div class="chev">' + (s.drillable ? drillTrigger(s) : '') + '</div></div>';
+      }).join('');
+    }).join('');
+
+    return '<div class="fbars">' +
+      endRow(M.start, 'is-start', '<b>' + n0(M.start.stillIn) + ' <em class="fbadge">Start</em></b>') +
+      '<div class="fsep" role="presentation"></div>' + body + '<div class="fsep" role="presentation"></div>' +
+      endRow(M.end, 'is-end', '<b>' + n0(M.end.stillIn) + ' <em class="fbadge is-booked">Booked</em></b>' +
+        '<span>' + M.end.pctStillInOfTotal.toFixed(1) + '% of applicants</span>') +
+      '</div>';
+  }
+
+  /* Funnel view. Drawn after insertion because its geometry depends on the width it gets. */
+  function svgEl(tag, attrs, text) {
+    var el = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+  function pts(list) { return list.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '); }
+
+  function drawFunnel(host) {
+    var M = funnelModel(), width = host.clientWidth;
+    if (!width) return;
+    var G = window.FunnelModel.geometry(M, { width: width, narrow: width < 560 });
+    var svg = svgEl('svg', { width: G.width, height: G.height, viewBox: '0 0 ' + G.width + ' ' + G.height,
+      'class': 'fsvg', role: 'group', 'aria-label': 'Funnel from ' + n0(M.total) + ' applicants to ' + n0(M.end.stillIn) + ' booked' });
+
+    G.groupLabels.forEach(function (g) {
+      svg.appendChild(svgEl('text', { x: 0, y: g.y, 'class': 'f-gl' }, g.label));
+      svg.appendChild(svgEl('line', { x1: 0, x2: G.leftW, y1: g.y + 6, y2: g.y + 6, 'class': 'f-gdiv' }));
+    });
+    G.names.forEach(function (n) {
+      var t = svgEl('text', { x: 0, y: n.y + (n.sub && !G.narrow ? -3 : 4), 'class': 'f-name is-' + n.kind });
+      t.textContent = n.label;
+      svg.appendChild(t);
+      if (n.sub && !G.narrow) svg.appendChild(svgEl('text', { x: 0, y: n.y + 12, 'class': 'f-sub' }, n.sub));
+    });
+    G.connectors.forEach(function (c) {
+      svg.appendChild(svgEl('polygon', { points: pts(c.points), 'class': 'f-conn' }));
+    });
+    G.bands.forEach(function (b) {
+      svg.appendChild(svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 3, 'class': 'f-band is-' + b.kind }));
+      if (b.kind === 'end') {
+        // An accounting total's double rule: the terminal result, not another stage.
+        svg.appendChild(svgEl('line', { x1: b.x, x2: b.x + b.w, y1: b.y + b.h + 3, y2: b.y + b.h + 3, 'class': 'f-total' }));
+        svg.appendChild(svgEl('line', { x1: b.x, x2: b.x + b.w, y1: b.y + b.h + 6, y2: b.y + b.h + 6, 'class': 'f-total' }));
+      }
+      var anchor = b.place === 'inside' ? 'middle' : b.place === 'right' ? 'start' : 'end';
+      svg.appendChild(svgEl('text', { x: b.tx, y: b.ty + 4, 'text-anchor': anchor,
+        'class': 'f-blabel' + (b.place === 'inside' ? ' is-in' : '') + (b.kind === 'end' ? ' is-end' : '') }, b.text));
+    });
+    G.leaks.forEach(function (l) {
+      var s = stageById(M, l.id), open = S.fdrill === l.id;
+      var g = svgEl('g', { 'class': 'f-leak is-' + l.lossType + (l.drillable ? ' is-drill' : '') + (open ? ' is-open' : '') });
+      if (l.drillable) {
+        g.setAttribute('role', 'button');
+        g.setAttribute('tabindex', '0');
+        g.setAttribute('data-drill', l.id);
+        g.setAttribute('aria-expanded', String(open));
+        g.setAttribute('aria-controls', 'fdrill');
+        g.setAttribute('aria-label', s.label + ': ' + l.line1 + ', ' + s.pctLostOfReaching.toFixed(0) +
+          '% of those reaching it. ' + (open ? 'Hide' : 'Show') + ' the rules behind it');
+      }
+      var hitX = l.x0 - 4, hitY = l.y0 + 2;
+      g.appendChild(svgEl('rect', { x: hitX, y: hitY, width: G.width - hitX, height: l.ly - hitY + 18, rx: 5, 'class': 'f-hit' }));
+      g.appendChild(svgEl('path', { d: l.d, 'stroke-width': l.sw.toFixed(2), 'class': 'f-arrow' }));
+      g.appendChild(svgEl('polygon', { points: pts(l.head), 'class': 'f-head' }));
+      g.appendChild(svgEl('text', { x: l.lx, y: l.ly - 1, 'class': 'f-l1' }, l.line1 + (l.drillable ? (open ? ' ▾' : ' ›') : '')));
+      g.appendChild(svgEl('text', { x: l.lx, y: l.ly + 12, 'class': 'f-l2' }, l.line2));
+      svg.appendChild(g);
+    });
+    host.replaceChildren(svg);
+  }
+
+  /* The drill-down, shared by both views: one region below them, opened from either. */
+  function drillHtml(M) {
+    var s = S.fdrill ? stageById(M, S.fdrill) : null;
+    if (!s) return '';
+    var top = s.rules.slice(0, M.drillTopN), more = s.nRules - top.length;
+    var rows = top.map(function (r) {
+      return '<li><span class="rn" title="' + esc(r.label) + '">' +
+          (r.code ? '<code>' + esc(r.code) + '</code>' : '') + esc(r.label) + '</span>' +
+        '<span class="rc">' + n0(r.count) + '</span>' +
+        '<span class="rp">' + r.pctOfStage.toFixed(1) + '%</span>' +
+        '<span class="rb" aria-hidden="true"><i style="width:' + r.pctOfStage + '%"></i></span></li>';
+    }).join('');
+    var issues = s.issues.length
+      ? caveat('warn', 'CHECK', 'These counts do not reconcile: ' +
+          esc(s.issues.map(function (i) { return i.msg; }).join('; ')) + '.')
+      : '';
+    return '<div class="fdrill-in is-' + s.lossType + '">' +
+      '<div class="fdrill-head"><h4 id="fdrill-h" tabindex="-1">' + esc(s.label) +
+        ' <span>rules that caught applicants first</span></h4>' +
+        '<button type="button" class="fclose" data-drill-close aria-label="Close the rules behind ' + esc(s.label) + '">×</button></div>' +
+      '<p class="fdrill-sub">' + n0(s.lost) + ' lost here across ' + n0(s.nRules) + (s.nRules === 1 ? ' reason' : ' rules') +
+        '. Each applicant is counted once, under the first rule that caught them.</p>' +
+      '<div class="fdrill-cols" aria-hidden="true"><span>Rule</span><span>Applicants</span><span>Share of stage</span><span></span></div>' +
+      '<ol class="fdrill-list">' + rows + '</ol>' +
+      (more > 0 ? '<p class="fdrill-more">+' + n0(more) + ' more ' + (more === 1 ? 'rule' : 'rules') + '</p>' : '') +
+      issues + '</div>';
+  }
+
+  function funnelPanelHtml() {
+    var M = funnelModel(), h = M.headline, view = S.fview;
+    var lede = '<p class="flede">' +
+      '<b>' + n0(h.booked) + '</b> of ' + n0(h.total) + ' applicants are booked (' + h.bookedPct.toFixed(1) + '%). ' +
+      '<b>' + esc(h.worst.label) + '</b> removes the most: ' + n0(h.worst.lost) + ' people, ' +
+      h.worst.pctLostOfReaching.toFixed(0) + '% of those who reach it.' +
+      (h.nRules > h.topN ? ' Top ' + h.topN + ' of ' + n0(h.nRules) + ' rules account for ' +
+        h.topNPct.toFixed(1) + '% of these.' : '') + '</p>';
+    var key = '<div class="fkey" aria-hidden="true">' +
+      '<span><i class="k-go"></i>still in</span>' +
+      '<span><i class="k-lender"></i>declined by lender</span>' +
+      '<span><i class="k-customer"></i>customer walked away</span></div>';
+    var seg = '<div class="fseg" role="group" aria-label="View"' + N('fview') + '>' +
+      ['funnel', 'bars'].map(function (v) {
+        return '<button type="button" data-fview="' + v + '" aria-pressed="' + (view === v) + '">' +
+          (v === 'funnel' ? 'Funnel' : 'Bars') + '</button>';
+      }).join('') + '</div>';
+    var views = '<div class="fviews">' +
+      '<div class="fview' + (view === 'funnel' ? ' is-on' : '') + '" data-view="funnel"' + (view === 'funnel' ? '' : ' inert aria-hidden="true"') + '>' +
+        '<div class="ffunnelhost"></div></div>' +
+      '<div class="fview' + (view === 'bars' ? ' is-on' : '') + '" data-view="bars"' + (view === 'bars' ? '' : ' inert aria-hidden="true"') + '>' +
+        funnelBarsHtml(M) + '</div></div>';
+
+    return '<div class="fpanel">' + panel('Where applicants drop out', seg + pv('OBSERVED'),
+      lede + key + views +
+      '<div id="fdrill" class="fdrill" role="region" aria-live="polite" aria-labelledby="fdrill-h"' + N('fdrill') + '>' +
+        drillHtml(M) + '</div>' +
+      caveat('sans', 'NOTE',
+        'Every stage here is derived by replaying the rules, never assigned. The reason ' +
+        'attached to each declined applicant is the rule that actually caught them.'), N('funnel')) + '</div>';
+  }
+
+  /* Wiring. The view switch and the drill-down update the panel in place, never re-rendering
+   * the page, so the cross-fade can run and focus is never lost. */
+  function syncDrillTriggers(root) {
+    var M = funnelModel();
+    root.querySelectorAll('[data-drill]').forEach(function (t) {
+      var id = t.getAttribute('data-drill'), open = S.fdrill === id, s = stageById(M, id);
+      t.setAttribute('aria-expanded', String(open));
+      t.classList.toggle('is-open', open);
+      if (t.tagName.toLowerCase() === 'button') {
+        t.setAttribute('aria-label', (open ? 'Hide' : 'Show') + ' the rules behind ' + s.label);
+      }
+    });
+    root.querySelectorAll('.frow[data-stage]').forEach(function (r) {
+      r.classList.toggle('is-open', r.getAttribute('data-stage') === S.fdrill);
+    });
+  }
+
+  function activeView(root) { return root.querySelector('.fview.is-on'); }
+
+  function setDrill(root, id, trigger) {
+    var closing = !id || S.fdrill === id;
+    var was = S.fdrill;
+    S.fdrill = closing ? null : id;
+    root.querySelector('#fdrill').innerHTML = drillHtml(funnelModel());
+    var host = root.querySelector('.ffunnelhost');
+    if (host) drawFunnel(host);
+    syncDrillTriggers(root);
+    if (S.spec) applySpec();
+    if (S.fdrill) {
+      var h = root.querySelector('#fdrill-h');
+      if (h) h.focus({ preventScroll: true });
+      var region = root.querySelector('#fdrill');
+      var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      region.scrollIntoView({ block: 'nearest', behavior: calm ? 'auto' : 'smooth' });
+    } else {
+      // Closing returns focus to whatever opened it, in the view that is showing now.
+      var back = activeView(root).querySelector('[data-drill="' + (trigger || was) + '"]');
+      if (back) back.focus();
+    }
+  }
+
+  function setView(root, view) {
+    if (S.fview === view) return;
+    S.fview = view;
+    root.querySelectorAll('.fview').forEach(function (v) {
+      var on = v.getAttribute('data-view') === view;
+      v.classList.toggle('is-on', on);
+      if (on) { v.removeAttribute('inert'); v.removeAttribute('aria-hidden'); }
+      else { v.setAttribute('inert', ''); v.setAttribute('aria-hidden', 'true'); }
+    });
+    root.querySelectorAll('[data-fview]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-fview') === view));
+    });
+    if (S.spec) applySpec();
+  }
+
+  function mountFunnel(root) {
+    var panelEl = root.querySelector('.fpanel');
+    if (!panelEl) return;
+    var host = panelEl.querySelector('.ffunnelhost');
+    drawFunnel(host);
+    panelEl.addEventListener('click', function (e) {
+      var v = e.target.closest('[data-fview]');
+      if (v) { setView(panelEl, v.getAttribute('data-fview')); return; }
+      if (e.target.closest('[data-drill-close]')) { setDrill(panelEl, null); return; }
+      var t = e.target.closest('[data-drill]');
+      if (t) setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'));
+    });
+    panelEl.addEventListener('keydown', function (e) {
+      var t = e.target.closest && e.target.closest('g[data-drill]');
+      if (t && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'));
+        return;
+      }
+      if (e.key === 'Escape' && S.fdrill && e.target.closest('#fdrill')) setDrill(panelEl, null);
+    });
+  }
+
+  window.addEventListener('resize', function () {
+    clearTimeout(drawFunnel.t);
+    drawFunnel.t = setTimeout(function () {
+      var host = document.querySelector('.ffunnelhost');
+      if (host) drawFunnel(host);
+    }, 120);
+  });
 
   function sourcePanel() {
     var maxD = Math.max.apply(null, F.by_channel.map(function (r) { return r.declines; }));
@@ -347,6 +609,7 @@
     canvas.scrollTop = keepScroll ? at : 0;
     renderNav();
     wire(wrap);
+    mountFunnel(wrap);
     applySpec();
   }
 
@@ -404,7 +667,7 @@
     document.querySelectorAll('[data-note]').forEach(function (el) {
       var key = el.getAttribute('data-note');
       // Skip anything not on screen (the rail on a phone), so a footnote never explains nothing.
-      if (!notes[key] || !el.getClientRects().length) return;
+      if (!notes[key] || !el.getClientRects().length || el.closest('[inert]')) return;
       if (!(key in number)) { order.push(key); number[key] = order.length; }
       var n = number[key];
       var badge = specBadge(n, 'Spec note ' + n + ': ' + notes[key].t,

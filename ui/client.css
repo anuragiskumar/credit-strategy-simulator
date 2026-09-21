@@ -4,22 +4,145 @@
 /* client.html has no evidence ledger, so the rail + canvas flex layout in tokens.css needs no
    override here. The rail's own responsive collapse below 860px is inherited unchanged. */
 
-/* ------------------------------------------------------------------ funnel */
-.rulefunnel { display: flex; flex-direction: column; gap: 3px; padding: 4px 0; }
-.rulestep { display: grid; grid-template-columns: 148px minmax(0, 1fr) 120px; gap: 12px; align-items: center; }
-.rulestep .lbl { font-size: 12.5px; color: var(--ink-2); }
-.rulestep .bar { height: 26px; background: var(--sunken); border-radius: 4px; position: relative; overflow: hidden; }
-.rulestep .bar i { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--obs); opacity: .82; border-radius: 4px; display: block; }
-.rulestep .bar b { position: absolute; inset-block: 0; inset-inline-end: 7px; display: flex; align-items: center;
-                 font-family: var(--mono); font-size: 11px; color: var(--ink-2); font-weight: 500; }
-.rulestep .drop { font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-align: end; }
-.rulestep.is-drop .lbl { color: var(--muted); }
-/* Column headings, so "still in" and "lost here" cannot be read as the same thing. */
-.rulehead { margin-bottom: 2px; }
-.rulehead .lbl, .rulehead .bar-h, .rulehead .drop {
-  font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+/* ------------------------------------------------------------------ funnel
+   One panel, two views (Funnel, Bars) over one model. Still-in is --obs (it is OBSERVED).
+   Losses are achromatic: --loss-lender when a rule or product limit ended the application,
+   --loss-customer when the applicant walked. No hue and no hatch, so colour still encodes
+   provenance only and hatching still means NOT MODELLED. Every figure is tabular. */
+.fpanel { font-variant-numeric: tabular-nums; }
+.fpanel .panelhead h3 { margin-inline-end: auto; }
+
+.fseg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--sunken); }
+.fseg button {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  font-family: var(--ui); font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 5px;
 }
-.rulehead .drop { font-size: 9.5px; }
+.fseg button:hover { color: var(--ink); }
+.fseg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+.flede { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); max-width: 72ch; }
+.flede b { color: var(--ink); font-weight: 600; }
+
+.fkey { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; font-size: 11.5px; color: var(--muted); }
+.fkey span { display: inline-flex; align-items: center; gap: 6px; }
+.fkey i { display: block; width: 12px; height: 8px; border-radius: 2px; }
+.fkey .k-go { background: var(--obs); }
+.fkey .k-lender { background: var(--loss-lender); }
+.fkey .k-customer { background: var(--loss-customer); }
+
+/* The two views share one grid cell, so the panel is always as tall as the taller view and the
+   page never jumps on a switch. The switch is a 300ms cross-fade. */
+.fviews { display: grid; }
+.fview { grid-area: 1 / 1; min-width: 0; opacity: 0; visibility: hidden;
+         transition: opacity .3s ease, visibility 0s linear .3s; }
+.fview.is-on { opacity: 1; visibility: visible; transition: opacity .3s ease, visibility 0s; }
+@media (prefers-reduced-motion: reduce) { .fview, .fview.is-on { transition: none; } }
+
+/* ---------------------------------------------------------- bars view */
+.fbars { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 4px; }
+.frow { display: grid; grid-template-columns: 172px minmax(0, 1fr) 184px 26px; gap: 12px; align-items: center;
+        min-height: 36px; border-radius: 6px; }
+.frow .lbl { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.frow .lbl b { font-size: 12.5px; font-weight: 500; color: var(--ink); }
+.frow .lbl .why { font-size: 11px; color: var(--muted); }
+.frow .track { height: 22px; position: relative; background: var(--sunken); border-radius: 4px; overflow: hidden; }
+.frow .track i { position: absolute; inset-block: 0; inset-inline-start: 0; display: block; }
+.frow .track i.go { background: var(--obs); opacity: .82; border-radius: 4px 0 0 4px; }
+/* The 2px gap between kept and lost separates them without relying on hue. */
+.frow .track i.lost { border-inline-start: 2px solid var(--sunken); }
+.frow.is-lender .track i.lost { background: var(--loss-lender); }
+.frow.is-customer .track i.lost { background: var(--loss-customer); }
+.frow .fig-r { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: end; font-family: var(--mono); }
+.frow .fig-r b { font-size: 13px; font-weight: 500; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.frow .fig-r > span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.frow.is-worst .lbl b, .frow.is-worst .fig-r b { font-weight: 700; color: var(--ink); }
+.frow.is-open { background: var(--sunken); box-shadow: 0 0 0 4px var(--sunken); }
+.frow .chev { display: flex; justify-content: center; }
+
+.fbadge { font-style: normal; font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: .08em;
+          text-transform: uppercase; color: var(--muted); border: 1px solid var(--line-hard); border-radius: 4px; padding: 1px 5px; }
+.fbadge.is-booked { color: var(--obs); border-color: color-mix(in srgb, var(--obs) 40%, transparent); background: var(--obs-wash); }
+
+/* Applied and Booked are the totals the funnel starts and ends on: same separator either side. */
+.fsep { height: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.frow.is-start .lbl b, .frow.is-end .lbl b, .frow.is-end .fig-r b { font-weight: 700; color: var(--ink); }
+.frow.is-end { background: var(--paper); box-shadow: 0 0 0 4px var(--paper); }
+.frow.is-end .track { background: var(--surface); }
+.frow.is-end .track i.go { opacity: 1; }
+
+.fgroup { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 8px 0 2px;
+          border-bottom: 1px solid var(--line-soft); margin-bottom: 2px; }
+.fgroup .gl, .fgroup .colhead { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.fgroup .colhead { text-align: end; margin-inline-end: 38px; display: flex; flex-direction: column; align-items: flex-end; }
+.fgroup .colhead small { font-size: 9px; letter-spacing: 0; text-transform: none; }
+.fbars .fgroup:first-of-type { padding-top: 2px; }
+
+.fchev { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 5px; cursor: pointer;
+         border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); padding: 0; }
+.fchev:hover { border-color: var(--line-hard); color: var(--ink); }
+.fchev svg { transition: transform .2s ease; }
+.fchev[aria-expanded="true"] svg { transform: rotate(90deg); }
+
+/* ---------------------------------------------------------- funnel view */
+.ffunnelhost { width: 100%; }
+.fsvg { display: block; overflow: visible; font-family: var(--ui); }
+.fsvg .f-band { fill: var(--obs); opacity: .88; }
+.fsvg .f-band.is-end { opacity: 1; }
+.fsvg .f-conn { fill: var(--obs); opacity: .26; }
+.fsvg .f-total { stroke: var(--ink-2); stroke-width: 1; }
+.fsvg .f-blabel { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+.fsvg .f-blabel.is-in { fill: var(--on-obs); font-weight: 500; }
+.fsvg .f-blabel.is-end { font-weight: 600; fill: var(--ink); }
+.fsvg .f-blabel.is-end.is-in { fill: var(--on-obs); }
+.fsvg .f-name { font-size: 12.5px; font-weight: 500; fill: var(--ink); }
+.fsvg .f-name.is-start, .fsvg .f-name.is-end { font-weight: 700; }
+.fsvg .f-sub { font-size: 11px; fill: var(--muted); }
+.fsvg .f-gl { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; fill: var(--faint); }
+.fsvg .f-gdiv { stroke: var(--line-soft); stroke-width: 1; }
+.fsvg .f-arrow { fill: none; stroke-linecap: butt; }
+.fsvg .is-lender .f-arrow { stroke: var(--loss-lender); }
+.fsvg .is-lender .f-head { fill: var(--loss-lender); }
+.fsvg .is-customer .f-arrow { stroke: var(--loss-customer); stroke-dasharray: 5 4; }
+.fsvg .is-customer .f-head { fill: var(--loss-customer); }
+.fsvg .f-l1 { font-family: var(--mono); font-size: 12px; font-weight: 600; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.fsvg .f-l2 { font-family: var(--mono); font-size: 10.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.fsvg .f-hit { fill: transparent; stroke: transparent; stroke-width: 2; }
+.fsvg .f-leak.is-drill { cursor: pointer; }
+.fsvg .f-leak.is-drill:hover .f-hit, .fsvg .f-leak.is-open .f-hit { fill: var(--sunken); }
+.fsvg .f-leak:focus { outline: none; }
+.fsvg .f-leak:focus-visible .f-hit { stroke: var(--pred); }
+
+/* ---------------------------------------------------------- drill-down (shared) */
+.fdrill:empty { display: none; }
+.fdrill { margin-top: 12px; }
+.fdrill-in { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--surface);
+             border-inline-start: 3px solid var(--loss-lender); }
+.fdrill-in.is-customer { border-inline-start-color: var(--loss-customer); }
+.fdrill-head { display: flex; align-items: baseline; gap: 10px; }
+.fdrill-head h4 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; }
+.fdrill-head h4 span { font-weight: 400; color: var(--muted); }
+.fdrill-head h4:focus { outline: none; }
+.fdrill-head h4:focus-visible { outline: 2px solid var(--pred); outline-offset: 3px; }
+.fclose { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 5px;
+          width: 24px; height: 24px; cursor: pointer; font-size: 15px; line-height: 1; padding: 0; }
+.fclose:hover { color: var(--ink); border-color: var(--line-hard); }
+.fdrill-sub { margin: 4px 0 10px; font-size: 12px; color: var(--muted); }
+.fdrill-cols, .fdrill-list li { display: grid; grid-template-columns: minmax(0, 1fr) 84px 96px 110px; gap: 12px; align-items: center; }
+.fdrill-cols { font-family: var(--mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint);
+               padding-bottom: 4px; border-bottom: 1px solid var(--line-soft); }
+.fdrill-cols span:nth-child(2), .fdrill-cols span:nth-child(3) { text-align: end; }
+.fdrill-list { list-style: none; margin: 0; padding: 0; }
+.fdrill-list li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.fdrill-list .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.fdrill-list .rn code { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-inline-end: 8px; }
+.fdrill-list .rc, .fdrill-list .rp { font-family: var(--mono); text-align: end; }
+.fdrill-list .rp { color: var(--muted); }
+.fdrill-list .rb { height: 7px; background: var(--sunken); border-radius: 2px; overflow: hidden; }
+.fdrill-list .rb i { display: block; height: 100%; background: var(--loss-lender); }
+.fdrill-in.is-customer .rb i { background: var(--loss-customer); }
+.fdrill-more { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+
+.caveat.sans p { font-family: var(--ui); font-size: 13px; }
 
 /* ------------------------------------------------------------------ bars in tables */
 .minibar { display: block; height: 7px; border-radius: 2px; background: var(--ink); opacity: .26; min-width: 1px; }
@@ -51,8 +174,13 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 
 @media (max-width: 760px) {
   /* Keep the "lost here" column on a phone: it is the only place the drop-out count appears. */
-  .rulestep { grid-template-columns: 84px minmax(0, 1fr) 52px; gap: 8px; }
-  .rulehead .bar-h { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .frow { grid-template-columns: 84px minmax(0, 1fr) 84px 24px; gap: 8px; }
+  .frow .fig-r > span { font-size: 10px; }
+  /* The START / BOOKED badge drops under its count rather than pushing it over the bar. */
+  .frow .fig-r b { flex-direction: column; align-items: flex-end; gap: 3px; }
+  .fgroup .colhead { margin-inline-end: 32px; }
+  .fdrill-cols, .fdrill-list li { grid-template-columns: minmax(0, 1fr) 58px 48px; }
+  .fdrill-cols span:nth-child(4), .fdrill-list .rb { display: none; }
 }
 
 /* ------------------------------------------------------------------ spec notes

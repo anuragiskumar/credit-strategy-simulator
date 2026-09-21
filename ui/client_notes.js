@@ -91,11 +91,24 @@ window.__NOTES__ = function (F) {
     },
     funnel: {
       t: 'Where applicants drop out',
-      d: 'Each applicant leaves the funnel at exactly one place: the first stage they fail. The bar shows how many ' +
-         'applicants are still in after that stage, and the figure on the right is how many were lost at that stage. ' +
-         'The two last rows always show the same "still in" figure: walking away is the final stage that removes ' +
-         'anyone, so what remains after it is what is booked. The losses sum to the application total minus the ' +
-         'booked loans, which is the check that the picture is complete.'
+      d: 'Each applicant leaves at exactly one place: the first stage they fail. Two views of the same figures. ' +
+         'Funnel: each green band is who is still in, its width exactly proportional to that count, and the arrow ' +
+         'leaving each narrowing is who was lost there, its thickness growing with the loss. Bars: each stage row is ' +
+         'everyone who reached it, split into green (goes on) and grey (lost here). Dark grey is a loss the lender ' +
+         'caused (a rule or a product limit); light grey, and a dashed arrow, is a customer who walked away. Losses ' +
+         'are grey, not coloured, because colour on these screens only ever says how a figure is known. The losses ' +
+         'sum to the application total minus the booked loans, which is the check that the picture is complete.'
+    },
+    fview: {
+      t: 'Funnel or Bars',
+      d: 'The same model drawn two ways. Funnel shows the shape of attrition at a glance; Bars lines the stages up so ' +
+         'their losses can be compared exactly. Switching keeps any open drill-down open.'
+    },
+    fdrill: {
+      t: 'The rules behind a stage',
+      d: 'Opened from a stage\'s chevron (Bars) or its loss arrow (Funnel). Lists the rules that caught the most ' +
+         'applicants at that stage. Each applicant is counted once, under the first rule that caught them, so the ' +
+         'counts add up to the stage total; if they ever do not, the difference is shown here rather than hidden.'
     },
     stage_applied: { t: 'Applied', d: 'Every application in the population, before any rule is run.' },
     stage_hard_reject: {
