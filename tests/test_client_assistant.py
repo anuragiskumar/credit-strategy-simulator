@@ -33,7 +33,9 @@ class Scripted(L.Provider):
     def __init__(self, *replies):
         self.replies, self.seen = list(replies), []
 
-    def converse(self, system, turns, schema=None):
+    def converse(self, system, turns, schema=None, on_try=None):
+        if on_try:
+            on_try(self.model, None)
         self.seen.append({"system": system, "turns": turns, "schema": schema})
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
@@ -236,6 +238,44 @@ def test_every_request_is_logged_with_who_asked_and_what_the_model_said(engine, 
     assert row["raw"]["changes"][0]["rule_id"] == picks["busiest"] and row["approval_rate"] is not None
 
 
+# --------------------------------------------------------------------------- progress
+def test_each_step_is_reported_as_it_starts_in_order(engine, picks):
+    steps = []
+    AS.respond(engine, {"message": "switch it off"},
+               Scripted({"action": "scenario", "changes": [{"type": "off", "rule_id": picks["busiest"]}]}),
+               progress=lambda stage, text: steps.append((stage, text)))
+    assert [s for s, _ in steps] == ["rules", "model", "check", "replay"]
+    assert "scripted-1" in steps[1][1]
+    assert f"{len(engine.base.df):,} applications" in steps[3][1]
+
+
+def test_a_correction_and_a_search_are_reported_too(engine, picks):
+    steps = []
+    bad = {"action": "scenario", "changes": [{"type": "off", "rule_id": picks["fixed"]["rule_id"]}]}
+    target = round(engine.base.approval_rate + 0.02, 3)
+    AS.respond(engine, {"message": "more approval"}, Scripted(bad, {"action": "goal_seek", "target": target}),
+               progress=lambda stage, text: steps.append((stage, text)))
+    stages = [s for s, _ in steps]
+    assert stages == ["rules", "model", "check", "repair", "model", "check", "search"]
+    assert "corrected plan" in steps[4][1]
+
+
+def test_a_busy_model_handing_over_is_reported_and_the_answering_model_recorded(engine, picks, monkeypatch):
+    reply = {"action": "scenario", "changes": [{"type": "off", "rule_id": picks["busiest"]}]}
+
+    def fake(req, timeout):
+        if "/busy:" in req.full_url:
+            raise urllib.error.HTTPError(req.full_url, 503, "busy", {}, io.BytesIO(b"{}"))
+        body = {"candidates": [{"content": {"parts": [{"text": json.dumps(reply)}]}}]}
+        return io.BytesIO(json.dumps(body).encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    steps = []
+    out = AS.respond(engine, {"message": "switch it off"}, L.GeminiProvider(api_key="k", model="busy", fallbacks=["spare"]),
+                     progress=lambda stage, text: steps.append(text))
+    assert "busy is busy, asking spare" in steps and out["model"] == "spare"
+
+
 # --------------------------------------------------------------------------- with no model at all
 @pytest.mark.parametrize("message, action", [
     ("switch off racAndPolicies#012", "scenario"),
@@ -280,6 +320,20 @@ def test_an_overloaded_gemini_model_hands_over_to_the_next_one(monkeypatch):
     assert asked == ["busy", "spare"] and g.last_model == "spare"
 
 
+def test_the_thinking_level_from_config_reaches_gemini(monkeypatch):
+    sent = []
+
+    def fake(req, timeout):
+        sent.append(json.loads(req.data))
+        return io.BytesIO(b'{"candidates": [{"content": {"parts": [{"text": "{}"}]}}]}')
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    provider, _ = AS.provider_from_config({"assistant": {"provider": "gemini", "model": "m", "thinking_level": "low"}})
+    provider.converse("s", [{"role": "user", "text": "q"}])
+    assert sent[0]["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"}
+
+
 def test_a_bad_key_is_reported_at_once_not_retried_on_every_model(monkeypatch):
     asked = []
 
@@ -307,6 +361,17 @@ def test_the_chat_is_served_at_api_ask(engine):
         with urllib.request.urlopen(req, timeout=60) as r:
             out = json.loads(r.read())
         assert out["action"] == "scenario" and out["result"]["result"]["swap_in"] > 0
+        req = urllib.request.Request(url + "/api/ask", json.dumps({"message": "switch off racAndPolicies#012",
+                                                                   "stream": True}).encode(),
+                                     {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            assert r.headers["Content-Type"].startswith("application/x-ndjson")
+            rows = [json.loads(line) for line in r.read().decode().splitlines()]
+        assert [x["stage"] for x in rows][-1] == "done" and len(rows) > 2
+        assert rows[-1]["answer"]["action"] == "scenario"
+        req = urllib.request.Request(url + "/api/ask", b'{"message": "", "stream": true}', {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            assert json.loads(r.read().decode().splitlines()[-1])["stage"] == "error"
         with urllib.request.urlopen(url + "/api/health", timeout=60) as r:
             assert json.loads(r.read())["assistant"]["provider"] == "keyword"
         req = urllib.request.Request(url + "/api/ask", b'{"message": ""}', {"Content-Type": "application/json"})

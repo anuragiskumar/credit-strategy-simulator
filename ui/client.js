@@ -1068,7 +1068,7 @@
   var SIM = {
     live: null,          // null while checking, then true (engine) or false (fixture only)
     health: null, rules: null,
-    view: 'target',      // 'target' | 'try' | 'rules' | 'saved'
+    view: 'ask',         // 'ask' | 'target' | 'try' | 'rules' | 'saved'. Ask falls back to target where it cannot run
     steps: [], out: null, pending: false, error: null, notice: null,
     q: '', filter: 'alone', picked: null,   // All rules: search, filter, the rule open in the detail
     shut: {}, more: {},  // stage groups closed, and stage groups showing every rule
@@ -1078,7 +1078,8 @@
     open: {},            // which disclosures are open, so a re-render keeps them open
     refocus: null,       // selector to focus again after a re-render (a slider, a switch)
     goal: { target: 25, ceiling: null, frozen: [], out: null, pending: false, error: null },
-    chat: { turns: [], draft: '', pending: false, error: null, reveal: false }   // Ask: the conversation, held only here
+    // Ask: the conversation, held only here, and the steps of the request in flight.
+    chat: { turns: [], draft: '', pending: false, error: null, reveal: false, steps: [], started: 0, clock: null }
   };
   var RULE_PAGE = 25;
   var TOP_RULES = 8;
@@ -2338,7 +2339,8 @@
     'Ease the minimum salary for civilians to 3,000'
   ];
 
-  function canAsk() { return window.Session.can('assistant.use'); }
+  /** Ask needs the person to be allowed it and the engine behind it; the precomputed file cannot answer. */
+  function canAsk() { return window.Session.can('assistant.use') && SIM.live !== false; }
 
   /** What the model is asked to build on: the last scenario it proposed, else the one on screen. */
   function askBasis() {
@@ -2347,6 +2349,59 @@
       if (t.a && t.a.action === 'scenario') return t.a.changes;
     }
     return SIM.steps;
+  }
+
+  /** POST and read the engine's reply line by line: each step as it starts, then the answer.
+   * An engine that does not stream answers in one piece, and that is read the same way. */
+  function apiStream(path, body, onStep) {
+    return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      .then(function (r) {
+        var type = r.headers.get('Content-Type') || '';
+        if (!r.ok || type.indexOf('ndjson') < 0 || !r.body || !r.body.getReader) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (!r.ok) throw new Error(j.error || ('the engine answered ' + r.status));
+            return j;
+          });
+        }
+        var reader = r.body.getReader(), dec = new TextDecoder(), buf = '', answer = null, err = null;
+        function pump() {
+          return reader.read().then(function (x) {
+            if (!x.done) buf += dec.decode(x.value, { stream: true });
+            var lines = buf.split('\n');
+            buf = x.done ? '' : lines.pop();
+            lines.forEach(function (line) {
+              if (!line.trim()) return;
+              var row = JSON.parse(line);
+              if (row.stage === 'done') answer = row.answer;
+              else if (row.stage === 'error') err = row.error;
+              else onStep(row);
+            });
+            if (!x.done) return pump();
+            if (err) throw new Error(err);
+            if (!answer) throw new Error('the engine stopped before answering');
+            return answer;
+          });
+        }
+        return pump();
+      });
+  }
+
+  /** The steps so far: done ones ticked, the current one moving, with the time since the request. */
+  function askProgress() {
+    var c = SIM.chat, last = c.steps.length - 1;
+    return '<ol class="askprog">' + c.steps.map(function (st, i) {
+      return i < last
+        ? '<li class="is-done"><span class="askmark" aria-hidden="true">✓</span>' + esc(st.text) + '</li>'
+        : '<li class="is-now"><span class="askdots" aria-hidden="true"><i></i><i></i><i></i></span>' + esc(st.text) +
+          ' <span class="askclock">' + askSeconds() + '</span></li>';
+    }).join('') + '</ol>';
+  }
+  function askSeconds() { return Math.max(0, Math.round((Date.now() - SIM.chat.started) / 1000)) + 's'; }
+
+  /** Redraw only the waiting bubble: a full re-render per step would move the page under the reader. */
+  function paintAskProgress() {
+    var el = document.querySelector('.askmsg.is-busy');
+    if (el) el.innerHTML = askProgress(); else refreshSim();
   }
 
   function sendAsk(text) {
@@ -2358,12 +2413,23 @@
     var basis = askBasis();
     c.turns.push({ text: msg });
     c.draft = ''; c.pending = true; c.error = null; c.reveal = true; SIM.refocus = '#askinput';
+    c.steps = [{ text: 'Sending your request' }]; c.started = Date.now();
     refreshSim();
+    clearInterval(c.clock);
+    c.clock = setInterval(function () {
+      var el = document.querySelector('.askmsg.is-busy .askclock');
+      if (el) el.textContent = askSeconds();
+    }, 1000);
     var seq = CTX.seq;
-    api('/api/ask', ctxBody({ message: msg, history: history, current: basis, who: window.Session.who() || null }))
+    apiStream('/api/ask', ctxBody({ message: msg, history: history, current: basis, stream: true,
+                                    who: window.Session.who() || null }),
+      function (step) { if (seq === CTX.seq) { c.steps.push(step); paintAskProgress(); } })
       .then(function (a) { if (seq === CTX.seq) { a.seq = seq; c.turns.push({ a: a }); } })
       .catch(function (e) { if (seq === CTX.seq) c.error = e.message; })
-      .then(function () { c.pending = false; c.reveal = true; SIM.refocus = '#askinput'; refreshSim(); });
+      .then(function () {
+        clearInterval(c.clock);
+        c.pending = false; c.reveal = true; SIM.refocus = '#askinput'; refreshSim();
+      });
   }
 
   /** Approval, bad rate and who moves, for one replayed result: the outcome bar's figures, compact. */
@@ -2419,9 +2485,7 @@
 
   function viewAsk() {
     var c = SIM.chat, st = SIM.health && SIM.health.assistant;
-    if (!SIM.live) {
-      return panel('Ask', '', '<p class="note">The chat needs the engine running: <code>python -m ui.serve</code>.</p>', N('ask_panel'));
-    }
+    if (!SIM.live) return panel('Ask', '', '<p class="note">The chat opens as soon as the engine is ready.</p>', N('ask_panel'));
     var firstBot = true;
     var thread = c.turns.map(function (t, i) {
       if (!t.a) return '<div class="askmsg is-me">' + esc(t.text) + '</div>';
@@ -2434,9 +2498,9 @@
         'applicant, and nothing changes until you choose Use this scenario.</p><div class="askex">' +
         ASK_EXAMPLES.map(function (x) { return '<button class="chip" data-ask-example="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>';
     }
-    if (c.pending) thread += '<div class="askmsg is-bot is-busy"><span class="simbusy">Working it out…</span></div>';
+    if (c.pending) thread += '<div class="askmsg is-bot is-busy" role="status">' + askProgress() + '</div>';
     var status = st ? '<span class="askstat"' + N('ask_status') + '>' + esc(st.provider === 'keyword' ? 'No language model' : st.model || st.provider) + '</span>' : '';
-    return panel('Ask', status,
+    return '<div class="askpane">' + panel('Ask', status,
       (st && st.note ? '<p class="simnote">' + esc(st.note) + '.</p>' : '') +
       '<div class="askthread" aria-live="polite">' + thread + '</div>' +
       (c.error ? caveat('warn', 'REFUSED', esc(c.error)) : '') +
@@ -2445,10 +2509,19 @@
           'aria-label="What do you want to achieve?"' + N('ask_input') + (c.pending ? ' disabled' : '') + '>' + esc(c.draft) + '</textarea>' +
         '<div class="simacts"><button class="btn" type="submit"' + (c.pending ? ' disabled' : '') + '>Send</button>' +
           (c.turns.length ? '<button class="btn ghost sm" type="button" data-ask-clear>New conversation</button>' : '') + '</div>' +
-      '</form>', N('ask_panel'));
+      '</form>', N('ask_panel')) + '</div>';
+  }
+
+  /** The Ask panel reaches at least the bottom of the screen, so the input sits there from the first message. */
+  function fitAsk(root) {
+    var pane = root.querySelector('.askpane > .panel'), canvas = document.getElementById('canvas');
+    if (!pane || !canvas) return;
+    var top = pane.getBoundingClientRect().top - canvas.getBoundingClientRect().top + canvas.scrollTop;
+    pane.style.minHeight = Math.max(320, canvas.clientHeight - top) + 'px';
   }
 
   function wireAsk(root) {
+    fitAsk(root);
     var form = root.querySelector('[data-ask-form]'), box = root.querySelector('#askinput');
     if (box) {
       box.addEventListener('input', function () { SIM.chat.draft = box.value; });
@@ -2529,6 +2602,7 @@
     if (SIM.view === 'rules' && SIM.picked && narrow !== syncStick.narrow) { syncStick.narrow = narrow; go('simulator', true); return; }
     syncStick.narrow = narrow;
     syncStick(document.getElementById('canvaswrap'));
+    fitAsk(document.getElementById('canvaswrap'));
   });
 
   function wireSimulator(root) {

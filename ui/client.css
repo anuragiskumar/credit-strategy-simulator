@@ -838,10 +838,35 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
 .askq { margin: 0; color: var(--ink); }
 .askq .rtag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-inline-end: 4px; }
 .askby { margin: 10px 0 0; font-size: 11.5px; color: var(--faint); }
+
+/* Progress while the request runs. Ink only, like every other busy state: colour means provenance. */
+.askprog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;
+           font-size: 13px; line-height: 1.45; }
+.askprog li { display: flex; align-items: baseline; gap: 8px; }
+.askprog .is-done { color: var(--faint); }
+.askprog .is-now { color: var(--ink-2); }
+.askmark { width: 18px; flex: 0 0 18px; text-align: center; font-size: 11px; color: var(--muted); }
+.askclock { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.askdots { width: 18px; flex: 0 0 18px; display: inline-flex; gap: 3px; align-items: center; justify-content: center;
+           align-self: center; }
+.askdots i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); animation: askdot 1.2s ease-in-out infinite; }
+.askdots i:nth-child(2) { animation-delay: .15s; }
+.askdots i:nth-child(3) { animation-delay: .3s; }
+@keyframes askdot { 0%, 60%, 100% { opacity: .25; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .askdots i { animation: none; opacity: .7; } }
 .askex { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .askex .chip { white-space: normal; text-align: start; height: auto; min-height: 28px; padding-block: 5px; line-height: 1.35; }
 .askstat { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.askform { margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+/* The input stays on screen: the panel is a column at least as tall as the room below the page head,
+ * the thread takes the slack, and the form sticks to the bottom of the canvas as the thread grows.
+ * `overflow: hidden` on .panel would stop sticky working, so this one panel lets its content show. */
+.canvaswrap:has(.askpane) { padding-bottom: 0; }
+.askpane > .panel { overflow: visible; display: flex; flex-direction: column; margin-bottom: 0;
+                    border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
+.askpane > .panel > .panelbody { flex: 1 1 auto; display: flex; flex-direction: column; padding-bottom: 0; }
+.askpane .askthread { flex: 1 1 auto; }
+.askform { position: sticky; bottom: 0; z-index: 3; margin: 12px -15px 0; padding: 12px 15px 14px;
+           background: var(--surface); border-top: 1px solid var(--line-soft); }
 .askform textarea { width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--ui); font-size: 14px; line-height: 1.45; padding: 9px 11px; }
 .askform .simacts { margin-top: 8px; }
 @media (max-width: 760px) {

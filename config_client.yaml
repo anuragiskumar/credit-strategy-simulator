@@ -433,6 +433,9 @@ assistant:
   # Tried in order while the model above is overloaded (HTTP 503/429) or times out.
   fallback_models: [gemini-3.8-flash, gemini-3.1-flash-lite]
   timeout_s: 20                  # per model: a person is waiting, so a slow model is skipped
+  # How long Gemini reasons before answering (minimal | low | medium | high). Choosing rules from a
+  # list needs little: at the default a target with rules to leave alone took 16s; at low, 3s.
+  thinking_level: low
   repairs: 1                     # a plan the engine refuses goes back to the model this many times
   history_turns: 8               # earlier turns sent with each message, so follow-ups work
   narrate: false                 # true: the model words the answer, every figure still checked

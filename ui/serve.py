@@ -21,7 +21,9 @@ routes HTTP to it.
     POST /api/settings/decide      {"id", "approve", "note", "who"}      the checker (or a withdrawal)
     POST /api/settings/change      {"setting", "to", "who"}              a replay assumption
     POST /api/recompute            {"who"}   rebuild every figure on the approved settings
-    POST /api/ask                  {"message", "history", "current", "who"}  the Simulator's chat
+    POST /api/ask                  {"message", "history", "current", "who", "stream"}  the Simulator's chat.
+                                   With "stream": true, one JSON line per step as it happens
+                                   ({"stage", "text"}), then {"stage": "done", "answer"}
 
 Bound to 127.0.0.1 only. This is a single-user demo server, not a deployment.
 """
@@ -181,6 +183,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, eng.recompute(body.get("who")))
             if path == "/api/ask":
                 from src.client_assistant import respond
+                if body.get("stream"):
+                    return self._stream_ask(eng, body)
                 return self._json(200, respond(eng, body, _assistant(eng)[0]))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
@@ -188,6 +192,34 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             traceback.print_exc()
             return self._json(500, {"error": f"engine error: {type(e).__name__}: {e}"})
         return self._json(404, {"error": f"no such endpoint {path}"})
+
+
+    def _stream_ask(self, eng, body) -> None:
+        """The chat, step by step. HTTP/1.0 with no length: the answer ends when the connection does.
+
+        Headers go first, so a refusal after them is a line in the stream, not a status code.
+        """
+        from src.client_api import ApiError
+        from src.client_assistant import respond
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+        self.end_headers()
+
+        def emit(row: dict) -> None:
+            self.wfile.write((json.dumps(row, ensure_ascii=False) + "\n").encode("utf-8"))
+            self.wfile.flush()
+
+        try:
+            answer = respond(eng, body, _assistant(eng)[0],
+                             progress=lambda stage, text: emit({"stage": stage, "text": text}))
+            emit({"stage": "done", "answer": answer})
+        except ApiError as e:
+            emit({"stage": "error", "error": str(e)})
+        except (BrokenPipeError, ConnectionResetError):
+            pass                                # the person closed the page; nothing to tell
+        except Exception as e:                  # report, never hang the page
+            traceback.print_exc()
+            emit({"stage": "error", "error": f"engine error: {type(e).__name__}: {e}"})
 
 
 class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):

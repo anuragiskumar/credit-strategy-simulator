@@ -42,7 +42,8 @@ def provider_from_config(cfg: dict) -> tuple[L.Provider, dict]:
         key = os.environ.get(key_env)
         if key:
             return L.GeminiProvider(api_key=key, model=a.get("model") or "gemini-3.6-flash",
-                                    timeout=timeout, fallbacks=a.get("fallback_models") or ()), status
+                                    timeout=timeout, fallbacks=a.get("fallback_models") or (),
+                                    thinking=a.get("thinking_level")), status
         note = f"no key in {key_env}"
     elif kind == "http":
         if a.get("base_url"):
@@ -84,6 +85,7 @@ def catalogue(engine, window=None, product=None) -> dict:
         else:
             fixed.append({"rule_id": r["rule_id"], "name": r["label"], "reason": r["reason"]})
     return {"product": health["product"], "approval_rate": health["approval_rate"],
+            "applicants": health["applicants"],
             "booked_bad_rate": health["booked_bad_rate"], "bad_rate_ceiling": health["bad_rate_ceiling"],
             "max_changes": health.get("max_changes", MAX_CHANGES),
             "cutoffs": health.get("cutoffs") or [], "rules": editable, "fixed": fixed}
@@ -149,20 +151,36 @@ class _Redacting(L.Provider):
         self.inner, self.name = inner, inner.name
         self.model = getattr(inner, "model", None)
 
-    def plan(self, turns, catalogue, current):
+    def plan(self, turns, catalogue, current, on_try=None):
         if isinstance(self.inner, L.KeywordProvider):
             return self.inner.plan(turns, catalogue, current)
         system = redact(L.plan_prompt(catalogue, current))
         return L._extract_json(self.inner.converse(
-            system, [{**t, "text": redact(t["text"])} for t in turns], L.PLAN_SCHEMA))
+            system, [{**t, "text": redact(t["text"])} for t in turns], L.PLAN_SCHEMA, on_try=on_try))
 
     def phrase(self, prompt):
         return self.inner.phrase(redact(prompt))
 
 
-def respond(engine, body: dict, provider: L.Provider, cfg: dict | None = None) -> dict:
-    """One message in, one answer out: what the model planned, and what the engine made of it."""
+def _short(error: str, limit: int = 140) -> str:
+    """The first clause of a refusal, for a progress line; the full reason is in the answer."""
+    first = error.split("; ")[0]
+    return first if len(first) <= limit else first[: limit - 1] + "…"
+
+
+def respond(engine, body: dict, provider: L.Provider, cfg: dict | None = None, progress=None) -> dict:
+    """One message in, one answer out: what the model planned, and what the engine made of it.
+
+    `progress(stage, text)`, when given, is told each step as it starts, in words a person can
+    read while they wait: which model is being asked, a correction, the replay, the search.
+    Every step is real; nothing is paced by a timer.
+    """
     a = (cfg or engine.base.cfg).get("assistant") or {}
+
+    def say(stage: str, text: str) -> None:
+        if progress:
+            progress(stage, text)
+
     message = body.get("message")
     if not isinstance(message, str) or not message.strip():
         raise ApiError("say what you want to achieve")
@@ -172,15 +190,26 @@ def respond(engine, body: dict, provider: L.Provider, cfg: dict | None = None) -
     window, product = body.get("window"), body.get("product")
     current = _current(body.get("current"))
     turns = asked = _turns(body.get("history"), message, int(a.get("history_turns", 8)))
+    say("rules", "Reading the rules you can change")
     cat = catalogue(engine, window, product)
     model = _Redacting(provider)
+    tried: list[str] = []                  # models asked in this request; the last one answered
+
+    def on_try(name: str, why) -> None:
+        tried.append(name)
+        if why:
+            say("model", f"{tried[-2] if len(tried) > 1 else 'The model'} is busy, asking {name}")
+        else:
+            say("model", f"Asking {name} what to change" if attempts == 1 else f"Asking {name} for a corrected plan")
     repairs = 0 if isinstance(provider, L.KeywordProvider) else int(a.get("repairs", 1))
 
     answer, raw, error, attempts, fallback = None, None, None, 0, None
     while answer is None and attempts <= repairs:
         attempts += 1
+        if isinstance(provider, L.KeywordProvider):
+            say("model", "Reading the request without a language model")
         try:
-            raw = model.plan(turns, cat, current)
+            raw = model.plan(turns, cat, current, on_try=on_try)
         except L.TranslationError as e:
             if isinstance(provider, L.KeywordProvider):
                 error = str(e)
@@ -189,12 +218,16 @@ def respond(engine, body: dict, provider: L.Provider, cfg: dict | None = None) -
             # still answers a target, a cutoff or a rule ID, so the chat is never simply dead.
             fallback, provider, repairs, attempts, turns = str(e), L.KeywordProvider(), 0, 0, asked
             model = _Redacting(provider)
+            say("fallback", "The language model could not be reached; answering without it")
             continue
         try:
+            say("check", "Checking the plan against the rules")
             plan = L.validate_plan(raw, cat)
-            answer = _run(engine, plan, cat, window, product)
+            answer = _run(engine, plan, cat, window, product, say)
         except (L.TranslationError, ApiError) as e:
             error = str(e)
+            if attempts <= repairs:
+                say("repair", f"Plan refused ({_short(error)}), asking for a correction")
             turns = turns + [{"role": "assistant", "text": json.dumps(raw, default=str)[:MAX_TURN_TEXT]},
                              {"role": "user", "text": f"That plan was refused: {error}. Send a corrected "
                                                       f"plan, or clarify or unsupported if it cannot be done."}]
@@ -211,13 +244,14 @@ def respond(engine, body: dict, provider: L.Provider, cfg: dict | None = None) -
     # Which model actually answered: with fallbacks it need not be the configured one.
     answer.update(provider=provider.name, attempts=attempts, fallback=fallback,
                   narrated_by=answer.get("narrated_by") or provider.name,
-                  model=getattr(provider, "last_model", None) or getattr(provider, "model", None),
+                  model=(tried[-1] if tried and not isinstance(provider, L.KeywordProvider)
+                         else getattr(provider, "model", None)),
                   error=error if answer["action"] == "refused" else None)
     _log(a, body, message, raw, answer)
     return answer
 
 
-def _run(engine, plan: L.Plan, cat: dict, window, product) -> dict:
+def _run(engine, plan: L.Plan, cat: dict, window, product, say=lambda *_: None) -> dict:
     """Replay a checked plan. An `ApiError` here is the engine refusing it, which goes back to the model."""
     p = plan.as_dict()
     if plan.action in ("clarify", "unsupported"):
@@ -225,10 +259,14 @@ def _run(engine, plan: L.Plan, cat: dict, window, product) -> dict:
                 "memo": plan.text}
     if plan.action == "scenario":
         changes = list(plan.changes)
+        n = len(changes)
+        say("replay", f"Replaying {n} change{'s' if n > 1 else ''} against {cat['applicants']:,} applications")
         out = engine.simulate(changes, window, product)
         out["result"]["bad_rate_ceiling"] = cat["bad_rate_ceiling"]
         return {"action": "scenario", "plan": p, "changes": changes, "result": out,
                 "steps_text": engine.describe(changes, window, product), "memo": json.dumps(p)}
+    say("search", f"Searching for the changes that reach {plan.target * 100:.1f}% approval"
+                  + (f" with {len(plan.frozen)} rules left alone" if plan.frozen else ""))
     out = engine.goal_seek(plan.target, plan.ceiling, list(plan.frozen), window, product)
     for o in out["options"][:3]:
         o["steps_text"] = engine.describe(o.get("changes") or [], window, product)

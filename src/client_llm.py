@@ -165,16 +165,20 @@ class Provider:
         """Optional: rephrase a narration. Returning None keeps the template."""
         return None
 
-    def plan(self, turns: list[dict], catalogue: dict, current: list[dict]) -> dict:
+    def plan(self, turns: list[dict], catalogue: dict, current: list[dict], on_try=None) -> dict:
         """The scenario builder: a conversation in, one raw plan out (see `validate_plan`).
 
         A model provider answers from `plan_prompt`; `KeywordProvider` matches words, so the
         chat keeps working with no model and no network.
         """
-        return _extract_json(self.converse(plan_prompt(catalogue, current), turns, PLAN_SCHEMA))
+        return _extract_json(self.converse(plan_prompt(catalogue, current), turns, PLAN_SCHEMA, on_try))
 
-    def converse(self, system: str, turns: list[dict], schema: dict | None = None) -> str:
-        """Several turns in, the model's reply out. `turns` are {"role": "user"|"assistant", "text"}."""
+    def converse(self, system: str, turns: list[dict], schema: dict | None = None, on_try=None) -> str:
+        """Several turns in, the model's reply out. `turns` are {"role": "user"|"assistant", "text"}.
+
+        `on_try(model, why_previous_failed)` is called before each model is asked, so a caller can
+        say which model it is waiting on. It is per call, not per provider: one provider serves
+        every request the server is handling at once."""
         raise TranslationError(f"the {self.name} provider cannot hold a conversation")
 
 
@@ -210,7 +214,7 @@ class KeywordProvider(Provider):
             "no rule matched this question. The engine answers: "
             + "; ".join(spec["question"] for spec in INTENTS.values()))
 
-    def plan(self, turns: list[dict], catalogue: dict, current: list[dict]) -> dict:
+    def plan(self, turns: list[dict], catalogue: dict, current: list[dict], on_try=None) -> dict:
         """The three requests a presenter can make by rote, so a dropped network is not a dead chat.
 
         "Reach 30% approval, bad rate under 11%" is a goal-seek; "SIMAH to 580" moves a cutoff;
@@ -291,7 +295,9 @@ class HTTPProvider(Provider):
     def _chat(self, system: str, user: str) -> str:
         return self.converse(system, [{"role": "user", "text": user}])
 
-    def converse(self, system: str, turns: list[dict], schema: dict | None = None) -> str:
+    def converse(self, system: str, turns: list[dict], schema: dict | None = None, on_try=None) -> str:
+        if on_try:
+            on_try(self.model, None)
         payload = {"model": self.model, "temperature": 0,
                    "messages": [{"role": "system", "content": system}]
                    + [{"role": "assistant" if t["role"] == "assistant" else "user",
@@ -334,8 +340,10 @@ class GeminiProvider(Provider):
     request) would fail the same way on every model, so it is reported at once."""
 
     def __init__(self, api_key: str | None = None, model: str = "gemini-3.6-flash",
-                 timeout: float = 30.0, fallbacks: list[str] | tuple = ()):
+                 timeout: float = 30.0, fallbacks: list[str] | tuple = (),
+                 thinking: str | None = None):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
+        self.thinking = thinking               # Gemini 3's thinkingLevel; None leaves the model's default
         self.model = model
         self.fallbacks = tuple(m for m in fallbacks if m and m != model)
         self.timeout = timeout
@@ -346,12 +354,15 @@ class GeminiProvider(Provider):
     def _generate(self, system: str, user: str) -> str:
         return self.converse(system, [{"role": "user", "text": user}])
 
-    def converse(self, system: str, turns: list[dict], schema: dict | None = None) -> str:
+    def converse(self, system: str, turns: list[dict], schema: dict | None = None, on_try=None) -> str:
         """Ask the configured model, then each fallback in turn while they are overloaded."""
         config: dict[str, Any] = {"temperature": 0}
         if schema is not None:
             # Gemini's structured output: the reply is JSON of this shape, not prose around it.
             config.update(responseMimeType="application/json", responseSchema=schema)
+        if self.thinking:
+            # Picking rules from a list needs little reasoning; the default level spends seconds on it.
+            config["thinkingConfig"] = {"thinkingLevel": self.thinking}
         body = json.dumps({
             "system_instruction": {"parts": [{"text": system}]},
             "contents": [{"role": "model" if t["role"] == "assistant" else "user",
@@ -360,6 +371,8 @@ class GeminiProvider(Provider):
         }).encode()
         failures = []
         for model in (self.model, *self.fallbacks):
+            if on_try:
+                on_try(model, failures[-1] if failures else None)
             req = urllib.request.Request(
                 f"{self.ENDPOINT}/{model}:generateContent", body,
                 {"Content-Type": "application/json", "x-goog-api-key": self.api_key})
