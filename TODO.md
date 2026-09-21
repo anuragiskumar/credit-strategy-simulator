@@ -104,10 +104,15 @@ Today a Simulator scenario is lost on reload. Only the page name is kept in the 
       31 Aug 2026 (config outcome.as_of) · figures built …". With the engine running, built is its
       last load or recompute, not when the view was asked for._
 
-### B6. Global filters — P2
+### B6. Global filters — P2 · NOT DOING (decided 2026-09-21)
 Slicing only works in the Portfolio table.
-- [ ] Scope the whole analysis (funnel, drivers, simulator) to a segment or channel, for example
-      GOV only. This uses the same request-context mechanism as A2 and B1.
+> Not doing: more trouble than it is worth. Rules apply to every applicant, so a simulator scoped to
+> one segment would flatter a change that hits the whole book; small segments would also hit the
+> too-few-mature-loans refusal often. The Portfolio table already slices by segment, sector,
+> channel, score band and nationality, and Drivers and the simulator already split by channel.
+> If it is ever wanted: scope only the funnel and drivers, and keep the simulator on the whole book.
+- [ ] ~~Scope the whole analysis (funnel, drivers, simulator) to a segment or channel, for example
+      GOV only. This uses the same request-context mechanism as A2 and B1.~~
 
 ---
 
