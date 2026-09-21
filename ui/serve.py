@@ -24,6 +24,7 @@ import socketserver
 import sys
 import threading
 import traceback
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -73,17 +74,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                              "loading": ENGINE["loading"]})
         return eng
 
+    def _window_query(self):
+        """A window from the query string (app_from, app_to, performance_months), or None."""
+        query = urllib.parse.parse_qs(self.path.partition("?")[2])
+        keys = ("app_from", "app_to", "performance_months")
+        if not any(k in query for k in keys):
+            return None
+        return {k: query[k][0] for k in keys if k in query}
+
     def do_GET(self):
+        from src.client_api import ApiError
         path = self.path.split("?", 1)[0]
-        if path == "/api/health":
-            eng = ENGINE["engine"]
-            if eng is None:
-                return self._json(200, {"ready": False, "loading": ENGINE["loading"],
-                                        "error": ENGINE["error"]})
-            return self._json(200, eng.health())
-        if path == "/api/rules":
-            eng = self._engine()
-            return eng and self._json(200, {"rules": eng.rules()})
+        try:
+            if path == "/api/health":
+                eng = ENGINE["engine"]
+                if eng is None:
+                    return self._json(200, {"ready": False, "loading": ENGINE["loading"],
+                                            "error": ENGINE["error"]})
+                return self._json(200, eng.health(self._window_query()))
+            if path == "/api/rules":
+                eng = self._engine()
+                return eng and self._json(200, {"rules": eng.rules(self._window_query())})
+        except ApiError as e:
+            return self._json(e.status, {"error": str(e)})
         if path.startswith("/api/"):
             return self._json(404, {"error": f"no such endpoint {path}"})
         return super().do_GET()
@@ -105,10 +118,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         try:
             if path == "/api/simulate":
-                return self._json(200, eng.simulate(body.get("changes")))
+                return self._json(200, eng.simulate(body.get("changes"), body.get("window")))
             if path == "/api/goal-seek":
                 return self._json(200, eng.goal_seek(body.get("target"), body.get("ceiling"),
-                                                     body.get("frozen")))
+                                                     body.get("frozen"), body.get("window")))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         except Exception as e:                  # report, never hang the page

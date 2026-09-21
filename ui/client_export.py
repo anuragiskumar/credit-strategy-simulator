@@ -26,7 +26,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import client_analysis as A, client_api as API, client_optimise as O, client_simulate as S
+from src import (client_analysis as A, client_api as API, client_context as C,
+                 client_optimise as O, client_simulate as S)
 from src.config import resolve_path
 from src.client_generate import load_client_config
 from src.rule_inventory import build_inventory
@@ -72,10 +73,12 @@ def _records(df: pd.DataFrame, index_name: str | None = None) -> list[dict]:
 
 
 def build(cfg: dict, inv, *, quick: bool = False) -> dict:
-    df = pd.read_parquet(resolve_path(cfg["data_path"]))
     t0 = time.time()
-    base = S.build_baseline(df, inv, cfg)
-    outcome, res, model = base.outcome, base.res, base.model
+    # The default analysis window, the same one the live engine serves with no window asked
+    # for, so the offline screens and the Simulator agree on "today".
+    cache = C.ContextCache(pd.read_parquet(resolve_path(cfg["data_path"])), inv, cfg)
+    base = cache.baseline()
+    df, outcome, res, model = base.df, base.outcome, base.res, base.model
 
     drivers = A.decline_drivers(df, res, outcome, cfg, model=model,
                                 booked_bad_rate=base.booked_bad_rate)
@@ -97,6 +100,7 @@ def build(cfg: dict, inv, *, quick: bool = False) -> dict:
             "generated": pd.Timestamp.now("UTC").strftime("%Y-%m-%d %H:%M UTC"),
             "product": cfg["product"],
             "applicants": int(len(df)),
+            "window": clean(base.window_dict()),
             "rules_replayed": int(len(res.rules)),
             "rules_unevaluable": clean(res.unevaluable),
             "synthetic": True,

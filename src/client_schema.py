@@ -100,7 +100,11 @@ COLUMNS: dict[str, str] = {
     "latent_bad": "bool",                # ground truth for EVERY applicant, engine must not see it
 }
 
-NULLABLE = {"simah_score", "military_rank", "military_employee_type", "booking_date", "bad_date"}
+PERFORMANCE = {"booking_date", "bad_date"}
+"""Empty by meaning, not by omission: never booked, or not gone bad as of the extract. A report
+of missing values must not list them."""
+
+NULLABLE = {"simah_score", "military_rank", "military_employee_type"} | PERFORMANCE
 
 ENGINE_VISIBLE = [c for c in COLUMNS if c != "latent_bad"]
 """What the replay and analysis layers may read.

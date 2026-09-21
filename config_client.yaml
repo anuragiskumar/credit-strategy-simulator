@@ -39,6 +39,8 @@ outcome:
 analysis:
   default_window:
     last_months: 12
+  presets:
+    last_months: [6, 12]       # offered by the period control, beside "all" and a custom range
   min_applicants: 1000         # a window with fewer is refused: rates on it are noise
   cached_contexts: 8           # recent windows kept built, so switching back is instant
 

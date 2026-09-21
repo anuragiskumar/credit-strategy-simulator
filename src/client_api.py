@@ -6,6 +6,11 @@
                       "field": "income", "value_low": 4000}])
     engine.simulate([{"type": "cutoff", "field": "simahcreditscore", "from": 600, "to": 580}])
     engine.goal_seek(target=0.30, ceiling=0.11, frozen=["racAndPolicies#012"])
+    engine.simulate([...], window={"app_from": "2026-03-01", "app_to": "2026-08-31"})
+
+Every call takes an optional `window` (see client_context): which applications are replayed,
+and over how many months a booked loan must have run to count. With none, the configured
+default window; every result says which window it ran on.
 
 `ui/serve.py` puts these behind HTTP. They live here, not there, so the tests call exactly what
 the screen calls, and so the same functions can sit behind a different server on-prem.
@@ -269,46 +274,99 @@ def goal_search_space(cfg: dict) -> dict:
             "beam_width": int(opt["beam_width"]), "max_depth": int(opt["max_depth"])}
 
 
+def window_presets(cache) -> list[dict]:
+    """The windows the period control offers, resolved against this file's dates."""
+    from src import client_context as C
+    out = []
+    for months in cache.cfg["analysis"]["presets"]["last_months"]:
+        w = C.last_months(cache.df, cache.cfg, int(months))
+        out.append({"id": f"last_{months}m", "name": f"Last {months} months", **w.to_dict()})
+    whole = C.resolve(C.AnalysisWindow(), cache.df, cache.cfg)
+    out.append({"id": "all", "name": "All applications", **whole.to_dict()})
+    return out
+
+
 @dataclass
 class Engine:
-    """The loaded baseline, shared by every request. Calls are serialised by a lock."""
+    """Baselines per analysis window, shared by every request. Calls are serialised by a lock.
+
+    `base` is the default window. A request with no `window` runs on it; a request with one runs
+    on that window's baseline, built on first use and kept while it is recent. `{}` as a window
+    means the whole file. An engine made without a `cache` serves only its one baseline.
+    """
     base: S.Baseline
     inv: object
+    cache: object = None               # client_context.ContextCache
 
     def __post_init__(self):
         self._lock = threading.Lock()
-        self._rules: list[dict] | None = None
+        self._rules: dict = {}
 
     @classmethod
     def load(cls) -> "Engine":
+        from src import client_context as C
         from src.client_generate import load_client_config
         from src.config import resolve_path
         from src.rule_inventory import build_inventory
         cfg = load_client_config()
         inv = build_inventory(cfg["replay"]["rules_folder"])
         df = pd.read_parquet(resolve_path(cfg["data_path"]))
-        return cls(base=S.build_baseline(df, inv, cfg), inv=inv)
+        cache = C.ContextCache(df, inv, cfg)
+        return cls(base=cache.baseline(), inv=inv, cache=cache)
 
-    def health(self) -> dict:
-        return {"ready": True, "product": self.base.cfg["product"],
-                "applicants": int(len(self.base.df)),
-                "approval_rate": _num(self.base.approval_rate),
-                "booked_bad_rate": _num(self.base.booked_bad_rate),
-                "bad_rate_ceiling": _num(self.base.cfg["optimise"]["max_bad_rate"]),
-                "max_changes": MAX_CHANGES,
-                "goal_search": goal_search_space(self.base.cfg),
-                "cutoffs": CUTOFFS}
+    def baseline(self, window=None) -> S.Baseline:
+        """The baseline for a request's `window`, or a refusal in words."""
+        from src import client_context as C
+        if window is None:
+            return self.base
+        if self.cache is None:
+            raise ApiError("this engine was loaded for one analysis window only")
+        try:
+            return self.cache.baseline(C.AnalysisWindow.from_dict(window))
+        except C.WindowError as e:
+            raise ApiError(str(e)) from None
 
-    def rules(self) -> list[dict]:
+    def health(self, window=None) -> dict:
         with self._lock:
-            if self._rules is None:            # the baseline never changes, so neither does this
-                self._rules = rule_catalogue(self.base, self.inv)
-            return self._rules
+            base = self.baseline(window)
+        out = {"ready": True, "product": base.cfg["product"],
+               "applicants": int(len(base.df)),
+               "approval_rate": _num(base.approval_rate),
+               "booked_bad_rate": _num(base.booked_bad_rate),
+               "bad_rate_ceiling": _num(base.cfg["optimise"]["max_bad_rate"]),
+               "max_changes": MAX_CHANGES,
+               "goal_search": goal_search_space(base.cfg),
+               "cutoffs": CUTOFFS,
+               "window": base.window_dict(),
+               "default_window": self.base.window_dict()}
+        if self.cache is not None:
+            from src import client_context as C
+            lo, hi = C.data_range(self.cache.df)
+            bd = A.bad_definition(self.cache.cfg)
+            out["data_range"] = {"app_from": f"{lo:%Y-%m-%d}", "app_to": f"{hi:%Y-%m-%d}"}
+            out["outcome"] = {"as_of": f"{bd['as_of']:%Y-%m-%d}", "dpd": bd["dpd"],
+                              "within_months": bd["within_months"]}
+            out["window_presets"] = window_presets(self.cache)
+        return out
 
-    def simulate(self, changes: list) -> dict:
+    def rules(self, window=None) -> list[dict]:
         with self._lock:
-            return simulate_changes(self.base, self.inv, changes)
+            base = self.baseline(window)
+            key = base.window.key if base.window is not None else None
+            if key not in self._rules:         # a baseline never changes, so neither does this
+                self._rules[key] = rule_catalogue(base, self.inv)
+            return self._rules[key]
 
-    def goal_seek(self, target, ceiling=None, frozen=None) -> dict:
+    def simulate(self, changes: list, window=None) -> dict:
         with self._lock:
-            return run_goal_seek(self.base, self.inv, target, ceiling, frozen)
+            base = self.baseline(window)
+            out = simulate_changes(base, self.inv, changes)
+            out["window"] = base.window_dict()
+            return out
+
+    def goal_seek(self, target, ceiling=None, frozen=None, window=None) -> dict:
+        with self._lock:
+            base = self.baseline(window)
+            out = run_goal_seek(base, self.inv, target, ceiling, frozen)
+            out["window"] = base.window_dict()
+            return out

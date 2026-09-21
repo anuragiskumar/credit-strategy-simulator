@@ -144,7 +144,8 @@ def build_dataset(cfg: dict, df: pd.DataFrame | None) -> dict:
         "date_to": _date(df["app_date"].max().date()),
         "window_days": int(cfg["app_date_days"]),
         "schema_problems": problems,
-        "nulls": [{"column": c, "share": round(float(s), 4)} for c, s in nulls.items() if s > 0],
+        "nulls": [{"column": c, "share": round(float(s), 4)} for c, s in nulls.items()
+                  if s > 0 and c not in client_schema.PERFORMANCE],
         "preview": {"columns": PREVIEW_COLUMNS, "rows": clean_rows(preview)},
     }
 

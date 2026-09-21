@@ -31,6 +31,12 @@ class WindowError(ValueError):
     """The requested window cannot be analysed. The message says why, in words."""
 
 
+DESCRIPTIVE = {"id", "name", "label", "applicants", "mature_loans", "mature_booked_from",
+               "mature_booked_to"}
+"""Fields the engine adds when it reports a window. A screen may send a window back exactly as
+it received one (a preset, or the window a result ran on), so these are accepted and ignored."""
+
+
 @dataclass(frozen=True)
 class AnalysisWindow:
     """Application dates, inclusive at both ends, plus the performance window in months.
@@ -51,7 +57,7 @@ class AnalysisWindow:
         if not isinstance(d, dict):
             raise WindowError("window must be an object with app_from, app_to and "
                               "performance_months")
-        unknown = set(d) - {"app_from", "app_to", "performance_months", "label"}
+        unknown = set(d) - {"app_from", "app_to", "performance_months"} - DESCRIPTIVE
         if unknown:
             raise WindowError(f"window has fields the engine does not know: {sorted(unknown)}")
 
@@ -119,12 +125,12 @@ def resolve(window: AnalysisWindow | None, df: pd.DataFrame, cfg: dict) -> Analy
     lo, hi = data_range(df)
     app_from = window.app_from if window.app_from is not None else lo
     app_to = window.app_to if window.app_to is not None else hi
-    if app_from > app_to:
-        raise WindowError(f"the window starts on {app_from:%-d %b %Y}, after it ends on "
-                          f"{app_to:%-d %b %Y}")
     if app_to < lo or app_from > hi:
         raise WindowError(f"no applications in {app_from:%-d %b %Y} – {app_to:%-d %b %Y}: the "
                           f"data covers {lo:%-d %b %Y} – {hi:%-d %b %Y}")
+    if app_from > app_to:
+        raise WindowError(f"the window starts on {app_from:%-d %b %Y}, after it ends on "
+                          f"{app_to:%-d %b %Y}")
     months = window.performance_months or A.bad_definition(cfg)["within_months"]
     return AnalysisWindow(app_from=app_from, app_to=app_to, performance_months=int(months))
 

@@ -1,6 +1,6 @@
 {
  "meta": {
-  "generated": "2026-09-21 05:37 UTC",
+  "generated": "2026-09-21 10:03 UTC",
   "product": "TWQR",
   "synthetic": true,
   "note": "Rule set, dataset facts, field requirements and policy values are read from the engine. Everything under `simulated` is not."
@@ -106,10 +106,10 @@
   "available": true,
   "label": "Demo dataset (synthetic)",
   "rows": 50000,
-  "columns": 34,
-  "date_from": "1 Oct 2025",
-  "date_to": "30 Sep 2026",
-  "window_days": 365,
+  "columns": 36,
+  "date_from": "1 Sep 2024",
+  "date_to": "31 Aug 2026",
+  "window_days": 730,
   "schema_problems": [],
   "nulls": [
    {
@@ -139,7 +139,7 @@
    "rows": [
     [
      "APP0000001",
-     "2026-09-30",
+     "2026-08-31",
      "branch",
      "GOV",
      13090.4,
@@ -149,7 +149,7 @@
     ],
     [
      "APP0000002",
-     "2025-10-09",
+     "2024-09-18",
      "digital",
      "GOV",
      7406.6,
@@ -159,7 +159,7 @@
     ],
     [
      "APP0000003",
-     "2025-11-05",
+     "2024-11-11",
      "digital",
      "PRIVATE_LARGE",
      5103.3,
@@ -169,7 +169,7 @@
     ],
     [
      "APP0000004",
-     "2026-05-25",
+     "2025-12-17",
      "digital",
      "PRIVATE_LARGE",
      8880.2,
@@ -179,7 +179,7 @@
     ],
     [
      "APP0000005",
-     "2026-03-27",
+     "2025-08-21",
      "branch",
      "SELF_EMPLOYED",
      8285.7,
@@ -189,7 +189,7 @@
     ],
     [
      "APP0000006",
-     "2026-02-23",
+     "2025-06-19",
      "digital",
      "PRIVATE_SMALL",
      2635.8,
@@ -453,6 +453,24 @@
     "need": "Recommended",
     "rules": 0,
     "null_share": 0.0
+   },
+   {
+    "column": "bad_date",
+    "dtype": "datetime64[ns]",
+    "nullable": true,
+    "role": "analysis",
+    "need": "Recommended",
+    "rules": 0,
+    "null_share": 0.9861
+   },
+   {
+    "column": "booking_date",
+    "dtype": "datetime64[ns]",
+    "nullable": true,
+    "role": "analysis",
+    "need": "Recommended",
+    "rules": 0,
+    "null_share": 0.7835
    },
    {
     "column": "downpayment_pct",
@@ -737,7 +755,7 @@
   ],
   "never_fire_count": 16,
   "replay_seconds": 2.1,
-  "generated": "2026-09-21 05:37 UTC"
+  "generated": "2026-09-21 10:03 UTC"
  },
  "simulated": {
   "simulated": true,
@@ -1264,6 +1282,14 @@
     {
      "column": "application_id",
      "source": "APP_REF"
+    },
+    {
+     "column": "bad_date",
+     "source": null
+    },
+    {
+     "column": "booking_date",
+     "source": null
     },
     {
      "column": "downpayment_pct",

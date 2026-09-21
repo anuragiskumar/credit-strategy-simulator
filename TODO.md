@@ -48,9 +48,9 @@ There are two windows, and both are missing:
 haven't had time to go bad.
 
 ### A3. API — P0
-- [ ] `/api/health` returns the available date range and the default window.
-- [ ] `/api/simulate` and `/api/goal-seek` accept `window`.
-- [ ] The engine rejects a window with too few applicants or too few mature loans, and gives the
+- [x] `/api/health` returns the available date range and the default window.
+- [x] `/api/simulate` and `/api/goal-seek` accept `window`.
+- [x] The engine rejects a window with too few applicants or too few mature loans, and gives the
       reason in words (`ApiError`), the same way it rejects a locked rule.
 
 ### A4. UI — P1
