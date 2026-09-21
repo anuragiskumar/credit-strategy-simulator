@@ -207,70 +207,73 @@ window.__NOTES__ = function (F) {
     /* ---------------------------------------------------------- decline drivers */
     dr_head: {
       t: 'Decline drivers',
-      d: 'Ranks rules by how many applicants they decline, and separates two numbers that are easily confused: ' +
-         'everyone a rule catches, and the applicants it catches that no other rule does. Only the second is what ' +
-         'you would gain by changing that rule.'
+      d: 'The diagnosis: which rules cost approvals, and which are safe to loosen. Read-only. Every rule is grouped by ' +
+         'the engine; the screen only draws the groups. Changes are made in the Simulator, which each rule links to.'
     },
     dr_q10: {
-      t: 'Q10',
-      d: 'The tenth of the ten business questions this engine is built to answer: which rules cost approvals ' +
-         'without reducing risk. A rule "buys no safety" when the applicants only it declines are estimated to be ' +
-         'no riskier than the book already carries, within a configurable margin. That estimate is inferred, not observed.'
+      t: 'Finding',
+      d: 'Which rules cost approvals without reducing risk. A rule "buys no safety" when the applicants only it declines ' +
+         'are estimated to be no riskier than the booked book, within the margin set in Settings (earn-its-place ' +
+         'multiple). The approvals are counted; the risk is inferred.'
+    },
+    dr_t_review: {
+      t: 'Could gain at little extra risk',
+      d: 'Approvals the "Worth reviewing" rules would add, each loosened on its own and added up. Loosening several ' +
+         'together can add more, because an applicant two of them both decline is freed only when both go. The ' +
+         'Simulator shows the combined figure.'
+    },
+    dr_t_earning: {
+      t: 'Earning their place',
+      d: 'Rules whose applicants are estimated to be riskier than the book by more than the configured margin. ' +
+         'Loosening them would add approvals and raise the bad rate.'
+    },
+    dr_t_noest: {
+      t: 'Can\'t be judged',
+      d: 'Rules the engine gives no risk estimate for: the applicants only they decline are too few, or sit outside ' +
+         'anything the bank has booked (often no bureau score). A confident number there would invite loosening a rule for free.'
+    },
+    dr_chart: {
+      t: 'Approvals against risk',
+      d: 'One dot per rule the engine can judge. Right means more approvals if the rule is loosened on its own; up means ' +
+         'a higher estimated bad rate for those applicants. The solid line is where a rule starts earning its place ' +
+         '(today\'s booked bad rate times the configured margin); the dashed line is today\'s book. Solid dots are the ' +
+         'rules worth reviewing. Rules with no estimate have no height, so they sit as ticks on the hatched strip.'
     },
     dr_rank: {
-      t: 'Ranked by applicants declined alone',
-      d: 'Sorted by the Alone column, largest first. The counts are observed from the replay. The risk figure is ' +
-         'an estimate (inferred), for the reasons given under RISK below the table.'
+      t: 'Rules by verdict',
+      d: 'Every decline rule, in the group the engine put it in: worth reviewing, earning its place, no estimate, only ' +
+         'declines alongside other rules, not relaxable, rules that caught nobody in this period, and rules the data ' +
+         'cannot evaluate. The top five of each are shown; the last four groups start closed. Together they are every ' +
+         'decline rule the Simulator lists.'
     },
     th_rule: {
       t: 'Rule',
-      d: 'The rule\'s identifier (decision table and row number in the bank\'s rule files) and the start of its ' +
-         'description, so any line can be traced back to its source.'
+      d: 'The rule\'s business description first. Below it, the rule ID (decision table and row in the bank\'s rule ' +
+         'files) and policy code, so any line can be traced back to its source.'
     },
-    th_declines: {
-      t: 'Declines',
-      d: 'Every applicant the rule catches, including those another rule would also decline.'
-    },
-    th_allalone: {
-      t: 'All / alone',
-      d: 'Two bars on one scale. The pale bar is everyone the rule declines; the dark bar is the applicants it ' +
-         'declines alone. A large gap between them means the rule mostly overlaps with others.'
-    },
-    th_alone: {
-      t: 'Alone',
-      d: 'Applicants declined by this rule and no other. It answers "what is the one thing I change?": switching ' +
-         'the rule off releases exactly these applicants.'
+    th_gain: {
+      t: 'Approvals gained if loosened',
+      d: 'How many more applicants would be booked if only this rule were switched off: the ones no other rule declines, ' +
+         'less those who then fail eligibility or walk away. Replayed by the engine, not estimated. The grey figure is ' +
+         'everyone the rule declines, including those another rule also declines.'
     },
     th_relaxed: {
-      t: 'Bad rate if relaxed',
-      d: 'Estimated bad rate of the applicants who would be released if the rule were switched off, from the risk ' +
-         'model (inferred: they have never been booked). NO ESTIMATE means the engine declined to guess; NOT ' +
-         'RELAXABLE means the rule is off the table.'
+      t: 'Bad rate if loosened',
+      d: 'Estimated bad rate of the applicants only this rule declines, from the risk model (inferred: they have never ' +
+         'been booked). NO ESTIMATE means the engine declined to guess; NOT RELAXABLE means the rule is off the table.'
     },
-    why_alone: {
-      t: 'WHY ALONE',
-      d: 'Explains the Alone column: switching off a rule whose declines are all shared with another rule frees ' +
-         'nobody, because the other rule still catches them.'
+    dr_losses: {
+      t: 'Where applicants are lost',
+      d: 'Every reason an applicant does not end up booked, not only the rules: hard reject and credit policy are rules ' +
+         '(listed above), eligibility is the offer falling below what the product or the applicant accepts, and walking ' +
+         'away is the applicant\'s choice. Counted from the replay.'
     },
-    risk_tag: {
-      t: 'RISK',
-      d: 'Declined applicants have no repayment history, so the bad rate of relaxing a rule is inferred by a model ' +
-         'trained only on booked loans. Where a group sits outside anything the bank has booked, or is too small ' +
-         'to judge, the engine returns NO ESTIMATE instead of a confident number.'
-    },
-    dr_guard: {
-      t: 'Rules the engine will not judge',
-      d: 'Rules that rest on a regulatory or identity fact (such as politically exposed persons, diplomatic ' +
-         'service or staff) are never offered as relaxations, whatever they cost in approvals. The engine can ' +
-         'measure what a rule costs; it cannot know whether the bank is allowed to drop it. This is a fixed list, ' +
-         'not a judgement the model makes.'
-    },
-    th_rests: {
-      t: 'Rests on',
-      d: 'The applicant field the rule tests, which is what makes it non-negotiable.'
+    dr_reasons: {
+      t: 'Biggest reasons',
+      d: 'The three largest reasons within each stage, credited to the first rule or condition that stopped the applicant.'
     },
 
-    /* ---------------------------------------------------------------- simulator */
+        /* ---------------------------------------------------------------- simulator */
     sim_head: {
       t: 'Simulator',
       d: 'Start from today\'s rules and change them one step at a time. Every result is a replay of the same ' +
@@ -303,8 +306,9 @@ window.__NOTES__ = function (F) {
     sim_presets: {
       t: 'Ready-made stories',
       d: 'One click sets up a scenario worth talking about. The bottleneck is the rule that stops the most ' +
-         'applicants on its own. "Safely" picks the rules whose release, one at a time, kept the bad rate at or ' +
-         'below today\'s. The downturn raises a score cutoff, so some applicants approved today are turned away.'
+         'applicants on its own. "Loosen what Decline drivers flagged" takes the top rules that screen groups as ' +
+         'worth reviewing; it reads that verdict and never works one out again. The downturn raises a score cutoff, so ' +
+         'some applicants approved today are turned away.'
     },
     sim_cutoff: {
       t: 'Score cutoffs',

@@ -124,8 +124,8 @@ window.__SETTINGS_NOTES__ = function (F) {
     rn_never: {
       t: 'Rules that catch nobody',
       d: 'Out of ' + count(R.rules_replayed) + ' replayed rules, ' + count(R.never_fire_count) + ' matched no applicant. ' +
-         'Either the rule is redundant or it reads a field the data never populates. On a real book this list is the ' +
-         'first thing to check.'
+         'Either the rule is redundant or it reads a field the data never populates. The list is on Decline drivers, ' +
+         'with the rules it would otherwise sit beside; on a real book it is the first thing to check.'
     },
     rn_nulls: {
       t: 'Fields with missing values',

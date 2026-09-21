@@ -328,6 +328,28 @@ def funnel_rules(res, outcome: pd.DataFrame, cfg: dict,
     return out
 
 
+VERDICTS = {
+    "review": "Worth reviewing",
+    "earning": "Earning their place",
+    "no_estimate": "No estimate",
+    "overlap": "Only with other rules",
+    "not_relaxable": "Not relaxable",
+}
+"""The groups Decline Drivers sorts rules into, in the order it shows them. One place decides a
+rule's group, so the screen, the Simulator's presets and the CLI never disagree about it."""
+
+
+def driver_verdict(row) -> str:
+    """Which group a rule belongs in. Read in order: each test assumes the ones before it failed."""
+    if not row["relaxable"]:
+        return "not_relaxable"          # regulatory, bureau or identity: not a risk trade-off
+    if row["declines_alone"] == 0:
+        return "overlap"                # switching it off alone frees nobody; only a scenario can
+    if not row.get("risk_known"):
+        return "no_estimate"
+    return "review" if row.get("earns_its_place") is False else "earning"
+
+
 def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
                     model=None, include_oracle: bool = False,
                     booked_bad_rate: float | None = None) -> pd.DataFrame:
@@ -364,6 +386,7 @@ def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
         row = {
             "rule_id": rule_id, "table": r["table"], "stage": r["stage"],
             "policy_code": r["policy_code"], "description": r["description"],
+            "label": clean_description(r["description"]) or rule_id,
             "fields": r["fields"], "relaxable": bool(r["relaxable"]),
             "declines": int(caught.sum()),
             "declines_alone": int(alone.sum()),
@@ -388,6 +411,7 @@ def decline_drivers(df: pd.DataFrame, res, outcome: pd.DataFrame, cfg: dict,
             elif not r["relaxable"]:
                 row["risk_note"] = "not relaxable: rests on a fixed field (regulatory, " \
                                    "bureau or identity). Relaxing it is not a risk trade-off."
+            row["verdict"] = driver_verdict(row)
         if include_oracle:
             row["oracle_bad_rate"] = round(client_risk.oracle_bad_rate(df, alone), 4)
         rows.append(row)

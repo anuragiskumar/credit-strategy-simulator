@@ -124,11 +124,11 @@ Simulator can show that.
 
 Decision: keep both screens, each with a distinct job, and show the finding once. The demo story
 is Portfolio (where am I?) → Decline Drivers (why?) → Simulator (what if?).
-- [ ] Decline Drivers is the diagnosis: read-only, no controls. Broaden it beyond rules to every
+- [x] Decline Drivers is the diagnosis: read-only, no controls. Broaden it beyond rules to every
       reason applicants are lost (hard reject, eligibility caps, walk-aways), and end each row
       with "Try in Simulator →".
 - [ ] Simulator All rules becomes a picker for building a scenario (see C2), not a second ranking.
-- [ ] Simulator *Try a change* presets stop recomputing the Drivers finding. They open with "the
+- [x] Simulator *Try a change* presets stop recomputing the Drivers finding. They open with "the
       rules Decline Drivers flagged" and link back to that screen.
 - [ ] Revisit after the demo: merge the two into one "Rules" screen with a Diagnose / Change
       switch, but only if the audience turns out to be mostly analysts.
@@ -139,17 +139,17 @@ Problems: a 50-word callout that names rules by ID; the engine ID leads each row
 (Declines, bar, Alone) for one idea; the "Bad rate if relaxed" column mixes four kinds of answer
 (a number, "buys no safety", NO ESTIMATE, NOT RELAXABLE); 25 flat rows; two explanatory
 paragraphs; and a second table repeating four rows.
-- [ ] Three headline tiles: could gain approvals at no extra risk / earning their place / can't be judged.
-- [ ] One chart: approvals each rule blocks on its own against the bad rate if relaxed, with a
+- [x] Three headline tiles: could gain approvals at no extra risk / earning their place / can't be judged.
+- [x] One chart: approvals each rule blocks on its own against the bad rate if relaxed, with a
       line at today's booked bad rate. Dots below the line are free approvals. Dots are INFERRED;
       rules with no estimate sit as a hatched strip on the axis.
-- [ ] Group the table by verdict (Worth reviewing → Earning their place → No estimate → Not
+- [x] Group the table by verdict (Worth reviewing → Earning their place → No estimate → Not
       relaxable, collapsed), top 5 in each with "show all".
-- [ ] Business name first, rule ID secondary in mono. One number column, "Approvals gained if
+- [x] Business name first, rule ID secondary in mono. One number column, "Approvals gained if
       loosened", with total declines as a grey secondary figure.
-- [ ] The "Why alone" and "Risk" paragraphs move to ⓘ tooltips and spec notes.
-- [ ] Rules that catch nobody (currently on Settings) move here as their own group.
-- [ ] **Before the demo:** business names first, a one-line callout, and the table grouped by verdict.
+- [x] The "Why alone" and "Risk" paragraphs move to ⓘ tooltips and spec notes.
+- [x] Rules that catch nobody (currently on Settings) move here as their own group.
+- [x] **Before the demo:** business names first, a one-line callout, and the table grouped by verdict.
 
 ### C2. Simulator → All rules — P1 (before the demo)
 Every one of the 113 rows has a checkbox, an "Edit threshold" button and a line of raw conditions,

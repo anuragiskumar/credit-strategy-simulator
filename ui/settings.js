@@ -137,9 +137,6 @@
   function secRun() {
     var R = F.run, D = F.dataset;
     if (!R.available) return section('run', 'Run and data quality', '', caveat('warn', 'NO DATA', 'No dataset, so nothing was replayed.'), N('rn_head'));
-    var never = R.never_fire.map(function (r) {
-      return '<tr><td><span class="rid">' + esc(r.rule_id) + '</span></td><td>' + esc(r.description) + '</td></tr>';
-    });
     var nulls = (D.nulls || []).map(function (n) {
       return '<tr><td><span class="rid">' + esc(n.column) + '</span></td><td class="num">' + pct(n.share, 1) + '</td>' +
         '<td style="width:140px"><span class="su-nullbar" style="width:' + Math.max(1, Math.round(n.share * 100)) + '%"></span></td></tr>';
@@ -149,12 +146,11 @@
         tile('Applicants replayed', n0(R.applicants), 'in the last run', 'on-obs') +
         tile('Rules replayed', n0(R.rules_replayed), n0(R.rules_in_scope) + ' in scope', 'on-obs') +
         tile('Replay time', R.replay_seconds.toFixed(1) + 's', 'last run') +
-        tile('Rules that catch nobody', n0(R.never_fire_count), 'of ' + n0(R.rules_replayed) + ' replayed', '', N('rn_never')) +
+        tile('Rules that catch nobody', n0(R.never_fire_count), 'of ' + n0(R.rules_replayed) + ' replayed · listed on ' +
+             '<a href="client.html#drivers">Decline drivers</a>', '', N('rn_never')) +
       '</div>' +
-      '<div class="cols2 su-gap"><div><div class="su-sub">Rules that catch nobody · first ' + n0(R.never_fire.length) + '</div>' +
-        table('<th>Rule</th><th>Description</th>', never) + '</div>' +
-      '<div><div class="su-sub"' + N('rn_nulls') + '>Fields with missing values</div>' +
-        table('<th>Field</th><th class="num">Missing</th><th></th>', nulls) + '</div></div>' +
+      '<div class="su-gap"><div class="su-sub"' + N('rn_nulls') + '>Fields with missing values</div>' +
+        table('<th>Field</th><th class="num">Missing</th><th></th>', nulls) + '</div>' +
       recomputeBlock() +
       '<p class="su-help su-gap">Run at ' + esc(R.generated) + '.</p>', N('rn_head'));
   }

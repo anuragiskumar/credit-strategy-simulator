@@ -573,3 +573,37 @@ def sweep(base: Baseline, inv, field_name: str, from_value: float,
                      "risk_known": r["expected_bad_rate_known"],
                      "note": r["risk_verdict"]})
     return pd.DataFrame(rows).sort_values("cutoff").reset_index(drop=True)
+
+
+def driver_gains(base: "Baseline", inv, drivers: pd.DataFrame) -> pd.DataFrame:
+    """What switching each rule off on its own would actually book.
+
+    `declines_alone` counts the applicants a rule frees, but freed is not approved: some then
+    fail eligibility or walk away. The applicants a rule declines alone are caught by no other
+    rule, so switching it off leaves them exactly where they would be with no decline rule at
+    all. One outcome with every decline cleared answers every rule at once, and gives the same
+    count as replaying each rule off (a test holds the two together). A rule the bank may not
+    drop gets no figure.
+    """
+    res = base.res
+    free_rules = res.rules.assign(matched=res.rules["matched"].where(res.rules["kind"] != "block", 0))
+    free = client_replay.ReplayResult(hits=res.hits, rules=free_rules,
+                                      unevaluable=res.unevaluable, compiled=res.compiled)
+    booked_if_free = A.stage_outcome(base.df, free, base.cfg)["booked"].to_numpy()
+    blocking = res.rules[(res.rules["kind"] == "block") & (res.rules["matched"] > 0)]["rule_id"]
+    hits = res.hits[[c for c in blocking if c in res.hits.columns]].to_numpy()
+    only_one = hits.sum(axis=1) == 1
+    col = {rid: j for j, rid in enumerate(c for c in blocking if c in res.hits.columns)}
+
+    out = drivers.copy()
+    gained = []
+    for r in out.itertuples():
+        if not r.relaxable or r.rule_id not in col:
+            gained.append(pd.NA)
+            continue
+        alone = hits[:, col[r.rule_id]] & only_one
+        gained.append(int((alone & booked_if_free).sum()))
+    out["approvals_gained"] = pd.array(gained, dtype="Int64")
+    n = max(len(base.df), 1)
+    out["approval_change_pp"] = [None if pd.isna(g) else round(100 * g / n, 2) for g in gained]
+    return out

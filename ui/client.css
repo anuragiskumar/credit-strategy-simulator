@@ -578,3 +578,77 @@ td.num, th.num { text-align: end; font-family: var(--mono); font-variant-numeric
   .ctxwrap .chip .ctxshort { display: inline; }
 }
 @media (max-width: 640px) { .topbar { gap: 8px; } }
+
+/* ---------------------------------------------------------------- decline drivers
+   Read-only diagnosis. Dots are INFERRED (the risk of applicants never booked); rules with no
+   estimate sit on a hatched strip, because hatching means NOT MODELLED everywhere. */
+.drinfo { display: inline-block; margin-inline-start: 3px; color: var(--faint); cursor: help; font-family: var(--ui); font-weight: 400; }
+.drinfo:focus-visible { outline: 2px solid var(--focus, var(--ink-2)); outline-offset: 2px; border-radius: 50%; }
+.drchart .drline { stroke: var(--ink-2); stroke-width: 1.3; }
+.drchart .drline-t { fill: var(--ink-2); font-size: 11.5px; font-family: var(--ui); }
+.drchart .drbook { stroke: var(--line-hard); stroke-width: 1; stroke-dasharray: 3 4; }
+.drchart .drbook-t { fill: var(--faint); font-size: 11px; font-family: var(--ui); }
+.drchart .pt.is-inf circle { fill: var(--inf); opacity: .55; }
+.drchart .pt.is-review circle { opacity: 1; }
+.drchart .drhatch-l { stroke: var(--nm); stroke-width: 1.2; }
+.drchart .drstrip { stroke: var(--line); }
+.drchart .drnone line { stroke: var(--nm); stroke-width: 2; }
+.drgroup { border-top: 1px solid var(--line); }
+.drgroup:first-child { border-top: 0; }
+.drgroup > summary { display: flex; align-items: center; gap: 10px; padding: 10px 2px; cursor: pointer; list-style: none; }
+.drgroup > summary::-webkit-details-marker { display: none; }
+.drgroup > summary::before { content: '▸'; color: var(--faint); font-size: 11px; transition: transform .15s; }
+.drgroup[open] > summary::before { transform: rotate(90deg); }
+.drgroup > summary b { font-size: 13px; font-weight: 600; color: var(--ink); }
+.drgroup > summary .fig { font-size: 11.5px; color: var(--muted); }
+.drgroup > .tablewrap { margin-bottom: 10px; }
+.drname { font-size: 13px; color: var(--ink); }
+.drgain { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--ink); }
+.drcta { text-align: end; white-space: nowrap; width: 1%; }
+.drtry, .drlink {
+  background: none; border: 0; padding: 4px 0; font: inherit; font-size: 12px; color: var(--ink-2);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-hard);
+}
+.drtry:hover, .drlink:hover { color: var(--ink); text-decoration-color: currentColor; }
+.drreasons { font-size: 12px; color: var(--muted); line-height: 1.55; }
+.drreasons .fig { color: var(--ink-2); font-size: 11.5px; }
+@media (max-width: 640px) {
+  .drcta { white-space: normal; }
+  .drlosstab th:nth-child(3), .drlosstab td:nth-child(3),
+  .drlosstab th:nth-child(4), .drlosstab td:nth-child(4) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .drgroup > summary::before { transition: none; } }
+.tiles.drtiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.drtab table { table-layout: fixed; width: 100%; }
+.drtab th:nth-child(1) { width: 44%; }
+.drtab th:nth-child(2) { width: 22%; }
+.drtab th:nth-child(3) { width: 16%; }
+.drtab th:nth-child(4) { width: 18%; }
+.drtab td { overflow-wrap: anywhere; }
+.drtab .drcta { width: auto; white-space: normal; }
+.drgroup > summary::before { content: ''; width: 0; height: 0; border-block: 4px solid transparent;
+  border-inline-start: 6px solid var(--faint); }
+@media (max-width: 640px) {
+  .tiles.drtiles { grid-template-columns: minmax(0, 1fr); }
+  .drtab th:nth-child(1) { width: 38%; }
+  .drtab th:nth-child(2) { width: 22%; }
+  .drtab th:nth-child(3) { width: 22%; }
+}
+.drtab table.t th { white-space: normal; overflow: visible; text-overflow: clip; vertical-align: bottom; line-height: 1.35; }
+@media (max-width: 640px) {
+  /* Four columns do not fit a phone: each rule becomes a small card, and the figures carry their own labels. */
+  .drtab table.t, .drtab table.t tbody { display: block; }
+  .drtab table.t thead { display: none; }
+  .drtab table.t tr { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; gap: 6px 14px;
+    padding: 10px 2px; border-bottom: 1px solid var(--line-soft); }
+  .drtab table.t tr:last-child { border-bottom: 0; }
+  .drtab table.t td { display: block; padding: 0; border: 0; text-align: start; }
+  .drtab table.t td:nth-child(1) { grid-column: 1 / -1; }
+  .drtab table.t td[colspan] { grid-column: 1 / -1; }
+  .drtab table.t td:nth-child(2)::before { content: 'Gained if loosened'; }
+  .drtab table.t td:nth-child(3)::before { content: 'Bad rate'; }
+  .drtab table.t td:nth-child(2)::before, .drtab table.t td:nth-child(3)::before {
+    display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); margin-bottom: 2px; }
+  .drtab table.t td[colspan]::before { content: none; }
+  .drtab .drcta { text-align: end; align-self: end; }
+}

@@ -495,69 +495,180 @@
             '<th class="num"' + N('th_ch_share') + '>Share of declines</th>', rows), N('ch_panel'));
   }
 
-  /* =============================================================== screen 2 */
-  function pageDrivers() {
-    var d = F.drivers;
-    var maxD = Math.max.apply(null, d.map(function (r) { return r.declines; }));
-    var rows = d.map(function (r) {
-      var verdict;
-      if (!r.relaxable) {
-        verdict = pv('NOT_MODELLED', 'NOT RELAXABLE');
-      } else if (r.risk_known) {
-        verdict = pv('INFERRED', pct(r.est_bad_rate_if_relaxed, 1)) +
-          (r.earns_its_place === false ? ' <span class="verdict">buys no safety</span>' : '');
-      } else {
-        verdict = pv('NOT_MODELLED', 'NO ESTIMATE');
-      }
-      return '<tr><td><span class="rid">' + esc(r.rule_id) + '</span><br>' +
-        '<span class="verdict">' + esc((r.description || '').slice(0, 72)) + '</span></td>' +
-        '<td class="num">' + n0(r.declines) + '</td>' +
-        '<td style="width:120px">' + bar(r.declines, maxD) + bar(r.declines_alone, maxD, 'alone') + '</td>' +
-        '<td class="num">' + n0(r.declines_alone) + '</td>' +
-        '<td>' + verdict + '</td></tr>';
+  /* =============================================================== screen 2
+   * Decline drivers is the diagnosis, read-only: which rules cost approvals, and which are safe to
+   * loosen. Every rule's group (verdict) and every count comes from the engine; the page sorts
+   * nothing and judges nothing. Each rule ends with a way into the Simulator, where changes are made. */
+  var DR = { open: {}, all: {} };
+  var DR_TOP = 5;
+  var DR_COLLAPSED = { overlap: true, not_relaxable: true, never: true, unevaluated: true };
+
+  function drGroup(id) { return (F.drivers_summary.groups || []).filter(function (g) { return g.id === id; })[0] || { rules: 0, approvals_gained: 0 }; }
+  function info(text) { return '<span class="drinfo" tabindex="0" role="img" aria-label="' + esc(text) + '" title="' + esc(text) + '">ⓘ</span>'; }
+
+  function drTiles() {
+    var rv = drGroup('review'), ea = drGroup('earning'), ne = drGroup('no_estimate'), X = F.drivers_summary;
+    return '<div class="tiles c3 drtiles">' +
+      tile('Could gain at little extra risk ' + pv('INFERRED'), '+' + n0(rv.approvals_gained),
+           n0(rv.rules) + ' ' + (rv.rules === 1 ? 'rule' : 'rules') + ' · approvals if each is loosened on its own',
+           '', N('dr_t_review')) +
+      tile('Earning their place ' + pv('INFERRED'), n0(ea.rules) + ' <small>rules</small>',
+           'they decline applicants riskier than ' + pct(X.threshold, 1), '', N('dr_t_earning')) +
+      tile('Can\'t be judged ' + pv('NOT_MODELLED', 'NO ESTIMATE'), n0(ne.rules) + ' <small>rules</small>',
+           'too few applicants, or unlike anything the bank has booked', '', N('dr_t_noest')) +
+      '</div>';
+  }
+
+  function drLead() {
+    // The tiles carry the totals; the one line names the rule to look at first.
+    var top = F.drivers.filter(function (r) { return r.verdict === 'review'; })[0];
+    if (!top) return '';
+    return caveat('warn', 'FINDING', '<strong>Look first at “' + esc(top.label) + '”.</strong> Loosened on its own it would add ' +
+      n0(top.approvals_gained) + ' approvals at an estimated ' + pct(top.est_bad_rate_if_relaxed, 1) + ' bad rate, against ' +
+      pct(F.drivers_summary.booked_bad_rate, 1) + ' on today\'s book.', N('dr_q10'));
+  }
+
+  function drLosses() {
+    var L = F.drivers_summary.losses || [];
+    var max = Math.max.apply(null, L.map(function (l) { return l.dropped; }).concat([1]));
+    var rows = L.map(function (l) {
+      var where = l.decline_rules ? '<a href="#dr-groups" class="drlink" data-dr-jump>Rules below</a>'
+        : l.loss_type === 'customer' ? '<span class="verdict">the applicant\'s choice, not a rule</span>'
+        : '<span class="verdict">the offer, not a rule: loosened by caps, not in the Simulator</span>';
+      return '<tr class="' + (l.loss_type === 'customer' ? 'is-customer' : 'is-lender') + '"><td><b>' + esc(l.label) + '</b>' +
+        (l.sublabel ? '<br><span class="verdict">' + esc(l.sublabel) + '</span>' : '') + '</td>' +
+        '<td class="num">' + n0(l.dropped) + '<br><span class="verdict">' + pct(l.share_of_applicants, 1) + ' of applicants</span></td>' +
+        '<td style="width:120px">' + bar(l.dropped, max) + '</td>' +
+        '<td class="drreasons">' + l.reasons.map(function (r) { return esc(r.label) + ' <span class="fig">' + n0(r.count) + '</span>'; }).join('<br>') + '</td>' +
+        '<td>' + where + '</td></tr>';
     });
+    return panel('Where applicants are lost', pv('OBSERVED'),
+      '<div class="drlosstab">' + table('<th>Stage</th><th class="num">Lost</th><th></th><th' + N('dr_reasons') + '>Biggest reasons</th><th></th>', rows) +
+      '</div>', N('dr_losses'));
+  }
 
-    var noSafety = d.filter(function (r) { return r.earns_its_place === false && r.relaxable; });
-    var lead = noSafety.length
-      ? caveat('warn', 'Q10',
-          '<strong>' + noSafety.length + ' rules cost approvals without buying safety.</strong> ' +
-          'The applicants each one declines on its own are no riskier than the book already ' +
-          'carries. Top of the list: <span class="rid">' + esc(noSafety[0].rule_id) + '</span> — ' +
-          esc(noSafety[0].description) + ' — declining ' + n0(noSafety[0].declines_alone) +
-          ' applicants nobody else catches, at an estimated ' + pct(noSafety[0].est_bad_rate_if_relaxed) +
-          ' bad rate against a booked ' + pct(F.headline.booked_bad_rate) + '.', N('dr_q10'))
-      : '';
+  function drChart() {
+    var X = F.drivers_summary;
+    var pts = F.drivers.filter(function (r) { return (r.verdict === 'review' || r.verdict === 'earning') && r.est_bad_rate_if_relaxed !== null; });
+    var none = F.drivers.filter(function (r) { return r.verdict === 'no_estimate'; });
+    if (!pts.length && !none.length) return '';
+    var W = 620, H = 300, L = 56, R = 16, T = 14, B = 64, STRIP = 14;
+    var xmax = Math.max.apply(null, pts.concat(none).map(function (r) { return r.approvals_gained || 0; }).concat([10])) * 1.08;
+    var ys = pts.map(function (r) { return r.est_bad_rate_if_relaxed; }).concat([X.threshold, X.booked_bad_rate]);
+    var y0 = 0, y1 = Math.max.apply(null, ys) * 1.1;
+    function Xs(v) { return L + v * (W - L - R) / xmax; }
+    function Ys(v) { return T + (y1 - v) * (H - T - B) / (y1 - y0); }
+    var g = '<defs><pattern id="drhatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+      '<rect width="6" height="6" class="hatch-nm"/><line x1="0" y1="0" x2="0" y2="6" class="drhatch-l"/></pattern></defs>';
+    for (var i = 0; i <= 4; i++) {
+      var xv = xmax * i / 4, yv = y1 * i / 4;
+      g += '<line class="grid" x1="' + Xs(xv) + '" x2="' + Xs(xv) + '" y1="' + T + '" y2="' + (H - B) + '"/>' +
+           '<text class="tick" x="' + Xs(xv) + '" y="' + (H - B + 16) + '" text-anchor="middle">' + n0(xv) + '</text>' +
+           '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Ys(yv) + '" y2="' + Ys(yv) + '"/>' +
+           '<text class="tick" x="' + (L - 8) + '" y="' + (Ys(yv) + 4) + '" text-anchor="end">' + pct(yv, 0) + '</text>';
+    }
+    g += '<text class="axis" x="' + ((L + W - R) / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Approvals gained if loosened on its own →</text>' +
+         '<text class="axis" x="14" y="' + ((T + H - B) / 2) + '" text-anchor="middle" transform="rotate(-90 14 ' + ((T + H - B) / 2) + ')">Bad rate of those gained →</text>';
+    g += '<line class="drbook" x1="' + L + '" x2="' + (W - R) + '" y1="' + Ys(X.booked_bad_rate) + '" y2="' + Ys(X.booked_bad_rate) + '"/>' +
+         '<text class="drbook-t" x="' + (W - R - 4) + '" y="' + (Ys(X.booked_bad_rate) + 14) + '" text-anchor="end">today\'s book ' + pct(X.booked_bad_rate, 1) + '</text>' +
+         '<line class="drline" x1="' + L + '" x2="' + (W - R) + '" y1="' + Ys(X.threshold) + '" y2="' + Ys(X.threshold) + '"/>' +
+         '<text class="drline-t" x="' + (W - R - 4) + '" y="' + (Ys(X.threshold) - 6) + '" text-anchor="end">earns its place above ' + pct(X.threshold, 1) + '</text>';
+    pts.forEach(function (r) {
+      g += '<g class="pt is-inf' + (r.verdict === 'review' ? ' is-review' : '') + '"><title>' + esc(r.label + ' · ' + n0(r.approvals_gained) +
+           ' approvals · bad rate ' + pct(r.est_bad_rate_if_relaxed, 1)) + '</title>' +
+           '<circle cx="' + Xs(r.approvals_gained || 0) + '" cy="' + Ys(r.est_bad_rate_if_relaxed) + '" r="6"/></g>';
+    });
+    // No estimate: no height to give them, so they sit on a hatched strip under the axis.
+    var sy = H - B + 26;
+    g += '<rect x="' + L + '" y="' + sy + '" width="' + (W - L - R) + '" height="' + STRIP + '" fill="url(#drhatch)" class="drstrip"/>' +
+         '<text class="tick" x="' + (L - 8) + '" y="' + (sy + 11) + '" text-anchor="end">none</text>';
+    none.forEach(function (r) {
+      g += '<g class="drnone"><title>' + esc(r.label + ' · ' + n0(r.approvals_gained) + ' approvals · no estimate: ' + (r.risk_note || '')) + '</title>' +
+           '<line x1="' + Xs(r.approvals_gained || 0) + '" x2="' + Xs(r.approvals_gained || 0) + '" y1="' + sy + '" y2="' + (sy + STRIP) + '"/></g>';
+    });
+    return panel('What each rule would give, and at what risk', pv('OBSERVED', 'APPROVALS') + ' ' + pv('INFERRED', 'RISK'),
+      '<div class="simchart drchart"><svg viewBox="0 0 ' + W + ' ' + (H + STRIP + 12) + '" role="img" aria-label="Approvals each rule would add ' +
+        'against the estimated bad rate of those applicants">' + g + '</svg></div>' +
+      '<p class="simnote">Dots below the line are approvals the rule costs without buying safety. Rules with no estimate sit on the hatched strip.</p>',
+      N('dr_chart'));
+  }
 
+  function drRisk(r) {
+    if (r.verdict === 'not_relaxable') return pv('NOT_MODELLED', 'NOT RELAXABLE');
+    if (r.verdict === 'overlap') return '<span class="verdict">frees nobody on its own</span>';
+    if (r.verdict === 'no_estimate') return '<span title="' + esc(r.risk_note || '') + '">' + pv('NOT_MODELLED', 'NO ESTIMATE') + '</span>';
+    return pv('INFERRED', pct(r.est_bad_rate_if_relaxed, 1));
+  }
+
+  function drRow(r) {
+    var gain = r.approvals_gained === null || r.approvals_gained === undefined ? '<span class="nodata">—</span>' : '+' + n0(r.approvals_gained);
+    var tryIt = r.verdict !== 'not_relaxable'
+      ? '<button class="drtry" data-dr-try="' + esc(r.rule_id) + '">Try in Simulator →</button>' : '';
+    return '<tr><td><span class="drname">' + esc(r.label) + '</span><br><span class="rid">' + esc(r.rule_id) + '</span>' +
+      (r.policy_code ? ' <span class="rid">· ' + esc(r.policy_code) + '</span>' : '') +
+      (r.verdict === 'not_relaxable' ? '<br><span class="verdict">rests on ' + esc(r.fields) + '</span>' : '') + '</td>' +
+      '<td class="num"><span class="drgain">' + gain + '</span><br><span class="verdict">' + n0(r.declines) + ' declines</span></td>' +
+      '<td>' + drRisk(r) + '</td><td class="drcta">' + tryIt + '</td></tr>';
+  }
+
+  function drGroupBlock(id, label, list, rowFn, head) {
+    if (!list.length && DR_COLLAPSED[id]) return '';     // an empty closed group says nothing
+    var open = DR.open[id] !== undefined ? DR.open[id] : !DR_COLLAPSED[id];
+    var shown = DR.all[id] ? list : list.slice(0, DR_TOP);
+    return '<details class="drgroup" data-dr-group="' + id + '"' + (open ? ' open' : '') + '>' +
+      '<summary><b>' + esc(label) + '</b><span class="fig">' + n0(list.length) + '</span></summary>' +
+      (list.length ? '<div class="drtab">' + table(head, shown.map(rowFn)) + '</div>' +
+        (list.length > shown.length ? '<button class="fmore" data-dr-all="' + id + '">Show all ' + n0(list.length) + '</button>' : '')
+        : '<p class="note">None.</p>') + '</details>';
+  }
+
+  function drGroups() {
+    var head = '<th' + N('th_rule') + '>Rule</th><th class="num"' + N('th_gain') + '>Approvals gained if loosened ' +
+      info('Switching off a rule whose declines are all shared with another rule frees nobody: the other rule still catches them. ' +
+           'So this counts only the applicants no other rule declines, and only those who would then be booked.') + '</th>' +
+      '<th' + N('th_relaxed') + '>Bad rate if loosened ' +
+      info('Declined applicants have no repayment history, so this is inferred by a model trained on booked loans. ' +
+           'Where a group is too small or unlike anything booked, the engine gives no estimate instead of a number.') + '</th><th></th>';
+    var body = Object.keys(F.drivers_summary.groups.reduce(function (o, g) { o[g.id] = 1; return o; }, {})).map(function (id) {
+      var g = drGroup(id);
+      return drGroupBlock(id, g.label, F.drivers.filter(function (r) { return r.verdict === id; }), drRow, head);
+    }).join('') +
+      drGroupBlock('never', 'Catch nobody', F.drivers_summary.never_fire, function (r) {
+        return '<tr><td><span class="drname">' + esc(r.label) + '</span><br><span class="rid">' + esc(r.rule_id) + '</span></td>' +
+          '<td colspan="3" class="verdict">declines no applicant in this period</td></tr>';
+      }, '<th>Rule</th><th colspan="3"></th>') +
+      drGroupBlock('unevaluated', 'Not evaluated', F.drivers_summary.not_evaluated || [], function (r) {
+        return '<tr><td><span class="drname">' + esc(r.label) + '</span><br><span class="rid">' + esc(r.rule_id) + '</span></td>' +
+          '<td colspan="3" class="verdict">reads a value the applicant data does not supply</td></tr>';
+      }, '<th>Rule</th><th colspan="3"></th>');
+    return '<div id="dr-groups">' + panel('Rules by verdict', pv('OBSERVED', 'COUNTS') + ' ' + pv('INFERRED', 'RISK'), body, N('dr_rank')) + '</div>';
+  }
+
+  function pageDrivers() {
     return '<div class="pagehead"><h2' + N('dr_head') + '>Decline drivers</h2>' +
-      '<p>Which rule declines the most applicants — and how many it declines on its own, ' +
-      'with no other rule catching them.</p>' + periodLine() + '</div>' + lead +
-      panel('Ranked by applicants declined alone',
-        pv('OBSERVED', 'COUNTS') + ' ' + pv('INFERRED', 'RISK'),
-        table('<th' + N('th_rule') + '>Rule</th><th class="num"' + N('th_declines') + '>Declines</th>' +
-              '<th' + N('th_allalone') + '>All / alone</th><th class="num"' + N('th_alone') + '>Alone</th>' +
-              '<th' + N('th_relaxed') + '>Bad rate if relaxed</th>', rows) +
-        caveat('', 'WHY ALONE',
-          'Switching off a rule that always fires alongside another buys nothing: the other ' +
-          'rule still catches those applicants. <em>Alone</em> is the column that answers ' +
-          '"what is the one thing I change?".', N('why_alone')) +
-        caveat('', 'RISK',
-          'A declined applicant has no repayment history, so the bad rate of relaxing a rule ' +
-          'is inferred, never observed. Where the group sits outside anything the bank has ' +
-          'booked, the engine returns ' + pv('NOT_MODELLED', 'NO ESTIMATE') + ' rather than a ' +
-          'number — a confident figure there would tell you to loosen a rule for free.', N('risk_tag')),
-        N('dr_rank')) +
-      panel('Rules the engine will not judge', pv('NOT_MODELLED'),
-        '<p class="note">A rule resting on a regulatory or bureau fact — politically exposed ' +
-        'persons, diplomatic service, staff — is never offered as a relaxation, whatever it ' +
-        'costs in approvals. Code can measure what a rule costs; it cannot know the bank is ' +
-        'allowed to drop it.</p>' +
-        table('<th>Rule</th><th class="num">Declines alone</th><th' + N('th_rests') + '>Rests on</th>',
-          d.filter(function (r) { return !r.relaxable; }).map(function (r) {
-            return '<tr><td><span class="rid">' + esc(r.rule_id) + '</span> ' +
-              esc((r.description || '').slice(0, 60)) + '</td>' +
-              '<td class="num">' + n0(r.declines_alone) + '</td>' +
-              '<td class="verdict">' + esc(r.fields) + '</td></tr>';
-          })), N('dr_guard'));
+      '<p>Which rules cost approvals, and which are safe to loosen.</p>' + periodLine() + '</div>' +
+      drLead() + drTiles() + drChart() + drGroups() + drLosses();
+  }
+
+  function wireDrivers(root) {
+    root.querySelectorAll('[data-dr-group]').forEach(function (d) {
+      d.addEventListener('toggle', function () { DR.open[d.getAttribute('data-dr-group')] = d.open; });
+    });
+    root.querySelectorAll('[data-dr-all]').forEach(function (b) {
+      b.addEventListener('click', function () { DR.all[b.getAttribute('data-dr-all')] = true; go('drivers', true); });
+    });
+    root.querySelectorAll('[data-dr-try]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        SIM.view = 'rules'; SIM.q = b.getAttribute('data-dr-try'); SIM.filter = 'all'; SIM.showAll = false;
+        go('simulator');
+      });
+    });
+    root.querySelectorAll('[data-dr-jump]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        e.preventDefault();
+        var t = document.getElementById('dr-groups'); if (t) t.scrollIntoView({ behavior: calmMotion() ? 'auto' : 'smooth' });
+      });
+    });
   }
 
   /* =============================================================== screen 3
@@ -955,15 +1066,14 @@
         d: 'Switch off “' + rules[0].label + '”, which on its own stops ' + n0(rules[0].declines_alone) + ' applicants.',
         steps: [{ type: 'off', rule_id: rules[0].rule_id }] });
     }
-    // Rules whose release keeps the book's bad rate at or below today's, biggest gain first.
-    var safe = (F.rule_toggles || []).filter(function (t) {
-      return t.risk_known && t.expected_bad_rate <= F.headline.booked_bad_rate;
-    }).sort(function (a, b) { return b.approval_change_pp - a.approval_change_pp; }).slice(0, 2);
-    if (safe.length) {
-      list.push({ id: 'safe', t: 'Grow approvals safely',
-        d: 'Switch off ' + joinWords(safe.map(function (t) { return '“' + ruleName(t.rule_id) + '”'; })) +
-           ': each one alone keeps the bad rate at or below today\'s.',
-        steps: safe.map(function (t) { return { type: 'off', rule_id: t.rule_id }; }) });
+    // The rules Decline drivers flagged, as the engine grouped them: never a second opinion here.
+    // Offline, only one precomputed switch-off can be shown at a time.
+    var flagged = (F.drivers || []).filter(function (r) { return r.verdict === 'review'; }).slice(0, SIM.live ? 2 : 1);
+    if (flagged.length) {
+      list.push({ id: 'flagged', t: 'Loosen what Decline drivers flagged',
+        d: 'Switch off ' + joinWords(flagged.map(function (r) { return '“' + r.label + '”'; })) +
+           ', flagged for costing approvals without buying safety.',
+        steps: flagged.map(function (r) { return { type: 'off', rule_id: r.rule_id }; }) });
     }
     var sc = cutoffs()[0];
     var up = sc && sc.values.filter(function (v) { return v > sc.from; });
@@ -990,7 +1100,9 @@
         (ok && !SIM.pending ? '' : ' disabled') + ' aria-pressed="' + on + '">' +
         '<b>' + esc(p.t) + '</b><span>' + esc(p.d) + '</span>' +
         (ok ? '' : '<em>' + (SIM.live ? 'restart the engine to use this' : 'needs the engine running') + '</em>') + '</button>';
-    }).join('') + '</div>';
+    }).join('') + '</div>' +
+      (list.some(function (p) { return p.id === 'flagged'; })
+        ? '<p class="simnote"><a href="#drivers">Why these rules: Decline drivers →</a></p>' : '');
   }
 
   function sliders() {
@@ -1519,6 +1631,7 @@
       b.addEventListener('click', function () { S.goal = +b.getAttribute('data-goal'); go(S.page, true); });
     });
     wireSimulator(root);
+    wireDrivers(root);
   }
 
 

@@ -64,6 +64,71 @@ def _records(df: pd.DataFrame, index_name: str | None = None) -> list[dict]:
     return clean(out.to_dict("records"))
 
 
+def drivers_view(base: S.Baseline, inv, drivers: pd.DataFrame, funnel: pd.DataFrame,
+                 funnel_rules: list[dict]) -> tuple[list[dict], dict]:
+    """Decline Drivers: every decline rule, grouped by verdict, and every other way applicants are lost.
+
+    The verdict comes from `A.decline_drivers`; this only orders, counts and adds what each rule
+    would actually book if switched off on its own.
+    """
+    cfg = base.cfg
+    gains = S.driver_gains(base, inv, drivers)
+    order = {v: i for i, v in enumerate(A.VERDICTS)}
+    gains = gains.assign(_g=gains["verdict"].map(order),
+                         _n=gains["approvals_gained"].fillna(-1).astype(int))
+    gains = gains.sort_values(["_g", "_n", "declines"], ascending=[True, False, False]) \
+                 .drop(columns=["_g", "_n"])
+
+    groups = []
+    for vid, label in A.VERDICTS.items():
+        g = gains[gains["verdict"] == vid]
+        groups.append({"id": vid, "label": label, "rules": int(len(g)),
+                       "declines_alone": int(g["declines_alone"].sum()),
+                       "approvals_gained": int(g["approvals_gained"].fillna(0).sum())})
+
+    rules = base.res.rules
+    never = rules[(rules["kind"] == "block") & (rules["matched"] == 0)]
+    layout = A.funnel_layout(cfg)
+    by_stage = {r["stage"]: r for r in funnel_rules}
+    total = int(funnel.iloc[0]["entered"]) if len(funnel) else 0
+    losses = []
+    for r in funnel.to_dict("records"):
+        spec = layout["stages"].get(r["stage"], {})
+        if spec.get("endpoint") or not r["dropped"]:
+            continue
+        group = layout["groups"].get(spec.get("group"), {})
+        is_rules = r["stage"] in ("hard_reject", "credit_policy")
+        losses.append({
+            "stage": r["stage"], "label": spec.get("label", r["stage"]),
+            "sublabel": spec.get("sublabel"), "group": group.get("label"),
+            "loss_type": group.get("loss_type"),
+            "dropped": int(r["dropped"]),
+            "share_of_applicants": round(r["dropped"] / total, 6) if total else None,
+            "decline_rules": is_rules,
+            "reasons": [{"label": x["label"], "count": x["count"]}
+                        for x in by_stage.get(r["stage"], {}).get("rules", [])[:3]],
+        })
+
+    multiple = cfg["drivers"]["earns_place_multiple"]
+    summary = {
+        "booked_bad_rate": round(base.booked_bad_rate, 6),
+        "earns_place_multiple": multiple,
+        "threshold": round(base.booked_bad_rate * multiple, 6),
+        "groups": groups,
+        "never_fire": [{"rule_id": x.rule_id, "stage": x.stage,
+                        "label": A.clean_description(x.description) or x.rule_id}
+                       for x in never.itertuples()],
+        "losses": losses,
+        # Decline rules in scope that the replay could not evaluate: they read a value the data
+        # does not supply, so they decline nobody here and say nothing about the real book.
+        "not_evaluated": [{"rule_id": rid, "stage": c.stage,
+                           "label": A.clean_description(c.description) or rid}
+                          for rid, c in base.res.compiled.items()
+                          if c.kind == "block" and rid not in set(rules["rule_id"])],
+    }
+    return clean(gains.to_dict("records")), clean(summary)
+
+
 def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
     """Everything the three screens show for one analysis context (product and window).
 
@@ -78,6 +143,8 @@ def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
     drivers = A.decline_drivers(df, res, outcome, cfg, model=model,
                                 booked_bad_rate=base.booked_bad_rate)
     funnel = A.funnel(df, outcome)
+    funnel_rules = clean(A.funnel_rules(res, outcome, cfg, conditions=inv.conditions))
+    driver_rows, driver_summary = drivers_view(base, inv, drivers, funnel, funnel_rules)
 
     book_by = {}
     for slice_name in ("employer_segment", "sector", "channel", "nationality"):
@@ -114,11 +181,13 @@ def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
         },
         "funnel": clean(funnel.to_dict("records")),
         "funnel_layout": clean(A.funnel_layout(cfg)),
-        "funnel_rules": clean(A.funnel_rules(res, outcome, cfg, conditions=inv.conditions)),
+        "funnel_rules": funnel_rules,
         "by_channel": _records(A.by_source(df, outcome, "channel"), "channel"),
         "by_agent": _records(A.by_source(df, outcome, "agent_id").head(12), "agent_id"),
         "portfolio": book_by,
-        "drivers": clean(drivers.head(25).to_dict("records")),
+        # Every decline rule, grouped by verdict; the screen shows the top of each group.
+        "drivers": driver_rows,
+        "drivers_summary": driver_summary,
         "model": {
             "gini": model.gini, "n_train": model.n_train,
             "train_bad_rate": round(model.train_bad_rate, 4),
@@ -150,7 +219,14 @@ def build_view(base: S.Baseline, inv, *, quick: bool = False, log=None) -> dict:
                                   "rows": clean(curve.to_dict("records"))})
         log(f"  swept {spec['field']}")
 
-    top = drivers[drivers["relaxable"]].nlargest(8, "declines_alone")
+    # The busiest relaxable rules, plus the top rule Decline drivers flags, so the Simulator's
+    # "Loosen what Decline drivers flagged" works offline too.
+    flagged = drivers[drivers["verdict"] == "review"].head(0)
+    if driver_rows:
+        first = next((r for r in driver_rows if r["verdict"] == "review"), None)
+        flagged = drivers[drivers["rule_id"] == first["rule_id"]] if first else flagged
+    top = pd.concat([drivers[drivers["relaxable"]].nlargest(8, "declines_alone"), flagged]) \
+            .drop_duplicates("rule_id")
     for r in top.itertuples():
         result = S.simulate(base, inv, S.rule_lever(r.rule_id, enabled=False))
         payload["rule_toggles"].append(clean({
