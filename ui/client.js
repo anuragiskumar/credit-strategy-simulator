@@ -720,7 +720,7 @@
   function fieldName(f) { return String(f).split('.').pop(); }
   function fieldLabel(f) { return FIELD_NAMES[f] || fieldName(f); }
   /** A change in percentage points, as a CEO reads it: "+3.4 pts". */
-  function pts(v, dp) {
+  function ptsChange(v, dp) {
     if (v === null || v === undefined) return '—';
     var x = Number(v);
     return (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(dp === undefined ? 1 : dp) + ' pts';
@@ -776,7 +776,7 @@
     return '<div class="simout">' +
       '<div class="so"><span class="k"' + N('t_approval') + '>Approval</span>' +
         '<span class="v fig"><s>' + pct(h.approval_rate) + '</s> → <span class="c-obs">' + pct(t.approval_rate) + '</span></span>' +
-        '<span class="d">' + pts(t.approval_change_pp) + '</span></div>' +
+        '<span class="d">' + ptsChange(t.approval_change_pp) + '</span></div>' +
       '<div class="so' + (breach ? ' is-breach' : '') + '"><span class="k"' + N('t_bad') + '>Bad rate</span>' +
         '<span class="v fig"><s>' + pct(h.booked_bad_rate, 2) + '</s> → ' + bad + '</span>' +
         '<span class="d">' + (breach ? 'above the ' : 'limit ') + pct(ceil, 1) + (breach ? ' limit' : '') + '</span></div>' +
@@ -904,7 +904,7 @@
     SIM.steps.forEach(function (s, i) {
       var st = out && out.steps[i];
       var before = levels[i], after = levels[i + 1];
-      var fig = st ? '<span' + (i === 0 ? N('sim_added') : '') + '>' + pts(st.added_pp) + '</span>' : '…';
+      var fig = st ? '<span' + (i === 0 ? N('sim_added') : '') + '>' + ptsChange(st.added_pp) + '</span>' : '…';
       var sub = st ? '<small>' + signed(st.added_swap_in) + ' approved' +
         (st.added_swap_out ? ' · ' + signed(st.added_swap_out) + ' declined' : '') + '</small>' : '';
       rows += row('<span class="simn">' + (i + 1) + '</span><span>' + esc(stepText(s)) + sub + '</span>',
@@ -1153,7 +1153,7 @@
     var ok = res.reached && o.reaches_target && !o.breaches_ceiling;
     var head = ok ? 'To reach ' + pct(res.target, 1) + ':' : 'The closest we can get to ' + pct(res.target, 1) + ':';
     var bad = o.risk_known
-      ? 'bad rate ' + pct(o.expected_bad_rate, 2) + ' (' + pts(o.risk_cost_pp, 2) + '), ' +
+      ? 'bad rate ' + pct(o.expected_bad_rate, 2) + ' (' + ptsChange(o.risk_cost_pp, 2) + '), ' +
         (o.breaches_ceiling ? 'above' : 'inside') + ' the ' + pct(res.ceiling, 1) + ' limit'
       : 'no bad-rate estimate is possible for these applicants';
     var sentence = words.map(function (w, i) { return i ? w : w.charAt(0).toUpperCase() + w.slice(1); });
@@ -1161,7 +1161,7 @@
     return '<div class="simreco ' + (ok ? 'is-reached' : 'is-short') + '">' +
       '<div class="rtag"' + N('goal_tag') + '>' + (ok ? 'Reached' : 'Out of reach') + '</div>' +
       '<p class="rhead"' + N('goal_reco') + '><b>' + esc(head) + '</b> ' + esc(joinWords(sentence)) + '.</p>' +
-      '<p class="rfig">Approval <span class="fig c-obs">' + pct(o.approval_rate) + '</span> (' + pts(o.approval_change_pp) + '), ' +
+      '<p class="rfig">Approval <span class="fig c-obs">' + pct(o.approval_rate) + '</span> (' + ptsChange(o.approval_change_pp) + '), ' +
         '<span class="fig">' + n0(o.swap_in) + '</span> newly approved; ' + esc(bad) + '.</p>' +
       (canApply ? '<button class="btn" data-goal-apply="0"' + N('goal_apply') + '>Try this as a scenario</button>' : '') +
       '</div>';
@@ -1177,8 +1177,8 @@
         '<h4' + (j === 0 ? N('opt_head') : '') + '>Option ' + esc(String(o.option).charAt(0)) + ' <small>' + tag + '</small></h4>' +
         '<ul class="steps">' + optionWords(o).map(function (w, k) {
           return '<li' + (j === 0 && k === 0 ? N('opt_steps') : '') + '>' + esc(w) + '</li>'; }).join('') + '</ul>' +
-        '<p class="rfig">Approval ' + pct(o.approval_rate) + ' (' + pts(o.approval_change_pp) + ') · ' +
-          '<span' + (j === 0 ? N('opt_risk') : '') + '>bad rate ' + (o.risk_known ? pct(o.expected_bad_rate, 2) + ' (' + pts(o.risk_cost_pp, 2) + ')' : 'no estimate') + '</span>' +
+        '<p class="rfig">Approval ' + pct(o.approval_rate) + ' (' + ptsChange(o.approval_change_pp) + ') · ' +
+          '<span' + (j === 0 ? N('opt_risk') : '') + '>bad rate ' + (o.risk_known ? pct(o.expected_bad_rate, 2) + ' (' + ptsChange(o.risk_cost_pp, 2) + ')' : 'no estimate') + '</span>' +
           ' · ' + n0(o.swap_in) + ' newly approved</p>' +
         (SIM.live && o.changes && o.changes.length ? '<button class="btn ghost sm" data-goal-apply="' + i + '">Try this as a scenario</button>' : '') +
         '</div>';
