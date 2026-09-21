@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src import client_analysis as A, client_optimise as O, client_simulate as S
+from src import client_analysis as A, client_api as API, client_optimise as O, client_simulate as S
 from src.config import resolve_path
 from src.client_generate import load_client_config
 from src.rule_inventory import build_inventory
@@ -128,6 +128,9 @@ def build(cfg: dict, inv, *, quick: bool = False) -> dict:
             "score_floor": model.score_floor, "score_ceiling": model.score_ceiling,
             "booked_missing_score": model.booked_missing_score,
         },
+        # Every decline rule, so the Simulator lists them all even with no engine running.
+        # Only the precomputed `rule_toggles` can be tried in that mode; the screen says so.
+        "rule_catalogue": clean(API.rule_catalogue(base, inv)),
         "sweeps": [], "rule_toggles": [], "goal_seek": [],
     }
 

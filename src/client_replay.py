@@ -17,7 +17,7 @@ edit, and the funnel is expected to move when it changes.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
@@ -185,6 +185,7 @@ class ReplayResult:
     hits: pd.DataFrame            # applicants x rule_id, True where the rule matched
     rules: pd.DataFrame           # one row per rule, with how many it caught
     unevaluable: list[str]
+    compiled: dict = field(default_factory=dict)   # rule_id -> CompiledRule, for re-replays
 
     def matched(self, rule_id: str) -> np.ndarray:
         return self.hits[rule_id].to_numpy()
@@ -203,54 +204,105 @@ def prepare_frames(df: pd.DataFrame, cfg: dict) -> dict[str, pd.DataFrame]:
     return frames
 
 
+def _rule_mask(c: CompiledRule, frames: dict, conds: pd.DataFrame | None, n: int,
+               override: dict | None, null_matches: bool) -> np.ndarray | None:
+    """One rule over every applicant, or None when it cannot be evaluated."""
+    frame = frames.get(c.table)
+    if frame is None:
+        return None
+    mask = np.ones(n, dtype=bool)
+    for cond in (conds.itertuples() if conds is not None else ()):
+        m = _condition_mask(frame, _apply_override(cond, override), null_matches)
+        if m is None:
+            return None
+        mask &= m
+    return mask
+
+
+def _rule_row(c: CompiledRule, mask: np.ndarray) -> dict:
+    return {"rule_id": c.rule_id, "table": c.table, "stage": c.stage,
+            "outcome": c.outcome, "kind": c.kind, "cap_amount": c.cap_amount,
+            "policy_code": c.policy_code, "description": c.description,
+            "is_active": c.is_active, "relaxable": c.relaxable,
+            "locked": c.locked, "fixed_field": c.fixed_field,
+            "matched": int(mask.sum()), "fields": ", ".join(c.fields)}
+
+
 def replay(df: pd.DataFrame, inv: Inventory, cfg: dict, *,
            overrides: dict[str, dict] | None = None,
-           frames: dict[str, pd.DataFrame] | None = None) -> ReplayResult:
+           frames: dict[str, pd.DataFrame] | None = None,
+           base: ReplayResult | None = None) -> ReplayResult:
     """Evaluate every applicable rule against every applicant.
 
-    `overrides` retunes a rule for a what-if: {rule_id: {"value_low": 650}} or
-    {rule_id: {"enabled": False}}. Used by the simulator; unused here.
+    `overrides` retunes a rule for a what-if: {rule_id: {"enabled": False}}, or
+    {rule_id: {"thresholds": {field: {"value_low": 650}}}}. Used by the simulator.
+
+    With `base` (an unmodified replay of the same applicants), only the overridden rules are
+    re-evaluated and every other column is reused. A rule's verdict depends on nothing but its
+    own conditions, so the result is identical to a full replay — a test holds it to that —
+    and a what-if costs milliseconds instead of a second. That is what lets a person ladder
+    changes and goal-seek to their own target while they wait.
     """
     rep = cfg["replay"]
+    overrides = overrides or {}
+    null_matches = rep["condition_on_missing_value_matches"]
+    conds = inv.conditions
+
+    if base is not None and base.compiled:
+        return _replay_changed(df, base, conds, overrides, frames, cfg, null_matches)
+
     compiled = compile_rules(inv, product=cfg["product"],
                              include_inactive=rep["include_inactive_rules"],
                              stage_map=rep["stage_by_table"], locked=locked_rules(cfg))
-    overrides = overrides or {}
+    all_compiled = {c.rule_id: c for c in compiled}
     compiled = [c for c in compiled if overrides.get(c.rule_id, {}).get("enabled", True)]
-
     frames = frames if frames is not None else prepare_frames(df, cfg)
-
-    conds = inv.conditions
     by_rule = {rid: g for rid, g in conds.groupby("rule_id")}
-    null_matches = rep["condition_on_missing_value_matches"]
 
     hits, rows, unevaluable = {}, [], []
     for c in compiled:
-        frame = frames.get(c.table)
-        if frame is None:
-            unevaluable.append(c.rule_id)
-            continue
-        mask = np.ones(len(df), dtype=bool)
-        ok = True
-        for cond in by_rule.get(c.rule_id, pd.DataFrame()).itertuples():
-            patched = _apply_override(cond, overrides.get(c.rule_id))
-            m = _condition_mask(frame, patched, null_matches)
-            if m is None:
-                ok = False
-                break
-            mask &= m
-        if not ok:
+        mask = _rule_mask(c, frames, by_rule.get(c.rule_id), len(df),
+                          overrides.get(c.rule_id), null_matches)
+        if mask is None:
             unevaluable.append(c.rule_id)
             continue
         hits[c.rule_id] = mask
-        rows.append({"rule_id": c.rule_id, "table": c.table, "stage": c.stage,
-                     "outcome": c.outcome, "kind": c.kind, "cap_amount": c.cap_amount,
-                     "policy_code": c.policy_code, "description": c.description,
-                     "is_active": c.is_active, "relaxable": c.relaxable,
-                     "locked": c.locked, "fixed_field": c.fixed_field,
-                     "matched": int(mask.sum()), "fields": ", ".join(c.fields)})
+        rows.append(_rule_row(c, mask))
     hit_df = pd.DataFrame(hits, index=df.index) if hits else pd.DataFrame(index=df.index)
-    return ReplayResult(hits=hit_df, rules=pd.DataFrame(rows), unevaluable=unevaluable)
+    return ReplayResult(hits=hit_df, rules=pd.DataFrame(rows), unevaluable=unevaluable,
+                        compiled=all_compiled)
+
+
+def _replay_changed(df, base: ReplayResult, conds, overrides, frames, cfg,
+                    null_matches) -> ReplayResult:
+    """Re-evaluate only the overridden rules; reuse the base replay for everything else."""
+    frames = frames if frames is not None else prepare_frames(df, cfg)
+    changed = [rid for rid in overrides if rid in base.compiled]
+    if not changed:
+        return base
+    hits, rules = base.hits.copy(), base.rules.copy()
+    unevaluable = list(base.unevaluable)
+    drop: list[str] = []
+    for rid in changed:
+        c, patch = base.compiled[rid], overrides[rid]
+        if not patch.get("enabled", True):
+            drop.append(rid)
+            continue
+        mask = _rule_mask(c, frames, conds[conds.rule_id == rid], len(df), patch, null_matches)
+        if mask is None:
+            # A threshold edit cannot make an evaluable rule unevaluable: only the field
+            # decides that, and edits never change the field. Kept as a guard, not a path.
+            drop.append(rid)
+            if rid not in unevaluable:
+                unevaluable.append(rid)
+            continue
+        if rid in hits.columns:
+            hits[rid] = mask
+            rules.loc[rules.rule_id == rid, "matched"] = int(mask.sum())
+    if drop:
+        hits = hits.drop(columns=[r for r in drop if r in hits.columns])
+        rules = rules[~rules.rule_id.isin(drop)].reset_index(drop=True)
+    return ReplayResult(hits=hits, rules=rules, unevaluable=unevaluable, compiled=base.compiled)
 
 
 def _apply_override(cond, override: dict | None):
@@ -260,13 +312,25 @@ def _apply_override(cond, override: dict | None):
     CRIF-and-SIMAH decline rules test two scores — and patching all of them while the user
     asked to move one silently moves the other, which shows up as approvals falling when
     the user loosened something.
+
+    Two shapes are accepted: {"field": f, "value_low": v} for one field, and
+    {"thresholds": {f: {"value_low": v, "value_high": w}}} when a person edits several
+    thresholds of the same rule.
     """
     if not override:
         return cond
-    patch = {k: v for k, v in override.items() if k in {"value_low", "value_high"}}
+    thresholds = dict(override.get("thresholds") or {})
+    if override.get("field") is not None:
+        legacy = {k: v for k, v in override.items() if k in {"value_low", "value_high"}}
+        if legacy:
+            thresholds.setdefault(override["field"], {}).update(legacy)
+    elif any(k in override for k in ("value_low", "value_high")):
+        # No field named: the old behaviour patched every condition. Kept for callers that
+        # retune a single-condition rule, never produced by a lever.
+        return cond._replace(**{k: v for k, v in override.items()
+                                if k in {"value_low", "value_high"}})
+    patch = thresholds.get(cond.field)
     if not patch:
         return cond
-    target = override.get("field")
-    if target is not None and cond.field != target:
-        return cond
-    return cond._replace(**patch) if hasattr(cond, "_replace") else cond
+    patch = {k: v for k, v in patch.items() if k in {"value_low", "value_high"}}
+    return cond._replace(**patch) if patch and hasattr(cond, "_replace") else cond

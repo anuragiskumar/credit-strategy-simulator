@@ -38,6 +38,7 @@ turning a number into a string, a width, or an SVG coordinate.
 | `client.css` | Layout for those three screens. No new colours |
 | `client.js` | Portfolio, Decline drivers, Simulator. Reads `window.__CLIENT__`, nothing else |
 | `client_export.py` | Produces `client_fixture.json` and `client_data.js` from the engine |
+| `serve.py` | Serves the pages and, unless `--static`, the simulator's engine API from `src/client_api.py` |
 | `client_notes.js` | Text of the spec notes: what each element on the three screens is and stands for |
 | `settings.html`, `settings.js` | Settings: what the analysis runs on, for every signed-in person. Reads `window.__SETTINGS__` |
 | `admin.html`, `admin.js` | Administration: licence, data source, mapping editor, rule workbooks, platform. Administrators only |
@@ -60,8 +61,36 @@ python -m ui.client_export && python -m ui.serve
 ```
 
 Then <http://127.0.0.1:8777/client.html>. See `ENGINE.md` for what they show. The export takes
-about three minutes, most of it the two goal-seek runs; `--quick` skips the scenario grid and
-takes seconds when only the static parts changed.
+about 25 seconds; `--quick` skips the scenario grid and takes seconds when only the static parts
+changed.
+
+### Simulator: live engine or precomputed
+
+`python -m ui.serve` serves the pages **and** the engine (`src/client_api.py`) on the same port. The
+baseline loads in about three seconds in the background; the Simulator screen polls
+`/api/health` and switches to live mode when it is ready. Live, a person can:
+
+- switch off any of the 113 decline rules, or edit any tunable threshold in either direction;
+- stack changes into a scenario, see what each step added, and revert any step;
+- goal-seek to their own target approval rate and bad-rate ceiling, keeping chosen rules untouched.
+
+Each change replays in well under a tenth of a second, because only the changed rules are
+re-evaluated (`client_replay.replay(..., base=)`, held to a full replay by a test). A goal-seek
+takes about ten seconds.
+
+`python -m ui.serve 8777 --static`, or opening the file from disk, gives the precomputed fallback:
+the full rule list, but only the switch-offs in `rule_toggles` can be tried, one at a time, and
+goal-seek shows its two fixed targets. The screen says which mode it is in.
+
+| Endpoint | |
+|---|---|
+| `GET /api/health` | ready flag, today's rates, the default ceiling, what goal-seek may try |
+| `GET /api/rules` | every decline rule, what each tests, whether it can be changed and why not |
+| `POST /api/simulate` | `{"changes": [{"type": "off", "rule_id": …} \| {"type": "threshold", "rule_id": …, "field": …, "value_low": …, "value_high": …}]}` |
+| `POST /api/goal-seek` | `{"target": 0.30, "ceiling": 0.11, "frozen": [rule_id, …]}` |
+
+A refused change (a locked rule, a range back to front) comes back as HTTP 400 with the reason in
+words, and the screen keeps the previous scenario.
 
 ### Settings and Administration
 

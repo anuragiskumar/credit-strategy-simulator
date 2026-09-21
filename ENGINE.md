@@ -152,6 +152,35 @@ which now has a regression test:
 With those fixed, every pure relaxation produces **zero swap-outs**, which is the invariant
 the tests assert.
 
+### Editing one rule, in either direction
+
+`threshold_lever(base, inv, rule_id, field, value_low=, value_high=)` edits one threshold of one
+rule and does exactly what was asked, **tightening included**. That is deliberate: a tightening is
+the only way anyone approved today is newly declined, and "would raising Minimum Income Non Saudi
+to 6,000 cost us good loans?" is a question a bank asks. The lever records `direction` (loosen,
+tighten, mixed) so the screen can say which way it went. `field_lever(..., allow_tighten=True)` is
+the same for a field-wide move; the optimiser never sets it.
+
+| `racAndPolicies#028` Minimum Income Non Saudi | Newly approved | Newly declined |
+|---|---|---|
+| 5,000 → 4,000 | 76 | 0 |
+| switched off | 126 | 0 |
+| 5,000 → 6,000 | 0 | 121 |
+
+- A rule-level edit moves the Pass rule it mirrors, as `field_lever` already did.
+- A locked or fixed-field rule is refused (`NotEditable`), for a person exactly as for the search.
+- **Fixed:** a pure tightening reported the expected bad rate as unknown, because the swap-in group
+  was empty and "no applicants" was treated as "cannot estimate". The new book is then exactly the
+  loans that stay, all observed. Swap-outs are booked loans, so their bad rate is observed too
+  (`swap_out_observed_bad_rate`), not predicted.
+
+### Replaying only what changed
+
+A rule's verdict depends only on its own conditions, so `replay(..., base=baseline.res)`
+re-evaluates the overridden rules and reuses every other column. A test holds it to giving exactly
+what a full replay gives. One what-if went from 0.94s to 0.06s and a 30% goal-seek from 93s to
+11s, which is what makes laddering changes and a typed goal-seek target usable live.
+
 ## Step 4 — goal-seek
 
 ```
@@ -181,6 +210,10 @@ returned a *worse* approval rate than a lower target did until it was fixed.
 
 The output is a ranked shortlist for a human, not a proof of optimality. Beam search over
 single changes, width 3, depth 3.
+
+The target and the ceiling are the person's to set (`goal_seek(..., ceiling=, frozen=)`); `frozen`
+names rules they will not have touched. The fixture still precomputes 25% and 30% for the
+no-engine fallback: 30% is Guru's example from the call, 25% was a midpoint chosen during the build.
 
 ## Step 5 — three CxO screens
 

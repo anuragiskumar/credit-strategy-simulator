@@ -254,18 +254,53 @@ window.__NOTES__ = function (F) {
     /* ---------------------------------------------------------------- simulator */
     sim_head: {
       t: 'Simulator',
-      d: 'Change one thing and see who moves. Every result is a replay of the same applicants under the changed ' +
-         'rule, so "newly approved" is a set of actual applicants, not a projected percentage.'
+      d: 'Start from today\'s rules and change them one step at a time. Every result is a replay of the same ' +
+         'applicants under the changed rules, so "newly approved" is a set of actual applicants, not a projected ' +
+         'percentage.'
+    },
+    sim_mode: {
+      t: 'Engine or precomputed',
+      d: 'With the engine running (python -m ui.serve) every change is replayed live, in a fraction of a second. ' +
+         'Without it the screen falls back to scenarios worked out in advance, and says so here.'
+    },
+    sim_rules: {
+      t: 'Every decline rule',
+      d: 'All the rules that can decline an applicant for this product, busiest first. All are on today. Untick ' +
+         'one to switch it off. A lock means the rule rests on a regulatory or bureau fact, or the bank declared ' +
+         'it untouchable, so it cannot be changed here or by goal-seek. "No effect on its own" means other rules ' +
+         'already catch everyone it declines, so switching it off alone moves nobody.'
+    },
+    sim_alone: {
+      t: 'Declines alone',
+      d: 'Applicants this rule declines that no other rule does. It is the most that switching this one rule off ' +
+         'could release, before later stages (the finance cap, walking away) take their share.'
+    },
+    sim_edit: {
+      t: 'Edit threshold',
+      d: 'Move a number inside the rule instead of switching it off, for example the minimum income from 5,000 ' +
+         'to 4,000. It works in both directions. Where the rule has a Pass twin (simati writes <3500 Fail and ' +
+         '>=3500 Pass as a pair), both move together.'
+    },
+    sim_stack: {
+      t: 'Your scenario',
+      d: 'The changes so far, in order. Each step is replayed on top of the ones above it. Revert removes one ' +
+         'step and replays the rest, so a change can be tried, judged and undone without starting again.'
+    },
+    sim_added: {
+      t: 'What a step added',
+      d: 'The change in approval rate, and in approved and declined applicants, that this step made on top of ' +
+         'the steps before it. Steps overlap: a rule switched off after another may release fewer people than it ' +
+         'would alone, because some were already released.'
     },
     sw_panel: {
-      t: 'Switch one rule off',
-      d: 'Each button is a rule. Choosing one replays the whole book as if that rule did not exist. Compare the ' +
-         'result with the current position on the Portfolio screen.'
+      t: 'After the changes',
+      d: 'The whole book with every step in the scenario applied, against today. Compare it with the current ' +
+         'position on the Portfolio screen.'
     },
     t_approval: {
       t: 'Approval rate (after the change)',
-      d: 'The book\'s approval rate with the selected rule off, and the change in percentage points (pp) from ' +
-         'today. Releasing applicants from one rule rarely raises approvals by the full number released, because ' +
+      d: 'The book\'s approval rate with the scenario applied, and the change in percentage points (pp) from ' +
+         'today. Releasing applicants from a rule rarely raises approvals by the full number released, because ' +
          'some of them then fail a later stage.'
     },
     t_in: {
@@ -275,23 +310,25 @@ window.__NOTES__ = function (F) {
     },
     t_out: {
       t: 'Newly declined',
-      d: 'Applicants approved today who would be declined after the change (swap-outs). For a pure relaxation ' +
-         'this is zero; a non-zero figure would mean the change tightened something.'
+      d: 'Applicants approved today who would be declined after the change (swap-outs). Switching a rule off or ' +
+         'loosening a threshold can never decline anyone, so this is zero until a step tightens something. ' +
+         'Swap-outs are booked loans, so their bad rate is observed, not estimated.'
     },
     t_bad: {
       t: 'Expected bad rate',
       d: 'The whole book after the change: the observed performance of the loans that stay booked, blended with ' +
-         'the estimated risk of the newly approved. Shown as NO ESTIMATE when the newly approved sit outside what ' +
-         'the model can judge.'
+         'the estimated risk of the newly approved. With nobody newly approved it is observed outright. Shown as ' +
+         'NO ESTIMATE when the newly approved sit outside what the model can judge.'
     },
     verdict_tag: {
-      t: 'SWAP-IN / UNKNOWN',
-      d: 'The engine\'s one-sentence reading of the result. SWAP-IN means the newly approved could be priced; ' +
-         'UNKNOWN means they could not, and the sentence says why instead of giving a number.'
+      t: 'VERDICT / UNKNOWN',
+      d: 'The engine\'s one-sentence reading of the result. VERDICT means the change could be priced; UNKNOWN ' +
+         'means it could not, and the sentence says why instead of giving a number.'
     },
     th_sw_channel: {
       t: 'Channel',
-      d: 'The same swap-ins and swap-outs, broken down by the channel the application came from.'
+      d: 'The same swap-ins, broken down by the channel the application came from. A Newly declined column ' +
+         'appears once a step tightens a rule; until then it would only ever show zeros.'
     },
     sweep: {
       t: 'Threshold sweep',
@@ -306,9 +343,23 @@ window.__NOTES__ = function (F) {
     },
     goal: {
       t: 'Goal-seek',
-      d: 'The simulator in reverse: pick a target approval rate and the engine searches combinations of changes ' +
-         '(switching rules off, moving cutoffs) that reach it. Every search is bounded by a bad-rate ceiling of ' +
-         ceiling + ', because "maximise approvals" on its own is solved by approving everyone.'
+      d: 'The simulator in reverse: set a target approval rate and the engine searches combinations of changes ' +
+         '(switching rules off, moving cutoffs) that reach it. Every search is bounded by a bad-rate ceiling ' +
+         '(default ' + ceiling + '), because "maximise approvals" on its own is solved by approving everyone.'
+    },
+    goal_target: {
+      t: 'Target approval rate',
+      d: 'The approval rate to reach, as a share of all applications. Yours to set: it must be above today\'s.'
+    },
+    goal_ceiling: {
+      t: 'Bad-rate ceiling',
+      d: 'The highest expected bad rate the bank will accept for the new book. An option above it is flagged and ' +
+         'never ranked first, however many approvals it buys.'
+    },
+    goal_frozen: {
+      t: 'What the search may use',
+      d: 'The rules the search is allowed to switch off: the busiest ones the bank may change. Click a rule to ' +
+         'keep it on, and the search will not touch it. The cutoff moves it may also try are listed below.'
     },
     goal_tag: {
       t: 'REACHED / OUT OF REACH',

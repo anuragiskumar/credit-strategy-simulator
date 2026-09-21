@@ -4,14 +4,14 @@
     {
       "name": "ui-prototype",
       "runtimeExecutable": "python3",
-      "runtimeArgs": [
-        "-m",
-        "http.server",
-        "8777",
-        "--directory",
-        "ui"
-      ],
+      "runtimeArgs": ["-m", "http.server", "8777", "--directory", "ui"],
       "port": 8777
+    },
+    {
+      "name": "ui-engine",
+      "runtimeExecutable": "/Users/anurag/Desktop/Anya/Codebase/credit-strategy-simulator/.venv/bin/python3",
+      "runtimeArgs": ["-m", "ui.serve", "8779"],
+      "port": 8779
     }
   ]
 }
