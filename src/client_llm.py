@@ -165,6 +165,18 @@ class Provider:
         """Optional: rephrase a narration. Returning None keeps the template."""
         return None
 
+    def plan(self, turns: list[dict], catalogue: dict, current: list[dict]) -> dict:
+        """The scenario builder: a conversation in, one raw plan out (see `validate_plan`).
+
+        A model provider answers from `plan_prompt`; `KeywordProvider` matches words, so the
+        chat keeps working with no model and no network.
+        """
+        return _extract_json(self.converse(plan_prompt(catalogue, current), turns, PLAN_SCHEMA))
+
+    def converse(self, system: str, turns: list[dict], schema: dict | None = None) -> str:
+        """Several turns in, the model's reply out. `turns` are {"role": "user"|"assistant", "text"}."""
+        raise TranslationError(f"the {self.name} provider cannot hold a conversation")
+
 
 # Ordered longest-first so "declines alone" wins over "declines".
 KEYWORDS: list[tuple[str, str]] = [
@@ -197,6 +209,37 @@ class KeywordProvider(Provider):
         raise TranslationError(
             "no rule matched this question. The engine answers: "
             + "; ".join(spec["question"] for spec in INTENTS.values()))
+
+    def plan(self, turns: list[dict], catalogue: dict, current: list[dict]) -> dict:
+        """The three requests a presenter can make by rote, so a dropped network is not a dead chat.
+
+        "Reach 30% approval, bad rate under 11%" is a goal-seek; "SIMAH to 580" moves a cutoff;
+        "switch off racAndPolicies#012" names a rule. Anything else is answered with how to ask.
+        """
+        q = turns[-1]["text"].lower() if turns else ""
+        off = re.findall(r"\b([a-z_]+#\d+)", turns[-1]["text"], re.I) if turns else []
+        if off and re.search(r"switch off|turn off|remove|drop|disable", q):
+            known = {r["rule_id"].lower(): r["rule_id"] for r in catalogue.get("rules", [])}
+            steps = [c for c in current if c.get("type") != "off" or c.get("rule_id") not in off]
+            return {"action": "scenario",
+                    "changes": steps + [{"type": "off", "rule_id": known.get(r.lower(), r)} for r in off]}
+        for cut in catalogue.get("cutoffs", []):
+            name = cut["label"].split()[0].lower()            # "SIMAH score cutoff" -> "simah"
+            m = re.search(rf"{name}\D{{0,40}}?\b(\d{{3}})\b", q)
+            if m:
+                steps = [c for c in current if not (c.get("type") == "cutoff" and c.get("field") == cut["field"])]
+                return {"action": "scenario",
+                        "changes": steps + [{"type": "cutoff", "field": cut["field"], "to": float(m.group(1))}]}
+        target = (re.search(r"(\d+(?:\.\d+)?)\s*%\s*(?:approv|acceptance)", q)
+                  or re.search(r"(?:target|reach|get (?:\w+ )?to|approv\w*)\D{0,30}?(\d+(?:\.\d+)?)\s*%", q))
+        if target:
+            ceiling = re.search(r"bad[- ]rate\D{0,30}?(\d+(?:\.\d+)?)\s*%", q)
+            return {"action": "goal_seek", "target": float(target.group(1)) / 100,
+                    "ceiling": float(ceiling.group(1)) / 100 if ceiling else None, "frozen": []}
+        return {"action": "clarify", "question": (
+            "Without a language model I understand three kinds of request: a target "
+            "(\"reach 30% approval with bad rate under 11%\"), a score cutoff (\"SIMAH to 580\"), "
+            "or a rule by its ID (\"switch off racAndPolicies#012\"). Which do you want?")}
 
 
 def _params_from_text(intent: str, q: str) -> dict:
@@ -246,11 +289,17 @@ class HTTPProvider(Provider):
         self.timeout = timeout
 
     def _chat(self, system: str, user: str) -> str:
-        body = json.dumps({
-            "model": self.model, "temperature": 0,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": user}],
-        }).encode()
+        return self.converse(system, [{"role": "user", "text": user}])
+
+    def converse(self, system: str, turns: list[dict], schema: dict | None = None) -> str:
+        payload = {"model": self.model, "temperature": 0,
+                   "messages": [{"role": "system", "content": system}]
+                   + [{"role": "assistant" if t["role"] == "assistant" else "user",
+                       "content": t["text"]} for t in turns]}
+        if schema is not None:
+            # JSON mode is the one structured-output switch vLLM, Ollama and llama.cpp all honour.
+            payload["response_format"] = {"type": "json_object"}
+        body = json.dumps(payload).encode()
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -259,8 +308,11 @@ class HTTPProvider(Provider):
             with urllib.request.urlopen(req, timeout=self.timeout) as resp:
                 payload = json.loads(resp.read())
         except (urllib.error.URLError, TimeoutError) as exc:
-            raise TranslationError(f"{self.base_url} unreachable: {exc}") from exc
-        return payload["choices"][0]["message"]["content"]
+            raise TranslationError(f"{self.base_url} unreachable: {_http_reason(exc)}") from exc
+        try:
+            return payload["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError):
+            raise TranslationError(f"{self.base_url} sent no reply") from None
 
     def translate(self, question: str) -> dict:
         return _extract_json(self._chat(call_schema(), question))
@@ -277,29 +329,59 @@ class GeminiProvider(Provider):
     name = "gemini"
     ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
 
-    def __init__(self, api_key: str | None = None, model: str = "gemini-2.5-flash",
-                 timeout: float = 30.0):
+    RETRY = {429, 500, 503, 504}
+    """Overloaded or rate-limited: the next model may answer. Any other error (a bad key, a bad
+    request) would fail the same way on every model, so it is reported at once."""
+
+    def __init__(self, api_key: str | None = None, model: str = "gemini-3.6-flash",
+                 timeout: float = 30.0, fallbacks: list[str] | tuple = ()):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY")
         self.model = model
+        self.fallbacks = tuple(m for m in fallbacks if m and m != model)
         self.timeout = timeout
+        self.last_model: str | None = None     # which model answered the last call
         if not self.api_key:
             raise ValueError("no Gemini API key: pass api_key or set GEMINI_API_KEY")
 
     def _generate(self, system: str, user: str) -> str:
+        return self.converse(system, [{"role": "user", "text": user}])
+
+    def converse(self, system: str, turns: list[dict], schema: dict | None = None) -> str:
+        """Ask the configured model, then each fallback in turn while they are overloaded."""
+        config: dict[str, Any] = {"temperature": 0}
+        if schema is not None:
+            # Gemini's structured output: the reply is JSON of this shape, not prose around it.
+            config.update(responseMimeType="application/json", responseSchema=schema)
         body = json.dumps({
             "system_instruction": {"parts": [{"text": system}]},
-            "contents": [{"parts": [{"text": user}]}],
-            "generationConfig": {"temperature": 0},
+            "contents": [{"role": "model" if t["role"] == "assistant" else "user",
+                          "parts": [{"text": t["text"]}]} for t in turns],
+            "generationConfig": config,
         }).encode()
-        url = f"{self.ENDPOINT}/{self.model}:generateContent"
-        req = urllib.request.Request(
-            url, body, {"Content-Type": "application/json", "x-goog-api-key": self.api_key})
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                payload = json.loads(resp.read())
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise TranslationError(f"Gemini unreachable: {exc}") from exc
-        return payload["candidates"][0]["content"]["parts"][0]["text"]
+        failures = []
+        for model in (self.model, *self.fallbacks):
+            req = urllib.request.Request(
+                f"{self.ENDPOINT}/{model}:generateContent", body,
+                {"Content-Type": "application/json", "x-goog-api-key": self.api_key})
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    payload = json.loads(resp.read())
+            except urllib.error.HTTPError as exc:
+                failures.append(f"{model}: {_http_reason(exc)}")
+                if exc.code in self.RETRY:
+                    continue
+                break
+            except (urllib.error.URLError, TimeoutError) as exc:
+                failures.append(f"{model}: {_http_reason(exc)}")
+                continue
+            self.last_model = model
+            try:
+                return payload["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError, TypeError):
+                # A blocked or empty answer has no candidate text; say why rather than a KeyError.
+                why = (payload.get("promptFeedback") or {}).get("blockReason") or "no answer"
+                raise TranslationError(f"Gemini sent no plan ({why})") from None
+        raise TranslationError("Gemini unreachable: " + "; ".join(failures))
 
     def translate(self, question: str) -> dict:
         return _extract_json(self._generate(call_schema(), question))
@@ -309,6 +391,18 @@ class GeminiProvider(Provider):
             return self._generate(NARRATION_SYSTEM, prompt).strip()
         except (TranslationError, KeyError, IndexError):
             return None
+
+
+def _http_reason(exc: Exception) -> str:
+    """An HTTP error with the service's own message (bad key, quota, unknown model), not just its code."""
+    if isinstance(exc, urllib.error.HTTPError):
+        try:
+            detail = json.loads(exc.read() or b"{}").get("error") or {}
+            message = detail.get("message") if isinstance(detail, dict) else str(detail)
+        except (ValueError, OSError):
+            message = None
+        return f"HTTP {exc.code}" + (f": {message[:200]}" if message else "")
+    return str(exc)
 
 
 def _extract_json(text: str) -> dict:
@@ -463,3 +557,229 @@ TEMPLATES: dict[str, Callable[[dict], str]] = {
          f"{_pct(r['top'][0]['est_bad_rate_if_relaxed'], 1)} is no worse than the book's.")
         if r["count"] else "Every rule that can be judged earns its place."),
 }
+
+
+# --------------------------------------------------------------------------- scenario builder
+# The chat on the Simulator screen. A person says what they want to achieve; the model answers
+# with ONE plan, and the engine replays it. The same three properties hold as for the question
+# catalogue: the format is closed, every rule and field is checked against the rules this
+# product actually has, and no figure the person reads comes from the model.
+PLAN_ACTIONS = ("scenario", "goal_seek", "clarify", "unsupported")
+CHANGE_TYPES = ("off", "threshold", "cutoff")
+MAX_TEXT = 400
+"""A clarifying question or a refusal is a sentence, not an essay."""
+
+PLAN_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "action": {"type": "string", "enum": list(PLAN_ACTIONS)},
+        "changes": {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": list(CHANGE_TYPES)},
+                "rule_id": {"type": "string"},
+                "field": {"type": "string"},
+                "value_low": {"type": "number"},
+                "value_high": {"type": "number"},
+                "to": {"type": "number"}},
+            "required": ["type"]}},
+        "target": {"type": "number"},
+        "ceiling": {"type": "number"},
+        "frozen": {"type": "array", "items": {"type": "string"}},
+        "question": {"type": "string"},
+        "reason": {"type": "string"}},
+    "required": ["action"],
+}
+"""The plan, as Gemini's structured output takes it. Flat on purpose: one object whose `action`
+says which of the other keys count, because a union of shapes is where models improvise."""
+
+
+@dataclass(frozen=True)
+class Plan:
+    action: str
+    changes: tuple = ()
+    target: float | None = None
+    ceiling: float | None = None
+    frozen: tuple = ()
+    text: str | None = None            # the clarifying question, or why it cannot be done
+
+    def as_dict(self) -> dict:
+        out: dict[str, Any] = {"action": self.action}
+        if self.action == "scenario":
+            out["changes"] = [dict(c) for c in self.changes]
+        elif self.action == "goal_seek":
+            out.update(target=self.target, ceiling=self.ceiling, frozen=list(self.frozen))
+        else:
+            out["question" if self.action == "clarify" else "reason"] = self.text
+        return out
+
+
+def _finite(value, what: str) -> float:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise TranslationError(f"{what}: {value!r} is not a number") from None
+    if v != v or v in (float("inf"), float("-inf")):
+        raise TranslationError(f"{what} must be a finite number")
+    return v
+
+
+def _rate(value, what: str) -> float:
+    """A rate as a fraction. "30" and "0.30" both mean 30%, as the goal-seek form accepts."""
+    v = _finite(value, what)
+    v = v / 100 if v > 1 else v
+    if not 0 < v <= 1:
+        raise TranslationError(f"{what} must be between 0% and 100%")
+    return v
+
+
+def validate_plan(raw: dict, catalogue: dict) -> Plan:
+    """Coerce a model's plan into one the engine can replay, or refuse it in words.
+
+    `catalogue` is what the model was shown (`plan_prompt`): the changeable rules with their
+    thresholds, the rules that may not be changed and why, and the score cutoffs. A rule or a
+    field outside it is refused here, before the engine is asked, so the refusal can go back to
+    the model once as a correction. The engine still checks everything again.
+    """
+    if not isinstance(raw, dict):
+        raise TranslationError(f"expected an object, got {type(raw).__name__}")
+    action = raw.get("action")
+    if action not in PLAN_ACTIONS:
+        raise TranslationError(f"{action!r} is not one of {list(PLAN_ACTIONS)}")
+
+    if action in ("clarify", "unsupported"):
+        text = raw.get("question" if action == "clarify" else "reason")
+        if not isinstance(text, str) or not text.strip():
+            raise TranslationError(f"{action} needs a sentence to show the person")
+        return Plan(action=action, text=text.strip()[:MAX_TEXT])
+
+    rules = {r["rule_id"]: r for r in catalogue.get("rules", [])}
+    fixed = {r["rule_id"]: r for r in catalogue.get("fixed", [])}
+
+    def rule(rid) -> dict:
+        if rid in rules:
+            return rules[rid]
+        if rid in fixed:
+            raise TranslationError(f"{rid} ({fixed[rid]['name']}) cannot be changed: {fixed[rid]['reason']}")
+        raise TranslationError(f"{rid!r} is not a rule of this product")
+
+    if action == "goal_seek":
+        ceiling = raw.get("ceiling")
+        frozen = raw.get("frozen") or []
+        if not isinstance(frozen, list):
+            raise TranslationError("frozen must be a list of rule IDs")
+        for rid in frozen:
+            rule(rid)
+        return Plan(action=action, target=_rate(raw.get("target"), "target"),
+                    ceiling=None if ceiling is None else _rate(ceiling, "ceiling"),
+                    frozen=tuple(dict.fromkeys(str(r) for r in frozen)))
+
+    changes = raw.get("changes")
+    if not isinstance(changes, list) or not changes:
+        raise TranslationError("a scenario needs at least one change")
+    limit = int(catalogue.get("max_changes", 12))
+    if len(changes) > limit:
+        raise TranslationError(f"at most {limit} changes in one scenario")
+    cutoffs = {c["field"]: c for c in catalogue.get("cutoffs", [])}
+    out = []
+    for i, ch in enumerate(changes, 1):
+        if not isinstance(ch, dict) or ch.get("type") not in CHANGE_TYPES:
+            raise TranslationError(f"change {i}: type must be one of {list(CHANGE_TYPES)}")
+        kind = ch["type"]
+        if kind == "off":
+            out.append({"type": "off", "rule_id": rule(ch.get("rule_id"))["rule_id"]})
+        elif kind == "cutoff":
+            cut = cutoffs.get(ch.get("field"))
+            if cut is None:
+                raise TranslationError(f"change {i}: {ch.get('field')!r} is not a score cutoff of this "
+                                       f"product; the cutoffs are {sorted(cutoffs)}")
+            # `from` is where today's rules test the score, which the model has no business choosing.
+            out.append({"type": "cutoff", "field": cut["field"], "from": cut["from"],
+                        "to": _finite(ch.get("to"), f"change {i}: to")})
+        else:
+            r = rule(ch.get("rule_id"))
+            # A rule that tests one field leaves nothing to choose; smaller models drop the field.
+            field_name = ch.get("field") or (r["thresholds"][0]["field"] if len(r["thresholds"]) == 1 else None)
+            t = next((t for t in r["thresholds"] if t["field"] == field_name), None)
+            if t is None:
+                raise TranslationError(f"change {i}: {r['rule_id']} has no threshold on {field_name!r}; "
+                                       f"it has {[t['field'] for t in r['thresholds']]}")
+            step = {"type": "threshold", "rule_id": r["rule_id"], "field": t["field"]}
+            for key in ("value_low", "value_high"):
+                if ch.get(key) is not None:
+                    step[key] = _finite(ch[key], f"change {i}: {key}")
+            if "value_high" in step and t.get("value_high") is None:
+                raise TranslationError(f"change {i}: {r['rule_id']} tests {t['field']} against one value, "
+                                       f"so give value_low only")
+            if len(step) == 3:
+                raise TranslationError(f"change {i}: give the new value_low (and value_high for a range)")
+            out.append(step)
+    return Plan(action="scenario", changes=tuple(out))
+
+
+OPERATOR_WORDS = {"lt": "declines below", "lte": "declines at or below",
+                  "gt": "declines above", "gte": "declines at or above",
+                  "between": "declines inside", "outside": "declines outside"}
+
+
+def _threshold_words(t: dict) -> str:
+    rng = (f"{t['value_low']:g}–{t['value_high']:g}" if t.get("value_high") is not None
+           else f"{t['value_low']:g}")
+    return f"{t['field']} ({t.get('label') or t['field']}) {t['operator']} {rng}"
+
+
+def plan_prompt(catalogue: dict, current: list[dict]) -> str:
+    """The system prompt for the scenario builder. Built from the engine's own rule list, per request."""
+    pct = lambda v: "unknown" if v is None else f"{v * 100:.1f}%"  # noqa: E731
+    limit = int(catalogue.get("max_changes", 12))
+    lines = [
+        f"You are the scenario builder in Azentio's Credit Strategy Optimiser, for the product "
+        f"{catalogue.get('product')}. A bank's risk team tells you in plain language what they want "
+        f"to achieve with their credit decline rules. You translate that into ONE JSON plan. The "
+        f"engine replays the plan against the applicants and computes every figure: never state, "
+        f"estimate or promise a result.",
+        "",
+        "Actions:",
+        '- "scenario": "changes" is the COMPLETE list of changes to replay. It replaces the current '
+        "scenario, so keep the current changes unless the person asks to drop or alter them. Change types:",
+        '    {"type":"off","rule_id":"<id>"}  switch a rule off (lets more applicants through)',
+        '    {"type":"threshold","rule_id":"<id>","field":"<field>","value_low":n,"value_high":n}  '
+        "set a rule's threshold, in either direction. value_high only for a range (between/outside)",
+        '    {"type":"cutoff","field":"<field>","to":n}  move a score cutoff for every rule that tests it',
+        '- "goal_seek": when they name an outcome but not the changes, such as a target approval rate '
+        "or a bad-rate ceiling. target and ceiling are fractions (0.30 is 30%). A relative ask "
+        '("5 points more approval") is added to today\'s rate. "frozen" lists rule IDs the search must not touch.',
+        '- "clarify": "question" is one short question, when the request is ambiguous (several rules '
+        "could match, no number given). Asking is better than guessing.",
+        '- "unsupported": "reason" says why, when the request is outside the above: a rule that may '
+        "not be changed, a question about the data rather than a change, or advice on what the bank "
+        "should do.",
+        "",
+        "Rules for the plan:",
+        "- Use only rule IDs and fields listed below, spelled exactly. Never change a rule listed under "
+        "\"may not be changed\".",
+        f"- At most {limit} changes. One change per rule threshold and one per cutoff.",
+        "- A threshold \"declines below\" a value lets more through when the value is lowered; one "
+        "that \"declines above\" lets more through when it is raised; a range lets more through when "
+        "it narrows (inside) or widens (outside). Loosen means let more through; tighten means fewer.",
+        "- When a person names a rule by its description, match it to the ID below. If two or more fit, clarify.",
+        "",
+        f"Today: approval rate {pct(catalogue.get('approval_rate'))}, booked bad rate "
+        f"{pct(catalogue.get('booked_bad_rate'))}, bad-rate limit {pct(catalogue.get('bad_rate_ceiling'))}.",
+        "",
+        "Score cutoffs (field | name | today | values the screen offers):",
+    ]
+    for c in catalogue.get("cutoffs", []):
+        lines.append(f"  {c['field']} | {c['label']} | {c['from']:g} | "
+                     + ", ".join(f"{v:g}" for v in c.get("values", [])))
+    lines += ["", "Rules that may be changed (rule_id | name | stage | declines when | applies to | "
+              "declines on its own | thresholds as field operator value):"]
+    for r in catalogue.get("rules", []):
+        lines.append(" | ".join([r["rule_id"], r["name"], r.get("stage") or "", r.get("when") or "",
+                                 r.get("applies_to") or "all applicants", str(r.get("declines_alone", "")),
+                                 "; ".join(_threshold_words(t) for t in r["thresholds"]) or "none"]))
+    if catalogue.get("fixed"):
+        lines += ["", "Rules that may not be changed (rule_id | name | why):"]
+        lines += [f"  {r['rule_id']} | {r['name']} | {r['reason']}" for r in catalogue["fixed"]]
+    lines += ["", "Current scenario: " + (json.dumps(current) if current else "none, today's rules")]
+    return "\n".join(lines)

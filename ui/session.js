@@ -25,6 +25,7 @@
  *   audit.view      the audit log
  *   admin.view      the Administration screen
  *   licence.view    licence status and entitlements
+ *   assistant.use   the Simulator's Ask view: requests in plain words, sent to a language model
  *   data.load, rules.load, config.change, analysis.view   used by licence pauses
  */
 (function () {

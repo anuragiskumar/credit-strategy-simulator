@@ -21,6 +21,7 @@ routes HTTP to it.
     POST /api/settings/decide      {"id", "approve", "note", "who"}      the checker (or a withdrawal)
     POST /api/settings/change      {"setting", "to", "who"}              a replay assumption
     POST /api/recompute            {"who"}   rebuild every figure on the approved settings
+    POST /api/ask                  {"message", "history", "current", "who"}  the Simulator's chat
 
 Bound to 127.0.0.1 only. This is a single-user demo server, not a deployment.
 """
@@ -40,6 +41,15 @@ HERE = Path(__file__).resolve().parent
 MAX_BODY = 64 * 1024
 
 ENGINE = {"engine": None, "error": None, "loading": False}
+ASSISTANT: dict = {}     # the chat's model, built on first use from the engine's config
+
+
+def _assistant(eng):
+    """The configured model and its status. Built once: the key is read from the environment here."""
+    if not ASSISTANT:
+        from src.client_assistant import provider_from_config
+        ASSISTANT["provider"], ASSISTANT["status"] = provider_from_config(eng.base.cfg)
+    return ASSISTANT["provider"], ASSISTANT["status"]
 
 
 def _load_engine() -> None:
@@ -106,7 +116,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if eng is None:
                     return self._json(200, {"ready": False, "loading": ENGINE["loading"],
                                             "error": ENGINE["error"]})
-                return self._json(200, eng.health(self._window_query(), self._product_query()))
+                out = eng.health(self._window_query(), self._product_query())
+                out["assistant"] = _assistant(eng)[1]
+                return self._json(200, out)
             if path == "/api/view":
                 eng = self._engine()
                 return eng and self._json(200, eng.view(self._window_query(),
@@ -167,6 +179,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 return self._json(200, eng.change_setting(body))
             if path == "/api/recompute":
                 return self._json(200, eng.recompute(body.get("who")))
+            if path == "/api/ask":
+                from src.client_assistant import respond
+                return self._json(200, respond(eng, body, _assistant(eng)[0]))
         except ApiError as e:
             return self._json(e.status, {"error": str(e)})
         except Exception as e:                  # report, never hang the page

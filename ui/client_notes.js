@@ -331,8 +331,9 @@ window.__NOTES__ = function (F) {
          'percentage.'
     },
     sim_views: {
-      t: 'Four views',
-      d: 'Set a target answers "how do we reach X% approval?". Try a change answers "what if?" with a few ' +
+      t: 'The views',
+      d: 'Ask takes a request in plain words and proposes a scenario. ' +
+         'Set a target answers "how do we reach X% approval?". Try a change answers "what if?" with a few ' +
          'ready-made stories, the two score cutoffs and the busiest rules. All rules is the analyst\'s ' +
          'workbench: every rule, every threshold. Try a change and All rules share one scenario. Saved lists ' +
          'the scenarios people have kept, and compares them side by side.'
@@ -558,6 +559,31 @@ window.__NOTES__ = function (F) {
       t: 'Changes in the option',
       d: 'The specific changes that make up the option, such as rules to switch off or cutoffs to move. Nothing is ' +
          'applied; this is a proposal.'
+    },
+
+    /* ------------------------------------------------------------ simulator: Ask */
+    ask_panel: {
+      t: 'Ask',
+      d: 'Say what you want to achieve with the rules, in your own words. A language model turns it into one of ' +
+         'three things: a set of changes to replay, a target for the search, or a question back when the request ' +
+         'is unclear. The engine then replays it against every applicant. The model chooses changes; it never ' +
+         'supplies a figure. Only the rule list is sent to the model, never an applicant.'
+    },
+    ask_input: {
+      t: 'Your request',
+      d: 'One request at a time. A follow-up builds on the last scenario proposed ("now also switch off the CRIF ' +
+         'rule", "drop the salary change"). A rule that may not be changed is refused with the reason, as it is ' +
+         'everywhere else.'
+    },
+    ask_status: {
+      t: 'Which model',
+      d: 'The language model answering. It is set by the administrator: a hosted model for the demonstration, the ' +
+         'bank\'s own model on-premises. With none, the chat still understands a target, a score cutoff or a rule ID.'
+    },
+    ask_by: {
+      t: 'Who did what',
+      d: 'Says which model chose the changes, whether the engine sent a plan back for correction, and that the ' +
+         'figures are the engine\'s own. Every request and plan is logged with who asked and when.'
     }
   };
 };

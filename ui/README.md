@@ -73,6 +73,9 @@ baseline loads in about three seconds in the background; the Simulator screen po
 - switch off any of the 113 decline rules, or edit any tunable threshold in either direction;
 - stack changes into a scenario, see what each step added, and revert any step;
 - goal-seek to their own target approval rate and bad-rate ceiling, keeping chosen rules untouched.
+- say what they want in plain words under **Ask**, and get a scenario the engine has replayed
+  (a language model chooses the changes, the engine computes every figure; see `ENGINE.md`, step 6).
+  Set `GEMINI_API_KEY` in the shell that starts the server; without it the chat answers with no model.
 
 Each change replays in well under a tenth of a second, because only the changed rules are
 re-evaluated (`client_replay.replay(..., base=)`, held to a full replay by a test). A goal-seek
