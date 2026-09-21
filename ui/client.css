@@ -89,11 +89,53 @@
 
 /* ---------------------------------------------------------- funnel view */
 .ffunnelhost { width: 100%; }
-.fsvg { display: block; overflow: visible; font-family: var(--ui); }
-.fsvg .f-band { fill: var(--obs); opacity: .88; }
-.fsvg .f-band.is-end { opacity: 1; }
-.fsvg .f-conn { fill: var(--obs); opacity: .26; }
-.fsvg .f-total { stroke: var(--ink-2); stroke-width: 1; }
+.fctl { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 4px; }
+.fstep { font-family: var(--mono); font-size: 11px; color: var(--ink-2); text-align: end; }
+.fstep:empty { display: none; }
+.fstep.is-hint { color: var(--muted); }
+.ffunnelhost { border-radius: 6px; }
+.ffunnelhost:focus { outline: none; }
+.ffunnelhost:focus-visible { outline: 2px solid var(--pred); outline-offset: 4px; }
+.ffunnelhost.is-quiet:focus-visible { outline: none; }
+.freset { font-family: var(--ui); font-size: 11.5px;
+           font-weight: 500; color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+           border-radius: 5px; padding: 3px 9px; cursor: pointer; }
+.freset::before { content: "↺ "; }
+.freset:hover { color: var(--ink); border-color: var(--line-hard); }
+.freset:focus-visible { outline: 2px solid var(--pred); outline-offset: 2px; }
+
+/* The glass is achromatic: greys from the ink and white highlights, so the only colour in the
+   vessel is the OBSERVED green of the applicants still in. */
+.fsvg { display: block; overflow: visible; font-family: var(--ui);
+        --glass-a: color-mix(in srgb, var(--muted) 5%, transparent);
+        --glass-b: color-mix(in srgb, var(--muted) 22%, transparent);
+        --glass-edge: color-mix(in srgb, var(--ink) 34%, transparent);
+        --glass-hi: rgba(255, 255, 255, .95);
+        --glass-shadow: rgba(17, 22, 31, .18); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .fsvg { --glass-a: rgba(200, 215, 235, .03); --glass-b: rgba(200, 215, 235, .13);
+    --glass-edge: rgba(200, 215, 235, .38); --glass-hi: rgba(255, 255, 255, .4); --glass-shadow: rgba(0, 0, 0, .55); }
+}
+:root[data-theme="dark"] .fsvg { --glass-a: rgba(200, 215, 235, .03); --glass-b: rgba(200, 215, 235, .13);
+  --glass-edge: rgba(200, 215, 235, .38); --glass-hi: rgba(255, 255, 255, .4); --glass-shadow: rgba(0, 0, 0, .55); }
+.fsvg .s-glass-a { stop-color: var(--glass-a); }
+.fsvg .s-glass-b { stop-color: var(--glass-b); }
+.fsvg .s-liq-edge { stop-color: var(--obs); stop-opacity: .32; }
+.fsvg .s-liq-mid { stop-color: var(--obs); stop-opacity: .12; }
+.fsvg .s-obs { stop-color: var(--obs); }
+.fsvg .s-obs-lite { stop-color: color-mix(in srgb, var(--obs) 72%, white); }
+.fsvg .s-obs-deep { stop-color: color-mix(in srgb, var(--obs) 72%, black); }
+.fsvg .f-gbody, .fsvg .f-glass { fill: url(#fg-body); }
+.fsvg .f-glass { stroke: var(--glass-edge); stroke-width: 1.1; }
+.fsvg .f-gedge { fill: none; stroke: var(--glass-edge); stroke-width: 1.3; stroke-linejoin: round; }
+.fsvg .f-ghi { fill: none; stroke: var(--glass-hi); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.fsvg .f-ghi.is-thin { stroke-width: 1.5; opacity: .6; }
+.fsvg .f-gshadow { fill: var(--glass-shadow); }
+.fsvg .f-liquid { fill: url(#fg-liquid); }
+.fsvg .f-disc { fill: url(#fg-disc); }
+.fsvg .f-disc.is-end { fill: url(#fg-disc-end); }
+.fsvg .f-disc-under { fill: color-mix(in srgb, var(--obs) 72%, black); opacity: .55; }
+.fsvg .f-disc-ring { fill: none; stroke: var(--glass-hi); stroke-width: 1; opacity: .45; }
 .fsvg .f-blabel { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); font-variant-numeric: tabular-nums; }
 .fsvg .f-blabel.is-in { fill: var(--on-obs); font-weight: 500; }
 .fsvg .f-blabel.is-end { font-weight: 600; fill: var(--ink); }

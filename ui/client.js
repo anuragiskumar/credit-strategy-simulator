@@ -375,7 +375,18 @@
       '</div>';
   }
 
-  /* Funnel view. Drawn after insertion because its geometry depends on the width it gets. */
+  /* Funnel view: a glass vessel. Drawn after insertion because its geometry depends on the width
+   * it gets. Every width is the model's: each disc is a band, the liquid joins them, and the glass
+   * is the liquid padded by a constant.
+   *
+   * FANIM.p is how far the pour has got, in stages (0 = empty, one per band); null draws the
+   * finished funnel. It only moves the figures toward the exported ones, and ends on them. */
+  var FANIM = { p: null, target: null, raf: 0 };
+  var FUNNEL_STAGE_S = 0.95;
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  function easeOut(t) { t = clamp01(t); return 1 - (1 - t) * (1 - t) * (1 - t); }
+  function span(t, a, b) { return clamp01((t - a) / (b - a)); }
+
   function svgEl(tag, attrs, text) {
     var el = document.createElementNS(SVGNS, tag);
     Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
@@ -383,40 +394,116 @@
     return el;
   }
   function pts(list) { return list.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '); }
+  function xy(x, y) { return x.toFixed(1) + ',' + y.toFixed(1); }
+
+  // Gradient stops take their colour from client.css, so both themes resolve from tokens.
+  var GLASS_DEFS =
+    '<linearGradient id="fg-body" x1="0" x2="1"><stop offset="0" class="s-glass-b"/><stop offset=".22" class="s-glass-a"/>' +
+      '<stop offset=".7" class="s-glass-a"/><stop offset="1" class="s-glass-b"/></linearGradient>' +
+    '<linearGradient id="fg-liquid" x1="0" x2="1"><stop offset="0" class="s-liq-edge"/><stop offset=".35" class="s-liq-mid"/>' +
+      '<stop offset="1" class="s-liq-edge"/></linearGradient>' +
+    '<radialGradient id="fg-disc" cx=".42" cy=".35" r=".75"><stop offset="0" class="s-obs-lite"/><stop offset="1" class="s-obs"/></radialGradient>' +
+    '<radialGradient id="fg-disc-end" cx=".42" cy=".35" r=".75"><stop offset="0" class="s-obs"/><stop offset="1" class="s-obs-deep"/></radialGradient>' +
+    '<filter id="fg-blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>';
 
   function drawFunnel(host) {
     var M = funnelModel(), width = host.clientWidth;
     if (!width) return;
     var G = window.FunnelModel.geometry(M, { width: width, narrow: width < 560 });
+    var GL = G.glass, cx = G.cx, last = G.bands.length - 1;
+    var animating = FANIM.p !== null, p = animating ? FANIM.p : last + 1;
+    function at(k) { return clamp01(p - k); }   // stage k: 0 = applied, k = the band it leaves behind
     var svg = svgEl('svg', { width: G.width, height: G.height, viewBox: '0 0 ' + G.width + ' ' + G.height,
       'class': 'fsvg', role: 'group', 'aria-label': 'Funnel from ' + n0(M.total) + ' applicants to ' + n0(M.end.stillIn) + ' booked' });
+    var defs = svgEl('defs');
+    defs.innerHTML = GLASS_DEFS;
+    svg.appendChild(defs);
 
+    // Left column: a stage's name brightens as its stage fills.
     G.groupLabels.forEach(function (g) {
       svg.appendChild(svgEl('text', { x: 0, y: g.y, 'class': 'f-gl' }, g.label));
       svg.appendChild(svgEl('line', { x1: 0, x2: G.leftW, y1: g.y + 6, y2: g.y + 6, 'class': 'f-gdiv' }));
     });
-    G.names.forEach(function (n) {
-      var t = svgEl('text', { x: 0, y: n.y + (n.sub && !G.narrow ? -3 : 4), 'class': 'f-name is-' + n.kind });
-      t.textContent = n.label;
-      svg.appendChild(t);
-      if (n.sub && !G.narrow) svg.appendChild(svgEl('text', { x: 0, y: n.y + 12, 'class': 'f-sub' }, n.sub));
+    G.names.forEach(function (n, i) {
+      var g = svgEl('g', animating ? { opacity: (0.32 + 0.68 * easeOut(at(Math.min(i, last)) * 2)).toFixed(2) } : {});
+      g.appendChild(svgEl('text', { x: 0, y: n.y + (n.sub && !G.narrow ? -3 : 4), 'class': 'f-name is-' + n.kind }, n.label));
+      if (n.sub && !G.narrow) g.appendChild(svgEl('text', { x: 0, y: n.y + 12, 'class': 'f-sub' }, n.sub));
+      svg.appendChild(g);
     });
-    G.connectors.forEach(function (c) {
-      svg.appendChild(svgEl('polygon', { points: pts(c.points), 'class': 'f-conn' }));
-    });
-    G.bands.forEach(function (b) {
-      svg.appendChild(svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 3, 'class': 'f-band is-' + b.kind }));
-      if (b.kind === 'end') {
-        // An accounting total's double rule: the terminal result, not another stage.
-        svg.appendChild(svgEl('line', { x1: b.x, x2: b.x + b.w, y1: b.y + b.h + 3, y2: b.y + b.h + 3, 'class': 'f-total' }));
-        svg.appendChild(svgEl('line', { x1: b.x, x2: b.x + b.w, y1: b.y + b.h + 6, y2: b.y + b.h + 6, 'class': 'f-total' }));
+
+    // The vessel: foot, then the glass behind the liquid.
+    var rim = GL.rim, nk = GL.neck, st = GL.stem, ft = GL.foot, bend = nk.y0 + (nk.y1 - nk.y0) * 0.8;
+    var neckL = ' C' + xy(cx - nk.x, bend) + ' ' + xy(cx - st.x, bend) + ' ' + xy(cx - st.x, nk.y1);
+    var neckR = ' C' + xy(cx + nk.x, bend) + ' ' + xy(cx + st.x, bend) + ' ' + xy(cx + st.x, nk.y1);
+    var wallL = 'M' + GL.wallL.map(function (q) { return xy(q[0], q[1]); }).join(' L') + neckL + ' L' + xy(cx - st.x, st.y1);
+    var wallR = 'M' + GL.wallR.map(function (q) { return xy(q[0], q[1]); }).join(' L') + neckR + ' L' + xy(cx + st.x, st.y1);
+    var body = wallL + ' L' + xy(cx + st.x, st.y1) + ' L' + xy(cx + st.x, nk.y1) +
+      ' C' + xy(cx + st.x, bend) + ' ' + xy(cx + nk.x, bend) + ' ' + xy(cx + nk.x, nk.y0) +
+      ' L' + GL.wallR.slice(0, -1).reverse().map(function (q) { return xy(q[0], q[1]); }).join(' L') +
+      ' A' + rim.rx.toFixed(1) + ' ' + rim.ry.toFixed(1) + ' 0 0 1 ' + xy(cx - rim.rx, rim.cy) + ' Z';
+    svg.appendChild(svgEl('ellipse', { cx: cx, cy: ft.cy + 5, rx: ft.rx * 1.15, ry: ft.ry * 0.9, 'class': 'f-gshadow', filter: 'url(#fg-blur)' }));
+    svg.appendChild(svgEl('ellipse', { cx: cx, cy: ft.cy, rx: ft.rx, ry: ft.ry, 'class': 'f-glass' }));
+    svg.appendChild(svgEl('ellipse', { cx: cx, cy: ft.cy - ft.ry * 0.3, rx: ft.rx * 0.8, ry: ft.ry * 0.6, 'class': 'f-ghi is-thin' }));
+    svg.appendChild(svgEl('path', { d: body, 'class': 'f-gbody' }));
+    svg.appendChild(svgEl('path', { d: 'M' + xy(cx - rim.rx, rim.cy) + ' A' + rim.rx + ' ' + rim.ry + ' 0 0 1 ' + xy(cx + rim.rx, rim.cy), 'class': 'f-gedge' }));
+
+    // The liquid pours down to the level the animation has reached.
+    var D = GL.discs, yFill = D[last].cy;
+    if (animating) {
+      yFill = D[0].cy;
+      for (var k = 1; k <= last; k++) {
+        var a = easeOut(span(at(k), 0, 0.7));
+        if (a > 0) yFill = D[k - 1].cy + (D[k].cy - D[k - 1].cy) * a;
+      }
+    }
+    if (at(0) > 0) {
+      var ys = D.map(function (d) { return d.cy; }).filter(function (y) { return y < yFill; }).concat([yFill]);
+      var liquid = ys.map(function (y) { return [cx - window.FunnelModel.liquidHalf(GL, y), y]; })
+        .concat(ys.slice().reverse().map(function (y) { return [cx + window.FunnelModel.liquidHalf(GL, y), y]; }));
+      svg.appendChild(svgEl('polygon', { points: pts(liquid), 'class': 'f-liquid', opacity: easeOut(at(0)).toFixed(2) }));
+    }
+
+    // Discs: who is still in after each stage. The count runs down from the stage above.
+    D.forEach(function (d, k) {
+      var b = G.bands[k];
+      var a = k === 0 ? easeOut(at(0) * 1.3) : easeOut(span(at(k), 0.3, 1));
+      if (a <= 0) return;
+      var g = svgEl('g', animating ? { opacity: a.toFixed(2), transform: 'translate(0 ' + ((1 - a) * -14).toFixed(1) + ')' } : {});
+      g.appendChild(svgEl('ellipse', { cx: cx, cy: d.cy + 3, rx: d.rx, ry: d.ry, 'class': 'f-disc-under' }));
+      g.appendChild(svgEl('ellipse', { cx: cx, cy: d.cy, rx: d.rx, ry: d.ry, 'class': 'f-disc' + (b.kind === 'end' ? ' is-end' : '') }));
+      if (d.rx > 8 && d.ry > 4) {
+        g.appendChild(svgEl('ellipse', { cx: cx, cy: d.cy - 1, rx: d.rx - 3, ry: d.ry - 2, 'class': 'f-disc-ring' }));
+      }
+      var text = b.text;
+      if (animating && at(k) < 1) {
+        var v = k === 0 ? M.total * easeOut(at(0))
+          : G.bands[k - 1].value - (G.bands[k - 1].value - b.value) * easeOut(span(at(k), 0.15, 0.9));
+        text = G.bandLabel(b.kind === 'end' ? 'mid' : b.kind, Math.round(v), (v / M.total) * 100);
       }
       var anchor = b.place === 'inside' ? 'middle' : b.place === 'right' ? 'start' : 'end';
-      svg.appendChild(svgEl('text', { x: b.tx, y: b.ty + 4, 'text-anchor': anchor,
-        'class': 'f-blabel' + (b.place === 'inside' ? ' is-in' : '') + (b.kind === 'end' ? ' is-end' : '') }, b.text));
+      g.appendChild(svgEl('text', { x: b.tx, y: b.ty + 4, 'text-anchor': anchor,
+        'class': 'f-blabel' + (b.place === 'inside' ? ' is-in' : '') + (b.kind === 'end' ? ' is-end' : '') }, text));
+      svg.appendChild(g);
     });
-    G.leaks.forEach(function (l) {
+
+    // The glass in front: walls, highlights, the near half of the rim.
+    svg.appendChild(svgEl('path', { d: wallL, 'class': 'f-gedge' }));
+    svg.appendChild(svgEl('path', { d: wallR, 'class': 'f-gedge' }));
+    var P = GL.pad;
+    var hiL = GL.wallL.slice(0, -1).map(function (q, i) { return [q[0] + P * 0.9 + (i === 0 ? 6 : 0), q[1] + (i === 0 ? rim.ry + 4 : 0)]; });
+    var hiR = GL.wallR.slice(0, -1).map(function (q, i) { return [q[0] - P * 0.7, q[1] + (i === 0 ? rim.ry + 8 : 0)]; });
+    svg.appendChild(svgEl('polyline', { points: pts(hiL), 'class': 'f-ghi' }));
+    svg.appendChild(svgEl('polyline', { points: pts(hiR), 'class': 'f-ghi is-thin' }));
+    svg.appendChild(svgEl('line', { x1: cx - st.x * 0.4, x2: cx - st.x * 0.4, y1: st.y0 + 4, y2: st.y1 - 3, 'class': 'f-ghi is-thin' }));
+    svg.appendChild(svgEl('path', { d: 'M' + xy(cx - rim.rx, rim.cy) + ' A' + rim.rx + ' ' + rim.ry + ' 0 0 0 ' + xy(cx + rim.rx, rim.cy), 'class': 'f-gedge' }));
+    svg.appendChild(svgEl('path', { d: 'M' + xy(cx - rim.rx * 0.8, rim.cy + rim.ry * 0.6) + ' A' + rim.rx + ' ' + rim.ry + ' 0 0 0 ' +
+      xy(cx - rim.rx * 0.2, rim.cy + rim.ry * 0.98), 'class': 'f-ghi' }));
+
+    // Loss arrows leave through the wall. While pouring they grow out and their count runs up.
+    G.leaks.forEach(function (l, i) {
       var s = stageById(M, l.id), open = S.fdrill === l.id;
+      var grow = animating ? span(at(i + 1), 0.1, 0.85) : 1;
+      if (grow <= 0) return;
       var g = svgEl('g', { 'class': 'f-leak is-' + l.lossType + (l.drillable ? ' is-drill' : '') + (open ? ' is-open' : '') });
       if (l.drillable) {
         g.setAttribute('role', 'button');
@@ -429,14 +516,111 @@
       }
       var hitX = l.x0 - 4, hitY = l.y0 + 2;
       g.appendChild(svgEl('rect', { x: hitX, y: hitY, width: G.width - hitX, height: l.ly - hitY + 18, rx: 5, 'class': 'f-hit' }));
-      g.appendChild(svgEl('path', { d: l.d, 'stroke-width': l.sw.toFixed(2), 'class': 'f-arrow' }));
-      g.appendChild(svgEl('polygon', { points: pts(l.head), 'class': 'f-head' }));
-      g.appendChild(svgEl('text', { x: l.lx, y: l.ly - 1, 'class': 'f-l1' }, l.line1 + (l.drillable ? (open ? ' ▾' : ' ›') : '')));
-      g.appendChild(svgEl('text', { x: l.lx, y: l.ly + 12, 'class': 'f-l2' }, l.line2));
+      var arrow = svgEl('g');
+      if (grow < 1) {
+        var clip = svgEl('clipPath', { id: 'fg-grow' + i });
+        clip.appendChild(svgEl('rect', { x: hitX, y: hitY - 20, width: ((G.labelX - hitX) * easeOut(grow)).toFixed(1), height: l.ly - hitY + 40 }));
+        defs.appendChild(clip);
+        arrow.setAttribute('clip-path', 'url(#fg-grow' + i + ')');
+      }
+      arrow.appendChild(svgEl('path', { d: l.d, 'stroke-width': l.sw.toFixed(2), 'class': 'f-arrow' }));
+      arrow.appendChild(svgEl('polygon', { points: pts(l.head), 'class': 'f-head' }));
+      g.appendChild(arrow);
+      var t = animating ? easeOut(span(grow, 0.25, 1)) : 1;
+      if (t > 0) {
+        var line1 = grow < 1 ? '−' + n0(Math.round(s.lost * t)) + ' lost' : l.line1;
+        var labels = svgEl('g', t < 1 ? { opacity: t.toFixed(2) } : {});
+        labels.appendChild(svgEl('text', { x: l.lx, y: l.ly - 1, 'class': 'f-l1' }, line1 + (l.drillable ? (open ? ' ▾' : ' ›') : '')));
+        labels.appendChild(svgEl('text', { x: l.lx, y: l.ly + 12, 'class': 'f-l2' }, l.line2));
+        g.appendChild(labels);
+      }
       svg.appendChild(g);
     });
     host.replaceChildren(svg);
   }
+
+  /* Presenter mode. The screen opens on an empty funnel with focus on it, and the arrow keys
+   * pour it one stage at a time, so the presenter reveals each loss as they talk about it;
+   * Home empties it, End pours the rest, Reset starts again. Reduced motion jumps instead of
+   * pouring, and printing always gets the finished funnel. */
+  function redrawFunnel() {
+    var host = document.querySelector('.ffunnelhost');
+    if (host) drawFunnel(host);
+  }
+  function funnelFull() { return funnelModel().stages.length + 1; }
+
+  /* Where the funnel is heading: a whole number of stages, the full count when finished. */
+  function funnelAt() { return FANIM.p === null ? funnelFull() : FANIM.target; }
+
+  function settleFunnel(announce) {
+    FANIM.p = FANIM.target >= funnelFull() ? null : FANIM.target;
+    redrawFunnel();
+    if (announce) announceStage(FANIM.target);
+  }
+
+  function animateFunnel(target, announce) {
+    var full = funnelFull();
+    cancelAnimationFrame(FANIM.raf);
+    if (FANIM.p === null) FANIM.p = full;
+    FANIM.target = Math.max(0, Math.min(full, target));
+    if (calmMotion() || FANIM.p === FANIM.target) { settleFunnel(announce); return; }
+    var prev = null;
+    function tick(ts) {
+      if (!document.querySelector('.ffunnelhost')) { FANIM.p = null; return; }
+      if (prev === null) prev = ts;
+      // Capped so a slow frame skips ahead a little, not to the end; a hidden tab gets no frames.
+      var d = Math.min(0.25, (ts - prev) / 1000) / FUNNEL_STAGE_S;
+      prev = ts;
+      // Stepping back drains a little faster than it fills.
+      FANIM.p = FANIM.p < FANIM.target ? Math.min(FANIM.target, FANIM.p + d) : Math.max(FANIM.target, FANIM.p - d * 1.6);
+      if (FANIM.p === FANIM.target) { settleFunnel(announce); return; }
+      redrawFunnel();
+      FANIM.raf = requestAnimationFrame(tick);
+    }
+    FANIM.raf = requestAnimationFrame(tick);
+  }
+  function emptyFunnel(host) {
+    cancelAnimationFrame(FANIM.raf);
+    FANIM.p = 0;
+    FANIM.target = 0;
+    drawFunnel(host);
+    announceStage(0);
+    // Focus is for the presenter's keys; the ring only appears once the keyboard moves it.
+    host.classList.add('is-quiet');
+    host.focus({ preventScroll: true });
+  }
+  function finishFunnel() {
+    cancelAnimationFrame(FANIM.raf);
+    if (FANIM.p !== null) { FANIM.p = null; redrawFunnel(); }
+  }
+
+  /* What a step reveals, in words: shown beside Reset and read out by screen readers. */
+  function stageCaption(k) {
+    var M = funnelModel(), full = funnelFull();
+    if (k === null) return '';
+    if (k <= 0) return 'Empty · → to begin';
+    var head = 'Stage ' + k + '/' + full + ' · ';
+    if (k === 1) return head + n0(M.total) + ' applied';
+    var s = M.stages[k - 2];
+    var left = k === full ? n0(M.end.stillIn) + ' booked' : n0(s.stillIn) + ' still in';
+    return head + s.label + ' −' + n0(s.lost) + ' · ' + left;
+  }
+  function announceStage(k) {
+    var el = document.getElementById('fstep');
+    if (el) el.textContent = stageCaption(k);
+  }
+
+  function stepFunnel(e, host) {
+    var keys = { ArrowRight: 1, ArrowLeft: -1, Home: 'home', End: 'end' };
+    if (!(e.key in keys) || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return false;
+    e.preventDefault();
+    // The arrows are redrawn on every frame, so focus stays on the funnel itself while it moves.
+    if (document.activeElement !== host) host.focus({ preventScroll: true });
+    var k = keys[e.key], at = funnelAt();
+    animateFunnel(k === 'home' ? 0 : k === 'end' ? funnelFull() : at + k, true);
+    return true;
+  }
+  window.addEventListener('beforeprint', finishFunnel);
 
   /* The drill-down, shared by both views: one region below them, opened from either. */
   var DISAGREE_TIP = 'The bank\'s description quotes different numbers from the conditions this rule ' +
@@ -533,7 +717,10 @@
       }).join('') + '</div>';
     var views = '<div class="fviews">' +
       '<div class="fview' + (view === 'funnel' ? ' is-on' : '') + '" data-view="funnel"' + (view === 'funnel' ? '' : ' inert aria-hidden="true"') + '>' +
-        '<div class="ffunnelhost"></div></div>' +
+        '<div class="fctl"><span class="fstep" id="fstep" aria-live="polite"></span>' +
+          '<button type="button" class="freset" data-freset>Reset</button></div>' +
+        '<div class="ffunnelhost" tabindex="0" role="group" aria-label="Funnel. Left and right arrow keys step ' +
+          'through the stages, Home empties it, End fills it." aria-describedby="fstep"></div></div>' +
       '<div class="fview' + (view === 'bars' ? ' is-on' : '') + '" data-view="bars"' + (view === 'bars' ? '' : ' inert aria-hidden="true"') + '>' +
         funnelBarsHtml(M) + '</div></div>';
 
@@ -621,12 +808,16 @@
     if (S.spec) applySpec();
   }
 
-  function mountFunnel(root) {
+  /* `entering` is true when the screen is opened, not re-rendered in place: only then does the
+   * funnel pour. */
+  function mountFunnel(root, entering) {
     var panelEl = root.querySelector('.fpanel');
     if (!panelEl) return;
     var host = panelEl.querySelector('.ffunnelhost');
     drawFunnel(host);
+    if (entering && S.fview === 'funnel') emptyFunnel(host);
     panelEl.addEventListener('click', function (e) {
+      if (e.target.closest('[data-freset]')) { emptyFunnel(host); return; }
       var v = e.target.closest('[data-fview]');
       if (v) { setView(panelEl, v.getAttribute('data-fview')); return; }
       if (e.target.closest('[data-drill-close]')) { setDrill(panelEl, null); return; }
@@ -635,7 +826,22 @@
       // A click with detail 0 came from the keyboard (Enter or Space on a button).
       if (t) setDrill(panelEl, t.getAttribute('data-drill'), t.getAttribute('data-drill'), e.detail === 0);
     });
+    host.addEventListener('focus', function () {
+      var el = document.getElementById('fstep');
+      if (el && !el.textContent && FANIM.p === null) { el.textContent = '← → step through the stages'; el.classList.add('is-hint'); }
+    });
+    host.addEventListener('blur', function () {
+      host.classList.remove('is-quiet');
+      var el = document.getElementById('fstep');
+      if (el && el.classList.contains('is-hint')) { el.textContent = ''; el.classList.remove('is-hint'); }
+    });
     panelEl.addEventListener('keydown', function (e) {
+      // Scoped to the funnel: the keys step it only when focus is on it or on one of its arrows.
+      if (e.target.closest && e.target.closest('.ffunnelhost') && stepFunnel(e, host)) {
+        var hint = document.getElementById('fstep');
+        if (hint) hint.classList.remove('is-hint');
+        return;
+      }
       // One keyboard path for both views' triggers (chevron button or SVG arrow). preventDefault
       // stops the button's own click, so it opens once.
       var t = e.target.closest && e.target.closest('[data-drill]');
@@ -2333,7 +2539,7 @@
     canvas.scrollTop = keepScroll ? at : 0;
     renderNav();
     wire(wrap);
-    mountFunnel(wrap);
+    mountFunnel(wrap, !keepScroll);
     applySpec();
   }
 

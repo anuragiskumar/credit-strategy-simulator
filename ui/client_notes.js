@@ -150,8 +150,11 @@ window.__NOTES__ = function (F) {
     funnel: {
       t: 'Where applicants drop out',
       d: 'Each applicant leaves at exactly one place: the first stage they fail. Two views of the same figures. ' +
-         'Funnel: each green band is who is still in, its width exactly proportional to that count, and the arrow ' +
-         'leaving each narrowing is who was lost there, its thickness growing with the loss. Bars: each stage row is ' +
+         'Funnel: a glass vessel in which each green disc is who is still in, its width exactly proportional to that ' +
+         'count, and the arrow leaving through the glass is who was lost there, its thickness growing with the loss. ' +
+         'The screen opens on an empty funnel with focus on it, for a presenter: the right arrow key pours one ' +
+         'stage at a time and the left arrow steps back (Home empties it, End pours the rest, Reset starts again). ' +
+         'Every stage ends on the exported figures. Bars: each stage row is ' +
          'everyone who reached it, split into green (goes on) and grey (lost here). Dark grey is a loss the lender ' +
          'caused (a rule or a product limit); light grey, and a dashed arrow, is a customer who walked away. Losses ' +
          'are grey, not coloured, because colour on these screens only ever says how a figure is known. The losses ' +

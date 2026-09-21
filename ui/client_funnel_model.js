@@ -119,6 +119,11 @@
    * trapezoid joins each band to the next, so the narrowing is the stage's loss. The last
    * stage's survivors ARE the booked loans, so that band is the Booked band and Booked is drawn
    * once. Stage names and leak arrows sit on the trapezoid rows, where the loss happens.
+   *
+   * `glass` draws the same bands as a glass vessel: each band becomes a disc of the same width at
+   * the band's centre, the liquid joins disc centres, and the glass is the liquid padded by a
+   * constant, so every width stays exactly proportional. It adds a rim, a stem and a foot; the
+   * bands, trapezoids and arrows above are unchanged.
    */
   var MONO_CHAR = 6.6;   // IBM Plex Mono advance at 11px, for deciding whether a label fits
 
@@ -126,10 +131,11 @@
     var W = opts.width, narrow = !!opts.narrow;
     // leakRun keeps clear space between the widest trapezoid and the labels, so every arrow
     // has room for the same curve, including the first stage, whose edge is nearest the labels.
-    var leftW = narrow ? 78 : 172, rightW = narrow ? 104 : 232, gap = narrow ? 6 : 16, leakRun = narrow ? 30 : 64;
+    var leftW = narrow ? 78 : 172, rightW = narrow ? 104 : 232, gap = narrow ? 12 : 16, leakRun = narrow ? 30 : 64;
     var midX = leftW + gap, midW = Math.max(40, W - leftW - rightW - gap - leakRun);
     var cx = midX + midW / 2, labelX = W - rightW;
-    var bandH = narrow ? 26 : 30, connH = narrow ? 56 : 54, groupH = 18, pad = 4;
+    var bandH = narrow ? 26 : 30, connH = narrow ? 56 : 54, groupH = 18;
+    var glassPad = narrow ? 6 : 10, top = narrow ? 8 : 12;   // top leaves room for the rim
     var maxLost = Math.max.apply(null, m.stages.map(function (s) { return s.lost; }));
     var swMin = narrow ? 1.5 : 2, swMax = narrow ? 6 : 12;
 
@@ -143,14 +149,16 @@
     function band(kind, id, value, pct, y) {
       var w = bandWidth(value), x = cx - w / 2, text = bandLabel(kind, value, pct);
       var tw = text.length * MONO_CHAR, h = kind === 'end' ? bandH + 4 : bandH;
-      var place = tw + 16 <= w ? 'inside' : (W - (x + w) - 8 >= tw ? 'right' : 'left');
+      // A label that does not fit on its disc sits outside the glass, not on the glass wall.
+      var out = glassPad + 8;
+      var place = tw + 16 <= w ? 'inside' : (W - (x + w) - out >= tw ? 'right' : 'left');
       return {
         kind: kind, id: id, value: value, pct: pct, x: x, y: y, w: w, h: h, text: text, place: place,
-        tx: place === 'inside' ? cx : place === 'right' ? x + w + 8 : x - 8, ty: y + h / 2
+        tx: place === 'inside' ? cx : place === 'right' ? x + w + out : x - out, ty: y + h / 2
       };
     }
 
-    var y = pad, bands = [], connectors = [], leaks = [], names = [], groupLabels = [];
+    var y = top, bands = [], connectors = [], leaks = [], names = [], groupLabels = [];
     var seenGroup = {};
     bands.push(band('start', m.start.id, m.start.stillIn, m.start.pctStillInOfTotal, y));
     names.push({ id: m.start.id, label: m.start.label, sub: '', y: y + bandH / 2, kind: 'start' });
@@ -197,11 +205,45 @@
     });
     names.push({ id: m.end.id, label: m.end.label, sub: '', y: y - bands[bands.length - 1].h / 2, kind: 'end' });
 
+    var glass = glassGeometry(bands, cx, glassPad, narrow);
     return {
-      width: W, height: y + pad + 6, narrow: narrow, leftW: leftW, midX: midX, midW: midW, cx: cx,
-      labelX: labelX, bands: bands, connectors: connectors, leaks: leaks, names: names, groupLabels: groupLabels
+      width: W, height: glass.foot.cy + glass.foot.ry + 8, narrow: narrow, leftW: leftW, midX: midX, midW: midW, cx: cx,
+      labelX: labelX, bands: bands, connectors: connectors, leaks: leaks, names: names, groupLabels: groupLabels,
+      glass: glass, bandLabel: bandLabel
     };
   }
 
-  return { build: build, check: check, geometry: geometry };
+  function glassGeometry(bands, cx, P, narrow) {
+    function discRy(b) { return Math.min(b.h / 2 + 4, Math.max(4, (b.w / 2) * 0.1)); }
+    var discs = bands.map(function (b) {
+      return { id: b.id, kind: b.kind, cx: cx, cy: b.y + b.h / 2, rx: b.w / 2, ry: discRy(b) };
+    });
+    var liquid = discs.map(function (d) { return [cx - d.rx, d.cy]; })
+      .concat(discs.slice().reverse().map(function (d) { return [cx + d.rx, d.cy]; }));
+    var wallL = discs.map(function (d) { return [cx - d.rx - P, d.cy]; });
+    var wallR = discs.map(function (d) { return [cx + d.rx + P, d.cy]; });
+    var first = discs[0], last = discs[discs.length - 1];
+    var stemW = narrow ? 4 : 7, neckH = narrow ? 14 : 22, stemH = narrow ? 14 : 24;
+    var neckY = last.cy + neckH, stemBot = neckY + stemH;
+    var footRx = Math.max(narrow ? 34 : 60, last.rx + P + (narrow ? 12 : 24));
+    return {
+      pad: P, discs: discs, liquid: liquid, wallL: wallL, wallR: wallR,
+      rim: { cx: cx, cy: first.cy, rx: first.rx + P, ry: first.ry + 2 },
+      neck: { y0: last.cy, y1: neckY, x: last.rx + P, stemW: stemW },
+      stem: { x: stemW, y0: neckY, y1: stemBot },
+      foot: { cx: cx, cy: stemBot + 4, rx: footRx, ry: narrow ? 6 : 10 }
+    };
+  }
+
+  /** Half-width of the liquid at height y: straight lines between disc centres. */
+  function liquidHalf(glass, y) {
+    var d = glass.discs;
+    if (y <= d[0].cy) return d[0].rx;
+    for (var i = 1; i < d.length; i++) {
+      if (y <= d[i].cy) return d[i - 1].rx + (d[i].rx - d[i - 1].rx) * (y - d[i - 1].cy) / (d[i].cy - d[i - 1].cy);
+    }
+    return d[d.length - 1].rx;
+  }
+
+  return { build: build, check: check, geometry: geometry, liquidHalf: liquidHalf };
 });

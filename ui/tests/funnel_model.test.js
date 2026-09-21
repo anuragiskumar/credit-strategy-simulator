@@ -114,6 +114,22 @@ for (const [width, narrow] of [[900, false], [320, true]]) {
   });
 }
 
+for (const [width, narrow] of [[900, false], [320, true]]) {
+  test(`the glass keeps every band's width: discs are bands, walls are discs plus a constant (${width}px)`, () => {
+    const M = FunnelModel.build(load()), G = FunnelModel.geometry(M, { width, narrow }), GL = G.glass;
+    assert.equal(GL.discs.length, G.bands.length);
+    GL.discs.forEach((d, i) => {
+      const b = G.bands[i];
+      assert.ok(Math.abs(d.rx * 2 - b.w) < 1e-9, `${b.id} disc width`);
+      assert.ok(Math.abs(d.cy - (b.y + b.h / 2)) < 1e-9, `${b.id} disc sits on its band`);
+      assert.ok(Math.abs(FunnelModel.liquidHalf(GL, d.cy) - d.rx) < 1e-9, `${b.id} liquid meets its disc`);
+      assert.ok(Math.abs(GL.wallR[i][0] - GL.wallL[i][0] - (b.w + 2 * GL.pad)) < 1e-9, `${b.id} glass wall`);
+    });
+    assert.ok(GL.rim.cy - GL.rim.ry >= 0, 'the rim is inside the drawing');
+    assert.ok(G.height >= GL.foot.cy + GL.foot.ry, 'the foot is inside the drawing');
+  });
+}
+
 test('booked is drawn once, as the last band', () => {
   const M = FunnelModel.build(load()), G = FunnelModel.geometry(M, { width: 900 });
   assert.equal(G.bands.filter((b) => b.id === M.end.id).length, 1);
