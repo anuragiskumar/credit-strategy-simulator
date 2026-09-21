@@ -554,23 +554,34 @@
   }
 
   /* =============================================================== screen 3
-   * The simulator starts from today's rules, all on. A person switches rules off or edits a
-   * threshold, one step at a time; each step is replayed by the engine behind ui/serve.py and
-   * shows what it added on top of the steps before it. Reverting a step asks again without it.
+   * The simulator starts from today's rules, all on, and answers two questions in three views:
+   *
+   *   Set a target   "how do we reach X% approval?" — goal-seek, one recommendation in a sentence
+   *   Try a change   "what if?" — story presets, two score-cutoff sliders, the busiest rules
+   *   All rules      the analyst's workbench: every rule, every threshold, the sweeps
+   *
+   * Try a change and All rules share one scenario: an ordered list of changes, each replayed by
+   * the engine behind ui/serve.py on top of the ones before it. One outcome bar at the top shows
+   * the book after every change; a waterfall shows what each step added.
    *
    * With no engine running (the page opened from disk, or `serve --static`) it falls back to
-   * the precomputed fixture: the same rule list, but only the switch-offs exported in
-   * `rule_toggles` can be tried, one at a time, and goal-seek shows its two precomputed runs.
+   * the precomputed fixture: only the switch-offs exported in `rule_toggles` and the loosening
+   * sweep cutoffs can be tried, one at a time, and goal-seek shows its two precomputed runs.
    * Every figure still comes from the engine; the page only formats. */
   var SIM = {
     live: null,          // null while checking, then true (engine) or false (fixture only)
     health: null, rules: null,
+    view: 'target',      // 'target' | 'try' | 'rules'
     steps: [], out: null, pending: false, error: null,
     q: '', filter: 'all', showAll: false, editing: null,
-    goal: { target: 30, ceiling: null, frozen: [], out: null, pending: false, error: null }
+    open: {},            // which disclosures are open, so a re-render keeps them open
+    refocus: null,       // selector to focus again after a re-render (a slider, a switch)
+    goal: { target: 25, ceiling: null, frozen: [], out: null, pending: false, error: null }
   };
   var RULE_PAGE = 25;
+  var TOP_RULES = 8;
   var OPS = { lt: '<', lte: '≤', gt: '>', gte: '≥' };
+  var FIELD_NAMES = { simahcreditscore: 'SIMAH score', crifscore: 'CRIF score', income: 'minimum income' };
 
   function api(path, body) {
     return fetch(path, body === undefined ? {} : {
@@ -607,22 +618,58 @@
   }
   function refreshSim() { if (S.page === 'simulator') go('simulator', true); }
 
-  /* ---- the scenario: an ordered list of changes, at most one per threshold */
+  /* ---- the score cutoffs offered as sliders: the engine's own list, or the fixture's sweeps */
+  function cutoffs() {
+    if (SIM.live && SIM.health && SIM.health.cutoffs) return SIM.health.cutoffs;
+    return (F.sweeps || []).map(function (sw) {
+      return { field: sw.field, label: sw.label, from: sw.from,
+               values: sw.rows.map(function (r) { return r.cutoff; }) };
+    });
+  }
+  /** An engine started before score cutoffs existed does not list them, and refuses the change. */
+  function cutoffsAvailable() { return !SIM.live || !!(SIM.health && SIM.health.cutoffs); }
+  function ceilingRate() { return SIM.health ? SIM.health.bad_rate_ceiling : F.meta.bad_rate_ceiling; }
+
+  /* ---- the scenario: an ordered list of changes, at most one per threshold or cutoff */
   function stepIndex(fn) { for (var i = 0; i < SIM.steps.length; i++) if (fn(SIM.steps[i])) return i; return -1; }
   function stepsFor(rid) { return SIM.steps.filter(function (s) { return s.rule_id === rid; }); }
+  function cutoffStep(field) { return SIM.steps.filter(function (s) { return s.type === 'cutoff' && s.field === field; })[0]; }
   function precomputed(rid) { return (F.rule_toggles || []).filter(function (t) { return t.rule_id === rid; })[0]; }
+  function precomputedCutoff(ch) {
+    var sw = (F.sweeps || []).filter(function (s) { return s.field === ch.field && s.from === ch.from; })[0];
+    return sw && sw.rows.filter(function (r) { return r.cutoff === ch.to; })[0];
+  }
+  function canTryStep(ch) {
+    if (ch.type === 'cutoff' && !cutoffsAvailable()) return false;
+    return SIM.live || canPrecompute(ch);
+  }
+  function canPrecompute(ch) {
+    return ch.type === 'off' ? !!precomputed(ch.rule_id) : ch.type === 'cutoff' ? !!precomputedCutoff(ch) : false;
+  }
+
+  /** Fixture mode: one precomputed change, shaped like an engine result. */
+  function fixtureStep(ch) {
+    if (ch.type === 'off') {
+      var t = precomputed(ch.rule_id);
+      return t && Object.assign({}, t, { change_direction: 'loosen', added_pp: t.approval_change_pp,
+        added_swap_in: t.swap_in, added_swap_out: t.swap_out });
+    }
+    var r = ch.type === 'cutoff' && precomputedCutoff(ch);
+    return r && { approval_rate: r.approval_rate, approval_change_pp: r.approval_change_pp,
+      swap_in: r.swap_in, swap_out: r.swap_out, expected_bad_rate: r.expected_bad_rate,
+      risk_known: r.risk_known, verdict: r.note, swap_in_by_channel: {}, change_direction: 'loosen',
+      added_pp: r.approval_change_pp, added_swap_in: r.swap_in, added_swap_out: r.swap_out };
+  }
 
   /** Replace the scenario, replay it, and keep the old one if the engine refuses. */
   function propose(steps) {
     SIM.error = null;
     if (!steps.length) { SIM.steps = []; SIM.out = null; refreshSim(); return; }
     if (!SIM.live) {
-      // Fixture mode: one precomputed switch-off at a time, shaped like an engine result.
-      var t = precomputed(steps[steps.length - 1].rule_id);
-      if (!t) { SIM.error = 'This change needs the engine running. Start it with python -m ui.serve.'; refreshSim(); return; }
-      var step = Object.assign({}, t, { change: 'switch off ' + t.rule_id, change_direction: 'loosen',
-        direction: 'loosen', added_pp: t.approval_change_pp, added_swap_in: t.swap_in, added_swap_out: t.swap_out });
-      SIM.steps = [steps[steps.length - 1]];
+      var last = steps[steps.length - 1];
+      var step = fixtureStep(last);
+      if (!step) { SIM.error = 'This change needs the engine running. Start it with python -m ui.serve.'; refreshSim(); return; }
+      SIM.steps = [last];
       SIM.out = { steps: [step], result: step };
       refreshSim();
       return;
@@ -662,20 +709,53 @@
     propose(next);
   }
 
-  /* ---- rendering */
+  /** Move one score cutoff. Back to today's value removes the step. */
+  function setCutoff(field, from, to) {
+    var at = stepIndex(function (s) { return s.type === 'cutoff' && s.field === field; });
+    var next = SIM.steps.slice();
+    if (to === from) { if (at >= 0) next.splice(at, 1); }
+    else {
+      var ch = { type: 'cutoff', field: field, from: from, to: to };
+      if (at >= 0) next[at] = ch; else next.push(ch);
+    }
+    propose(next);
+  }
+
+  /* ---- words */
   function num(v) { return v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
   function fieldName(f) { return String(f).split('.').pop(); }
+  function fieldLabel(f) { return FIELD_NAMES[f] || fieldName(f); }
+  /** A change in percentage points, as a CEO reads it: "+3.4 pts". */
+  function ptsChange(v, dp) {
+    if (v === null || v === undefined) return '—';
+    var x = Number(v);
+    return (x > 0 ? '+' : x < 0 ? '−' : '') + Math.abs(x).toFixed(dp === undefined ? 1 : dp) + ' pts';
+  }
   function condText(t) {
     if (t.operator === 'between') return fieldName(t.field) + ' between ' + num(t.value_low) + ' and ' + num(t.value_high);
     if (t.operator === 'outside') return fieldName(t.field) + ' outside ' + num(t.value_low) + '–' + num(t.value_high);
     return fieldName(t.field) + ' ' + (OPS[t.operator] || t.operator) + ' ' + num(t.value_low);
   }
+  function ruleById(rid) { return (SIM.rules || []).filter(function (r) { return r.rule_id === rid; })[0]; }
+  function ruleName(rid) { var r = ruleById(rid); return r ? r.label : rid; }
   function stepText(s) {
-    if (s.type === 'off') return 'Switch off ' + s.rule_id;
-    return s.rule_id + ': ' + fieldName(s.field) + ' → ' + num(s.value_low) +
+    if (s.type === 'off') return 'Switch off “' + ruleName(s.rule_id) + '”';
+    if (s.type === 'cutoff') return (s.to < s.from ? 'Lower' : 'Raise') + ' the ' + fieldLabel(s.field) +
+      ' cutoff from ' + num(s.from) + ' to ' + num(s.to);
+    return ruleName(s.rule_id) + ': ' + fieldName(s.field) + ' → ' + num(s.value_low) +
       (s.value_high !== undefined ? '–' + num(s.value_high) : '');
   }
   function signed(v) { return v === null || v === undefined ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + n0(Math.abs(v)); }
+  function joinWords(list) {
+    if (list.length < 2) return list.join('');
+    return list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+  }
+
+  /** A native disclosure whose open state survives a re-render. */
+  function disclose(key, summary, body, note) {
+    return '<details class="simmore" data-sim-open="' + key + '"' + (SIM.open[key] ? ' open' : '') + '>' +
+      '<summary' + (note || '') + '>' + summary + '</summary><div class="simmorebody">' + body + '</div></details>';
+  }
 
   function lockIcon(r) {
     if (!r.locked && !r.fixed_field) return '';
@@ -684,6 +764,268 @@
       '<rect x="1" y="5" width="8" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.2"/></svg></span>';
   }
 
+  /* ---- the outcome bar: the book after every change, always in view */
+  function outcomeBar() {
+    var h = F.headline, t = SIM.out && SIM.out.result, ceil = ceilingRate();
+    var busy = SIM.pending ? '<span class="simbusy">Replaying…</span>' : '';
+    if (!t) {
+      return '<div class="simout is-today">' +
+        '<div class="so"><span class="k">Approval today</span><span class="v fig c-obs">' + pct(h.approval_rate) + '</span></div>' +
+        '<div class="so"><span class="k">Bad rate today</span><span class="v fig c-obs">' + pct(h.booked_bad_rate, 2) + '</span>' +
+          '<span class="d">limit ' + pct(ceil, 1) + '</span></div>' +
+        '<div class="so so-hint">' + (busy || 'Pick a change below to see what moves.') + '</div></div>';
+    }
+    var breach = t.risk_known && t.expected_bad_rate > ceil;
+    var bad = t.risk_known
+      ? '<span class="' + (t.swap_in ? 'c-inf' : 'c-obs') + '">' + pct(t.expected_bad_rate, 2) + '</span>'
+      : '<span class="c-nm">no estimate</span>';
+    return '<div class="simout">' +
+      '<div class="so"><span class="k"' + N('t_approval') + '>Approval</span>' +
+        '<span class="v fig"><s>' + pct(h.approval_rate) + '</s> → <span class="c-obs">' + pct(t.approval_rate) + '</span></span>' +
+        '<span class="d">' + ptsChange(t.approval_change_pp) + '</span></div>' +
+      '<div class="so' + (breach ? ' is-breach' : '') + '"><span class="k"' + N('t_bad') + '>Bad rate</span>' +
+        '<span class="v fig"><s>' + pct(h.booked_bad_rate, 2) + '</s> → ' + bad + '</span>' +
+        '<span class="d">' + (breach ? 'above the ' : 'limit ') + pct(ceil, 1) + (breach ? ' limit' : '') + '</span></div>' +
+      '<div class="so"><span class="k"' + N('t_in') + '>Newly approved</span><span class="v fig">' + n0(t.swap_in) + '</span>' +
+        '<span class="d">applicants</span></div>' +
+      (t.swap_out ? '<div class="so"><span class="k"' + N('t_out') + '>Newly declined</span><span class="v fig">' + n0(t.swap_out) + '</span>' +
+        '<span class="d">bad rate ' + pct(t.swap_out_observed_bad_rate, 1) + '</span></div>' : '') +
+      (busy ? '<div class="so so-hint">' + busy + '</div>' : '') +
+      '</div>';
+  }
+
+  /** Why, and by channel: behind a disclosure under the outcome bar. */
+  function outcomeDetails() {
+    var t = SIM.out && SIM.out.result;
+    if (!t) return '';
+    var chans = Object.keys(t.swap_in_by_channel || {});
+    var tightens = t.swap_out > 0;
+    var rows = chans.map(function (k) {
+      var v = t.swap_in_by_channel[k];
+      return '<tr><td>' + esc(k) + '</td><td class="num">' + n0(v.swap_in) + '</td>' +
+        (tightens ? '<td class="num">' + n0(v.swap_out) + '</td>' : '') + '</tr>';
+    });
+    return disclose('why', 'Why, and by channel',
+      '<p class="simverdict"' + N('verdict_tag') + '>' + esc(t.verdict) + '</p>' +
+      (rows.length ? table('<th' + N('th_sw_channel') + '>Channel</th><th class="num">Newly approved</th>' +
+        (tightens ? '<th class="num">Newly declined</th>' : ''), rows) : ''));
+  }
+
+  function legend() {
+    return '<div class="simlegend"' + N('sim_legend') + '><span><i class="c-obs"></i>counted</span>' +
+      '<span><i class="c-inf"></i>estimated (never booked)</span>' +
+      '<span><i class="c-nm"></i>no estimate</span></div>';
+  }
+
+  /* ---- one chart: approval against bad rate, with the ceiling as a line */
+  function frontier(points, opts) {
+    var ceil = ceilingRate(), target = opts.target;
+    var plotted = points.filter(function (p) { return p.y !== null && p.y !== undefined; });
+    var xs = plotted.map(function (p) { return p.x; }).concat(target ? [target] : []);
+    var ys = plotted.map(function (p) { return p.y; }).concat([ceil]);
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
+    var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var xpad = Math.max(0.005, (x1 - x0) * 0.12), ypad = Math.max(0.002, (y1 - y0) * 0.12);
+    x0 -= xpad; x1 += xpad; y0 -= ypad; y1 += ypad;
+    var W = 560, H = opts.compact ? 210 : 300, L = 56, R = 16, T = 14, B = 42;
+    function X(v) { return L + (v - x0) * (W - L - R) / (x1 - x0); }
+    function Y(v) { return T + (y1 - v) * (H - T - B) / (y1 - y0); }
+    var g = '';
+    // Axes and gridlines: four ticks each way.
+    for (var i = 0; i <= 4; i++) {
+      var xv = x0 + (x1 - x0) * i / 4, yv = y0 + (y1 - y0) * i / 4;
+      g += '<line class="grid" x1="' + X(xv) + '" x2="' + X(xv) + '" y1="' + T + '" y2="' + (H - B) + '"/>' +
+           '<text class="tick" x="' + X(xv) + '" y="' + (H - B + 16) + '" text-anchor="middle">' + pct(xv, 1) + '</text>' +
+           '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(yv) + '" y2="' + Y(yv) + '"/>' +
+           '<text class="tick" x="' + (L - 8) + '" y="' + (Y(yv) + 4) + '" text-anchor="end">' + pct(yv, 1) + '</text>';
+    }
+    g += '<text class="axis" x="' + ((L + W - R) / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Approval rate →</text>' +
+         '<text class="axis" x="14" y="' + ((T + H - B) / 2) + '" text-anchor="middle" transform="rotate(-90 14 ' + ((T + H - B) / 2) + ')">Bad rate →</text>';
+    // Above the ceiling is out of bounds.
+    g += '<rect class="over" x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + Math.max(0, Y(ceil) - T) + '"/>' +
+         '<line class="ceil" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(ceil) + '" y2="' + Y(ceil) + '"/>' +
+         '<text class="lbl ceil-t" x="' + (W - R - 4) + '" y="' + (Y(ceil) - 6) + '" text-anchor="end">bad-rate limit ' + pct(ceil, 1) + '</text>';
+    if (target) {
+      g += '<line class="tgt" x1="' + X(target) + '" x2="' + X(target) + '" y1="' + T + '" y2="' + (H - B) + '"/>' +
+           '<text class="lbl tgt-t" x="' + (X(target) - 6) + '" y="' + ((T + H - B) / 2) + '" text-anchor="end">target ' + pct(target, 1) + '</text>';
+    }
+    var today = plotted.filter(function (p) { return p.kind === 'today'; })[0];
+    plotted.forEach(function (p) {
+      if (p.kind !== 'today' && today) {
+        g += '<line class="move" x1="' + X(today.x) + '" y1="' + Y(today.y) + '" x2="' + X(p.x) + '" y2="' + Y(p.y) + '"/>';
+      }
+    });
+    // Points close together (goal-seek options often are) take turns labelling above and below.
+    var byX = plotted.slice().sort(function (a, b) { return a.x - b.x; });
+    byX.forEach(function (p, i) {
+      var near = i > 0 && Math.abs(X(p.x) - X(byX[i - 1].x)) < 40 && Math.abs(Y(p.y) - Y(byX[i - 1].y)) < 24;
+      p.below = near && !byX[i - 1].below;
+    });
+    plotted.forEach(function (p) {
+      g += '<g class="pt ' + p.cls + '"><title>' + esc(p.title) + '</title>' +
+           '<circle cx="' + X(p.x) + '" cy="' + Y(p.y) + '" r="' + (p.kind === 'today' ? 6 : 7) + '"/>' +
+           '<text class="lbl" x="' + X(p.x) + '" y="' + (p.below ? Y(p.y) + 22 : Y(p.y) - 12) + '" text-anchor="middle">' +
+           esc(p.short || p.label) + '</text></g>';
+    });
+    var missing = points.filter(function (p) { return p.y === null || p.y === undefined; });
+    return '<div class="simchart"' + N('sim_chart') + '><svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' +
+      esc(opts.aria) + '">' + g + '</svg>' +
+      (missing.length ? '<p class="simnote">Not plotted, no bad-rate estimate: ' +
+        esc(missing.map(function (p) { return p.label; }).join(', ')) + ' (approval ' +
+        missing.map(function (p) { return pct(p.x); }).join(', ') + ').</p>' : '') + '</div>';
+  }
+
+  function todayPoint() {
+    return { kind: 'today', cls: 'is-today', x: F.headline.approval_rate, y: F.headline.booked_bad_rate,
+             label: 'Today', title: 'Today: approval ' + pct(F.headline.approval_rate) + ', bad rate ' + pct(F.headline.booked_bad_rate, 2) };
+  }
+  function resultPoint(r, label, kind) {
+    var y = r.risk_known ? r.expected_bad_rate : null;
+    return { kind: kind, x: r.approval_rate, y: y, label: label,
+             cls: r.risk_known && y > ceilingRate() ? 'is-breach' : (r.swap_in ? 'is-inf' : 'is-obs'),
+             title: label + ': approval ' + pct(r.approval_rate) + ', bad rate ' + (r.risk_known ? pct(y, 2) : 'no estimate') };
+  }
+
+  /* ---- the waterfall: what each step added */
+  function waterfall() {
+    return panel('Your scenario', SIM.pending ? '<span class="simbusy">Replaying…</span>' : '', waterfallBody(), N('sim_stack'));
+  }
+
+  function waterfallBody() {
+    var out = SIM.out, h = F.headline;
+    if (!SIM.steps.length) {
+      return '<p class="note">Nothing changed yet. Each change you make is a step. ' +
+        'Add more to build on it, and remove any step to see the scenario without it.</p>';
+    }
+    var levels = [h.approval_rate].concat(SIM.steps.map(function (_, i) {
+      return out && out.steps[i] ? out.steps[i].approval_rate : null;
+    }));
+    var known = levels.filter(function (v) { return v !== null; });
+    var lo = Math.min.apply(null, known), hi = Math.max.apply(null, known);
+    lo = Math.floor(lo * 100) / 100; hi = Math.max(hi, lo + 0.005);
+    function at(v) { return Math.round((v - lo) * 1000 / (hi - lo)) / 10; }
+    function row(label, from, to, fig, cls, extra) {
+      var a = at(Math.min(from, to)), b = at(Math.max(from, to));
+      return '<div class="wrow ' + cls + '"><div class="wl">' + label + '</div>' +
+        '<div class="wt"><i style="inset-inline-start:' + a + '%;width:' + Math.max(0.6, b - a) + '%"></i></div>' +
+        '<div class="wv fig">' + fig + '</div><div class="wx">' + (extra || '') + '</div></div>';
+    }
+    var rows = row('Today', lo, h.approval_rate, pct(h.approval_rate), 'is-base');
+    SIM.steps.forEach(function (s, i) {
+      var st = out && out.steps[i];
+      var before = levels[i], after = levels[i + 1];
+      var fig = st ? '<span' + (i === 0 ? N('sim_added') : '') + '>' + ptsChange(st.added_pp) + '</span>' : '…';
+      var sub = st ? '<small>' + signed(st.added_swap_in) + ' approved' +
+        (st.added_swap_out ? ' · ' + signed(st.added_swap_out) + ' declined' : '') + '</small>' : '';
+      rows += row('<span class="simn">' + (i + 1) + '</span><span>' + esc(stepText(s)) + sub + '</span>',
+        before === null ? lo : before, after === null ? lo : after, fig,
+        st && st.added_pp < 0 ? 'is-down' : 'is-up',
+        '<button class="iconbtn sm" data-sim-revert="' + i + '"' + (SIM.pending ? ' disabled' : '') +
+        ' aria-label="Remove step ' + (i + 1) + '" title="Remove this step">×</button>');
+    });
+    var last = levels[levels.length - 1];
+    if (last !== null) rows += row('After ' + (SIM.steps.length === 1 ? 'this change' : 'all ' + SIM.steps.length + ' changes'),
+      lo, last, pct(last), 'is-base is-total');
+    return '<div class="wfall">' + rows + '</div>' +
+      '<p class="simnote">Bars show approval rate; the axis starts at ' + pct(lo, 0) + '.</p>' +
+      '<button class="fmore" data-sim-reset' + (SIM.pending ? ' disabled' : '') + '>Reset to today\'s rules</button>';
+  }
+
+  /* ---- Try a change: story presets, two sliders, the busiest rules */
+  function presets() {
+    var list = [], rules = (SIM.rules || []).filter(function (r) { return r.editable && r.declines_alone; });
+    if (rules[0]) {
+      list.push({ id: 'bottleneck', t: 'Remove the biggest bottleneck',
+        d: 'Switch off “' + rules[0].label + '”, which on its own stops ' + n0(rules[0].declines_alone) + ' applicants.',
+        steps: [{ type: 'off', rule_id: rules[0].rule_id }] });
+    }
+    // Rules whose release keeps the book's bad rate at or below today's, biggest gain first.
+    var safe = (F.rule_toggles || []).filter(function (t) {
+      return t.risk_known && t.expected_bad_rate <= F.headline.booked_bad_rate;
+    }).sort(function (a, b) { return b.approval_change_pp - a.approval_change_pp; }).slice(0, 2);
+    if (safe.length) {
+      list.push({ id: 'safe', t: 'Grow approvals safely',
+        d: 'Switch off ' + joinWords(safe.map(function (t) { return '“' + ruleName(t.rule_id) + '”'; })) +
+           ': each one alone keeps the bad rate at or below today\'s.',
+        steps: safe.map(function (t) { return { type: 'off', rule_id: t.rule_id }; }) });
+    }
+    var sc = cutoffs()[0];
+    var up = sc && sc.values.filter(function (v) { return v > sc.from; });
+    if (up && up.length) {
+      var to = up[Math.min(1, up.length - 1)];
+      list.push({ id: 'tighten', t: 'Tighten for a downturn',
+        d: 'Raise the ' + fieldLabel(sc.field) + ' cutoff from ' + num(sc.from) + ' to ' + num(to) +
+           ', and see who approved today would be turned away.',
+        steps: [{ type: 'cutoff', field: sc.field, from: sc.from, to: to }] });
+    } else if (!SIM.live) {
+      list.push({ id: 'tighten', t: 'Tighten for a downturn', d: 'Raise a score cutoff and see who approved today would be turned away.',
+        steps: [] });
+    }
+    return list;
+  }
+
+  function presetCards() {
+    var list = presets();
+    if (!list.length) return '';
+    return '<p class="simkicker"' + N('sim_presets') + '>Start from a story</p><div class="simpresets">' + list.map(function (p) {
+      var ok = p.steps.length > 0 && (SIM.live || p.steps.length === 1) && p.steps.every(canTryStep);
+      var on = ok && SIM.steps.length === p.steps.length && JSON.stringify(SIM.steps) === JSON.stringify(p.steps);
+      return '<button class="simpreset' + (on ? ' is-on' : '') + '" data-sim-preset="' + p.id + '"' +
+        (ok && !SIM.pending ? '' : ' disabled') + ' aria-pressed="' + on + '">' +
+        '<b>' + esc(p.t) + '</b><span>' + esc(p.d) + '</span>' +
+        (ok ? '' : '<em>' + (SIM.live ? 'restart the engine to use this' : 'needs the engine running') + '</em>') + '</button>';
+    }).join('') + '</div>';
+  }
+
+  function sliders() {
+    return cutoffs().map(function (c, ci) {
+      var cur = cutoffStep(c.field);
+      var val = cur ? cur.to : c.from;
+      var vals = c.values.slice().sort(function (a, b) { return a - b; });
+      var idx = vals.indexOf(val), today = vals.indexOf(c.from);
+      return '<div class="simslider"' + (ci === 0 ? N('sim_cutoff') : '') + '>' +
+        '<div class="sshead"><b>' + esc(c.label) + '</b><span class="fig" data-sim-val="' + esc(c.field) + '">' + num(val) +
+          (val === c.from ? ' <small>today</small>' : ' <small>today ' + num(c.from) + '</small>') + '</span></div>' +
+        '<input type="range" min="0" max="' + (vals.length - 1) + '" step="1" value="' + idx + '" ' +
+          'data-sim-cutoff="' + esc(c.field) + '" data-from="' + c.from + '" data-values="' + vals.join(',') + '"' +
+          (SIM.pending || !cutoffsAvailable() ? ' disabled' : '') + ' aria-label="' + esc(c.label) + '" style="--today:' + (today * 100 / Math.max(1, vals.length - 1)) + '%">' +
+        '<div class="ssends"><span>← looser · ' + num(vals[0]) + '</span><span>' + num(vals[vals.length - 1]) +
+          (vals[vals.length - 1] > c.from ? ' · stricter →' : '') + '</span></div>' +
+        (cutoffsAvailable() ? '' : '<p class="simnote">The engine running now started before cutoff sliders existed. ' +
+          'Restart it (<code>python -m ui.serve</code>) to use them.</p>') + '</div>';
+    }).join('');
+  }
+
+  function ruleSwitches() {
+    var top = (SIM.rules || []).filter(function (r) { return r.editable && r.declines_alone; }).slice(0, TOP_RULES);
+    return '<ul class="simswitches"' + N('sim_levers') + '>' + top.map(function (r) {
+      var off = stepsFor(r.rule_id).some(function (s) { return s.type === 'off'; });
+      var ok = SIM.live || precomputed(r.rule_id);
+      return '<li class="' + (off ? 'is-off' : '') + '"><label class="simtoggle' + (ok ? '' : ' is-disabled') + '">' +
+        '<input type="checkbox" role="switch" data-sim-rule="' + esc(r.rule_id) + '"' + (off ? '' : ' checked') +
+        (ok && !SIM.pending ? '' : ' disabled') + '><i aria-hidden="true"></i>' +
+        '<span class="rn"><span class="rl">' + esc(r.label) + '</span>' +
+        '<span class="rsub">only this rule stops ' + n0(r.declines_alone) + ' applicants' +
+        (ok ? '' : ' · needs the engine') + '</span></span></label></li>';
+    }).join('') + '</ul>';
+  }
+
+  function viewTry() {
+    var pointsList = [todayPoint()];
+    if (SIM.out && SIM.out.result) pointsList.push(resultPoint(SIM.out.result, 'Your scenario', 'scenario'));
+    return presetCards() +
+      '<div class="simgrid"><div class="simmain">' +
+        panel('Score cutoffs', '', sliders()) +
+        panel('The ' + TOP_RULES + ' rules that stop the most applicants', '', ruleSwitches() +
+          '<button class="fmore" data-sim-view="rules">See all ' + (SIM.rules ? SIM.rules.length : '') + ' rules</button>') +
+      '</div><div class="simside">' +
+        panel('Your scenario', SIM.pending ? '<span class="simbusy">Replaying…</span>' : '',
+          frontier(pointsList, { compact: true, aria: 'Approval rate against bad rate, today and your scenario' }) + legend() +
+          '<div class="simsep"' + N('sim_stack') + '>What each change added</div>' + waterfallBody()) +
+      '</div></div>';
+  }
+
+  /* ---- All rules: the analyst's workbench */
   function visibleRules() {
     var q = SIM.q.trim().toLowerCase();
     return (SIM.rules || []).filter(function (r) {
@@ -719,7 +1061,7 @@
         (why ? '<span class="simwhy">' + esc(why) + '</span>' : '') +
         (r.editable && !r.declines_alone ? '<span class="simwhy">no effect on its own</span>' : '') +
         state + '</span></div>' +
-      '<div class="rc">' + n0(r.declines_alone) + '<small>alone</small></div>' +
+      '<div class="rc">' + n0(r.declines_alone) + '<small>only this</small></div>' +
       '<div class="rcell">' + editBtn + '</div>' + editor + '</li>';
   }
 
@@ -746,14 +1088,14 @@
     if (!SIM.rules) return panel('Rules', '', '<p class="note">Loading the rule list…</p>');
     var all = visibleRules();
     var shown = SIM.showAll || SIM.q ? all : all.slice(0, RULE_PAGE);
-    var filters = [['all', 'All'], ['alone', 'Declines someone alone'], ['editable', 'Can be changed'], ['changed', 'Changed']]
+    var filters = [['all', 'All'], ['alone', 'Stops someone on its own'], ['editable', 'Can be changed'], ['changed', 'Changed']]
       .map(function (f) {
         return '<button data-sim-filter="' + f[0] + '" aria-pressed="' + (SIM.filter === f[0]) + '">' + f[1] + '</button>';
       }).join('');
     var body =
       '<div class="simtools"><input type="search" class="siminput simsearch" id="simsearch" placeholder="Search rules, fields, policy codes" ' +
         'value="' + esc(SIM.q) + '" aria-label="Search rules"><div class="fseg">' + filters + '</div></div>' +
-      '<div class="fdrill-cols simcols"><span></span><span>Rule</span><span' + N('sim_alone') + '>Declines alone</span><span></span></div>' +
+      '<div class="fdrill-cols simcols"><span></span><span>Rule</span><span' + N('sim_alone') + '>Only this rule stops</span><span></span></div>' +
       '<ul class="fdrill-list simlist" id="simlist">' +
         (shown.length ? shown.map(function (r, i) { return ruleRow(r, i === 0); }).join('')
                       : '<li class="simempty">No rule matches.</li>') + '</ul>' +
@@ -762,66 +1104,8 @@
     return panel((SIM.rules.length) + ' decline rules, all on today', '', body, N('sim_rules'));
   }
 
-  function stackPanel() {
-    var out = SIM.out;
-    var items = SIM.steps.map(function (s, i) {
-      var st = out && out.steps[i];
-      var dir = st && st.change_direction;
-      return '<li><span class="simn">' + (i + 1) + '</span><div class="rn"><span class="rl">' + esc(stepText(s)) + '</span>' +
-        '<span class="rsub">' + (dir ? '<span>' + esc(dir === 'tighten' ? 'tightens' : dir === 'loosen' ? 'loosens' : dir) + '</span>' : '') +
-        (st ? '<span' + (i === 0 ? N('sim_added') : '') + '>' + pp(st.added_pp) + ' · ' + signed(st.added_swap_in) + ' approved' +
-          (st.added_swap_out ? ' · ' + signed(st.added_swap_out) + ' declined' : '') + '</span>' : '') +
-        '</span></div><button class="btn ghost sm" data-sim-revert="' + i + '"' + (SIM.pending ? ' disabled' : '') +
-        ' aria-label="Revert step ' + (i + 1) + '">Revert</button></li>';
-    }).join('');
-    var body = SIM.steps.length
-      ? '<ol class="simstack">' + items + '</ol>' +
-        '<button class="fmore" data-sim-reset' + (SIM.pending ? ' disabled' : '') + '>Reset to today\'s rules</button>'
-      : '<p class="note">Nothing changed yet. Untick a rule to switch it off, or edit a threshold. Each change is a ' +
-        'step; add more to build on it, and revert any step to see the scenario without it.</p>';
-    return panel('Your scenario', SIM.pending ? '<span class="simbusy">Replaying…</span>' : '', body, N('sim_stack'));
-  }
-
-  function resultPanel() {
-    var t = SIM.out && SIM.out.result;
-    if (!t) return '';
-    var tightens = t.swap_out > 0 || SIM.out.steps.some(function (s) { return s.change_direction === 'tighten' || s.change_direction === 'mixed'; });
-    var swapRows = Object.keys(t.swap_in_by_channel || {}).map(function (k) {
-      var v = t.swap_in_by_channel[k];
-      return '<tr><td>' + esc(k) + '</td><td class="num">' + n0(v.swap_in) + '</td>' +
-        (tightens ? '<td class="num">' + n0(v.swap_out) + '</td>' : '') + '</tr>';
-    });
-    return panel('After ' + (SIM.steps.length === 1 ? 'this change' : 'all ' + SIM.steps.length + ' changes'), '',
-      '<div class="tiles c4">' +
-        tile('Approval rate ' + pv('OBSERVED'), pct(t.approval_rate),
-             pp(t.approval_change_pp) + ' from ' + pct(F.headline.approval_rate), '', N('t_approval')) +
-        tile('Newly approved ' + pv('OBSERVED'), n0(t.swap_in), 'swap-ins', '', N('t_in')) +
-        tile('Newly declined ' + pv('OBSERVED'), n0(t.swap_out),
-             t.swap_out ? 'their observed bad rate ' + pct(t.swap_out_observed_bad_rate, 1) : 'swap-outs', '', N('t_out')) +
-        tile('Expected bad rate ' + (t.swap_in ? riskPill(t.risk_known) : pv('OBSERVED')),
-             t.risk_known ? pct(t.expected_bad_rate, 2) : '<span class="nodata">—</span>',
-             'was ' + pct(F.headline.booked_bad_rate, 2),
-             t.risk_known ? '' : 'hatch-nm', N('t_bad')) +
-      '</div>' +
-      caveat(t.risk_known ? '' : 'warn', t.risk_known ? 'VERDICT' : 'UNKNOWN', esc(t.verdict), N('verdict_tag')) +
-      table('<th' + N('th_sw_channel') + '>Channel</th><th class="num">Newly approved</th>' +
-            (tightens ? '<th class="num">Newly declined</th>' : ''), swapRows) +
-      (tightens ? '' : '<p class="note simnote">No one is newly declined: every change here loosens a rule. ' +
-        'Tighten a threshold to see who today\'s approvals would lose.</p>'), N('sw_panel'));
-  }
-
-  function modeNote() {
-    if (SIM.live === null) return caveat('', 'ENGINE', 'Connecting to the engine…', N('sim_mode'));
-    if (SIM.live) return '';
-    return caveat('warn', 'PRECOMPUTED',
-      'The engine is not running, so this screen shows scenarios worked out in advance: the ' +
-      (F.rule_toggles || []).length + ' busiest rules can be switched off, one at a time, and goal-seek shows two ' +
-      'fixed targets. Start the engine with <code>python -m ui.serve</code> to switch off any rule, edit thresholds, ' +
-      'stack changes and set your own target.', N('sim_mode'));
-  }
-
-  function pageSimulator() {
-    var sweepPanels = (F.sweeps || []).map(function (sw) {
+  function sweepPanels() {
+    return (F.sweeps || []).map(function (sw) {
       var cells = sw.rows.map(function (r, i) {
         return '<div class="s' + (r.note === 'current' ? ' is-current' : '') + '">' +
           '<div class="c"' + (i === 0 ? N('sweep_cell') : '') + '>' + esc(sw.field === 'simahcreditscore' ? 'SIMAH ' : 'CRIF ') + r.cutoff + '</div>' +
@@ -833,17 +1117,15 @@
       return panel(sw.label, pv('OBSERVED', 'APPROVAL') + ' ' + pv('INFERRED', 'RISK'),
         '<div class="sweep">' + cells + '</div>', N('sweep'));
     }).join('');
-
-    return '<div class="pagehead"><h2' + N('sim_head') + '>Simulator</h2>' +
-      '<p>Start from today\'s rules. Switch rules off or move a threshold, one step at a time, and see who moves.</p></div>' +
-      modeNote() +
-      (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') +
-      '<div class="simgrid"><div class="simmain">' + rulesPanel() + '</div>' +
-      '<div class="simside">' + stackPanel() + '</div></div>' + resultPanel() +
-      goalPanel() + sweepPanels;
   }
 
-  /* ---- goal-seek */
+  function viewRules() {
+    return '<div class="simgrid"><div class="simmain">' + rulesPanel() + '</div>' +
+      '<div class="simside">' + waterfall() + '</div></div>' +
+      disclose('sweeps', 'Score cutoff sweeps', sweepPanels());
+  }
+
+  /* ---- Set a target: goal-seek, answered in one sentence */
   function goalCandidates() {
     var gs = SIM.health && SIM.health.goal_search;
     if (!gs || !SIM.rules) return [];
@@ -861,86 +1143,214 @@
       .then(function () { g.pending = false; refreshSim(); });
   }
 
-  function goalOptions(g) {
-    return g.options.map(function (o, i) {
-      var cls = o.breaches_ceiling ? 'is-breach' : (i === 0 && o.reaches_target ? 'is-best' : '');
-      var steps = String(o.option).replace(/^[A-Z]:\s*/, '').split(' + ')
-        .map(function (s, j) { return '<li' + (j === 0 ? N('opt_steps') : '') + '>' + esc(s) + '</li>'; }).join('');
-      return '<div class="opt ' + cls + '"><h4' + N('opt_head') + '>' + esc(String(o.option).slice(0, 2)) +
-        (o.reaches_target ? pv('OBSERVED', 'REACHES TARGET') : pv('NOT_MODELLED', 'FALLS SHORT')) +
-        (o.breaches_ceiling ? pv('NOT_MODELLED', 'BREACHES BAD-RATE CEILING') : '') + '</h4>' +
-        '<div class="optgrid">' +
-          '<div><div class="k">Approval</div><div class="v">' + pct(o.approval_rate) + '</div></div>' +
-          '<div><div class="k">Change</div><div class="v">' + pp(o.approval_change_pp) + '</div></div>' +
-          '<div><div class="k">Newly approved</div><div class="v">' + n0(o.swap_in) + '</div></div>' +
-          '<div><div class="k">Expected bad</div><div class="v">' +
-            (o.risk_known ? pct(o.expected_bad_rate, 2) : '<span class="nodata">—</span>') + '</div></div>' +
-          '<div><div class="k"' + N('opt_risk') + '>Risk cost</div><div class="v">' + pp(o.risk_cost_pp) + '</div></div>' +
-        '</div><ul class="steps">' + steps + '</ul></div>';
-    }).join('');
+  /** An option's changes in words. Structured changes when the engine sent them, else its label. */
+  function optionWords(o) {
+    if (o.changes && o.changes.length) {
+      return o.changes.map(function (ch) {
+        if (ch.type === 'off') return 'switch off “' + ruleName(ch.rule_id) + '”';
+        return (ch.to < ch.from ? 'lower' : 'raise') + ' the ' + fieldLabel(ch.field) + ' cutoff from ' +
+          num(ch.from) + ' to ' + num(ch.to);
+      });
+    }
+    return String(o.option).replace(/^[A-Z]:\s*/, '').split(' + ').map(function (s) {
+      var m = /^switch off \S+ \((.*)\)$/.exec(s);
+      return m ? 'switch off “' + m[1] + '”' : s;
+    });
   }
 
-  function goalVerdict(g) {
-    return caveat(g.reached ? 'obs' : 'warn', g.reached ? 'REACHED' : 'OUT OF REACH',
-      g.reached
-        ? 'Options are ranked by <strong>risk cost</strong> — the cheapest way to get there, ' +
-          'not the largest change. Anything above the ' + pct(g.ceiling, 1) +
-          ' bad-rate ceiling is flagged and never ranked first.'
-        : 'No combination of the changes available reaches ' + pct(g.target, 1) +
-          '. These are the closest the engine can get, best first. ' +
-          '"Maximise approvals" on its own is solved by approving everyone, so every search ' +
-          'is bounded by the ' + pct(g.ceiling, 1) + ' bad-rate ceiling.', N('goal_tag'));
+  function recommendation(res) {
+    var o = res.options[0];
+    if (!o) return caveat('warn', 'OUT OF REACH', 'The search found nothing it could change.', N('goal_tag'));
+    var words = optionWords(o);
+    var ok = res.reached && o.reaches_target && !o.breaches_ceiling;
+    var head = ok ? 'To reach ' + pct(res.target, 1) + ':' : 'The closest we can get to ' + pct(res.target, 1) + ':';
+    var bad = o.risk_known
+      ? 'bad rate ' + pct(o.expected_bad_rate, 2) + ' (' + ptsChange(o.risk_cost_pp, 2) + '), ' +
+        (o.breaches_ceiling ? 'above' : 'inside') + ' the ' + pct(res.ceiling, 1) + ' limit'
+      : 'no bad-rate estimate is possible for these applicants';
+    var sentence = words.map(function (w, i) { return i ? w : w.charAt(0).toUpperCase() + w.slice(1); });
+    var canApply = SIM.live && o.changes && o.changes.length;
+    return '<div class="simreco ' + (ok ? 'is-reached' : 'is-short') + '">' +
+      '<div class="rtag"' + N('goal_tag') + '>' + (ok ? 'Reached' : 'Out of reach') + '</div>' +
+      '<p class="rhead"' + N('goal_reco') + '><b>' + esc(head) + '</b> ' + esc(joinWords(sentence)) + '.</p>' +
+      '<p class="rfig">Approval <span class="fig c-obs">' + pct(o.approval_rate) + '</span> (' + ptsChange(o.approval_change_pp) + '), ' +
+        '<span class="fig">' + n0(o.swap_in) + '</span> newly approved; ' + esc(bad) + '.</p>' +
+      (canApply ? '<button class="btn" data-goal-apply="0"' + N('goal_apply') + '>Try this as a scenario</button>' : '') +
+      '</div>';
+  }
+
+  function otherOptions(res) {
+    var rest = res.options.slice(1);
+    if (!rest.length) return '';
+    return disclose('options', rest.length + ' more option' + (rest.length > 1 ? 's' : ''), rest.map(function (o, j) {
+      var i = j + 1;
+      var tag = o.breaches_ceiling ? 'above the bad-rate limit' : o.reaches_target ? 'reaches the target' : 'falls short';
+      return '<div class="opt ' + (o.breaches_ceiling ? 'is-breach' : '') + '">' +
+        '<h4' + (j === 0 ? N('opt_head') : '') + '>Option ' + esc(String(o.option).charAt(0)) + ' <small>' + tag + '</small></h4>' +
+        '<ul class="steps">' + optionWords(o).map(function (w, k) {
+          return '<li' + (j === 0 && k === 0 ? N('opt_steps') : '') + '>' + esc(w) + '</li>'; }).join('') + '</ul>' +
+        '<p class="rfig">Approval ' + pct(o.approval_rate) + ' (' + ptsChange(o.approval_change_pp) + ') · ' +
+          '<span' + (j === 0 ? N('opt_risk') : '') + '>bad rate ' + (o.risk_known ? pct(o.expected_bad_rate, 2) + ' (' + ptsChange(o.risk_cost_pp, 2) + ')' : 'no estimate') + '</span>' +
+          ' · ' + n0(o.swap_in) + ' newly approved</p>' +
+        (SIM.live && o.changes && o.changes.length ? '<button class="btn ghost sm" data-goal-apply="' + i + '">Try this as a scenario</button>' : '') +
+        '</div>';
+    }).join(''), N('goal_more'));
+  }
+
+  function goalChart(res) {
+    var pointsList = [todayPoint()].concat(res.options.map(function (o) {
+      var p = resultPoint(o, 'Option ' + String(o.option).charAt(0), 'option');
+      p.short = String(o.option).charAt(0);
+      return p;
+    }));
+    return frontier(pointsList, { target: res.target, aria: 'Approval rate against bad rate: today and each option' });
   }
 
   function goalForm() {
     var g = SIM.goal, gs = SIM.health.goal_search, cands = goalCandidates();
     var chips = cands.map(function (r) {
       var frozen = g.frozen.indexOf(r.rule_id) >= 0;
-      return '<button class="chip" data-goal-freeze="' + esc(r.rule_id) + '" aria-pressed="' + frozen + '" title="' + esc(r.label) + '">' +
-        (frozen ? lockIcon({ locked: true }) : '') + esc(r.rule_id) + '</button>';
+      return '<button class="chip" data-goal-freeze="' + esc(r.rule_id) + '" aria-pressed="' + frozen + '" title="' + esc(r.rule_id) + '">' +
+        (frozen ? lockIcon({ locked: true }) : '') + esc(r.label) + '</button>';
     }).join(' ');
-    return '<div class="simgoal">' +
-      '<label class="simfield"' + N('goal_target') + '><span>Target approval rate</span>' +
-        '<span class="simunit"><input type="number" class="siminput" id="goaltarget" min="0" max="100" step="0.5" value="' + esc(g.target) + '">%</span>' +
-        '<small>today ' + pct(F.headline.approval_rate) + '</small></label>' +
-      '<label class="simfield"' + N('goal_ceiling') + '><span>Bad-rate ceiling</span>' +
-        '<span class="simunit"><input type="number" class="siminput" id="goalceiling" min="0" max="100" step="0.5" value="' + esc(g.ceiling) + '">%</span>' +
-        '<small>today\'s book ' + pct(F.headline.booked_bad_rate, 2) + '</small></label>' +
-      '<button class="btn" data-goal-run' + (g.pending ? ' disabled' : '') + '>' + (g.pending ? 'Searching…' : 'Find options') + '</button>' +
+    return '<div class="goalform">' +
+      '<span class="gl"' + N('goal_target') + '>Reach an approval rate of</span>' +
+      '<span class="gin"><input type="number" class="siminput" id="goaltarget" min="0" max="100" step="0.5" value="' + esc(g.target) +
+        '" aria-label="Target approval rate, percent">%<small>today ' + pct(F.headline.approval_rate) + '</small></span>' +
+      '<span class="gl"' + N('goal_ceiling') + '>without the bad rate going above</span>' +
+      '<span class="gin"><input type="number" class="siminput" id="goalceiling" min="0" max="100" step="0.5" value="' + esc(g.ceiling) +
+        '" aria-label="Bad-rate limit, percent">%<small>today ' + pct(F.headline.booked_bad_rate, 2) + '</small></span>' +
+      '<button class="btn" data-goal-run' + (g.pending ? ' disabled' : '') + '>' + (g.pending ? '<span class="spin" aria-hidden="true"></span>Searching…' : 'Find the way') + '</button>' +
       '</div>' +
-      '<div class="simfrozen"><span class="simedk"' + N('goal_frozen') + '>Rules the search may switch off. Click one to keep it on:</span> ' + chips +
-      '<p class="simnote">It may also try ' + gs.field_moves.length + ' cutoff moves set in config' +
-      (gs.field_moves.length ? ' (' + esc(gs.field_moves.join('; ')) + ')' : '') + ', combined up to ' +
-      gs.max_depth + ' at a time.</p></div>';
+      disclose('constraints', 'Constraints',
+        '<div class="simfrozen"><span class="simedk"' + N('goal_frozen') + '>Rules the search may switch off. Click one to keep it on:</span> ' + chips +
+        '<p class="simnote">It may also try ' + gs.field_moves.length + ' cutoff moves set in config' +
+        (gs.field_moves.length ? ' (' + esc(gs.field_moves.join('; ')) + ')' : '') + ', combined up to ' +
+        gs.max_depth + ' at a time.</p></div>');
   }
 
-  function goalPanel() {
+  function goalResult(res) {
+    return '<div class="simgrid is-goal"><div>' + recommendation(res) + otherOptions(res) + '</div>' +
+      '<div>' + goalChart(res) + legend() + '</div></div>';
+  }
+
+  /** While goal-seek runs: the shape of the answer, drawn in grey, and what the engine is doing.
+   * Pure CSS animation, no timers, so it costs nothing and stops the moment the result renders. */
+  function goalLoading() {
+    var gs = SIM.health.goal_search;
+    var tries = goalCandidates().length + gs.field_moves.length;
+    var stages = [
+      'Replaying ' + n0(F.meta.applicants) + ' applicants under each change',
+      'Combining ' + tries + ' possible changes, up to ' + gs.max_depth + ' at a time',
+      'Ranking what reaches ' + pct(SIM.goal.target / 100, 1) + ' by the extra bad rate it costs'
+    ];
+    // Scattered where a search would look: rightwards of today, spread in bad rate.
+    var dots = [[.22, .70], [.34, .58], [.30, .80], [.46, .64], [.52, .76], [.41, .46], [.63, .55],
+                [.58, .70], [.70, .40], [.74, .62], [.81, .52], [.66, .78], [.86, .34], [.90, .60]];
+    var svg = '<svg viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">' +
+      [15, 30, 45].map(function (y) { return '<line class="gl" x1="0" x2="100" y1="' + y + '" y2="' + y + '"/>'; }).join('') +
+      [25, 50, 75].map(function (x) { return '<line class="gl" y1="0" y2="60" x1="' + x + '" x2="' + x + '"/>'; }).join('') +
+      '<line class="ceil" x1="0" x2="100" y1="12" y2="12"/>' +
+      dots.map(function (d, i) {
+        return '<circle cx="' + d[0] * 100 + '" cy="' + d[1] * 60 + '" r="1.6" style="animation-delay:' + (i * 0.22).toFixed(2) + 's"/>';
+      }).join('') +
+      '<circle class="today" cx="12" cy="' + (0.78 * 60) + '" r="2"/>' +
+      '<rect class="scan" x="0" y="0" width="14" height="60"/></svg>';
+    return '<div class="goalwait" role="status" aria-live="polite">' +
+      '<div class="gwbar"><i></i></div>' +
+      '<div class="gwstages">' + stages.map(function (t, i) {
+        return '<span style="animation-delay:' + (i * 3) + 's">' + esc(t) + '…</span>';
+      }).join('') + '<span class="sr">Searching for options, this takes several seconds.</span></div>' +
+      '<div class="simgrid is-goal">' +
+        '<div class="gwcard"><i class="sk w30"></i><i class="sk w90 tall"></i><i class="sk w70 tall"></i>' +
+          '<i class="sk w80"></i><i class="sk w40 skbtn"></i></div>' +
+        '<div class="gwchart">' + svg + '</div>' +
+      '</div></div>';
+  }
+
+  function viewTarget() {
     if (SIM.live) {
       var g = SIM.goal;
-      return panel('Goal-seek: reach a target approval rate', '',
+      return panel('How do we reach a target approval rate?', '',
         goalForm() +
         (g.error ? caveat('warn', 'REFUSED', esc(g.error)) : '') +
-        (g.pending ? '<p class="note simbusy">Searching combinations — this takes several seconds.</p>' : '') +
-        (g.out && !g.pending ? goalVerdict(g.out) + goalOptions(g.out) : '') +
-        caveat('', 'LIMIT',
-          'This is a ranked shortlist for a human to take to a risk committee, not a proof of ' +
-          'optimality. Loosening a policy is a committee decision, not a calculation.', N('limit')), N('goal'));
+        (g.pending ? goalLoading() : '') +
+        (g.out && !g.pending ? goalResult(g.out) : ''), N('goal'));
     }
-    if (!F.goal_seek.length) return '';
+    if (SIM.live === null || !F.goal_seek.length) return '';
     var chips = F.goal_seek.map(function (gg, i) {
       return '<button class="chip" data-goal="' + i + '"' + (i === S.goal ? ' aria-current="true"' : '') +
         '>' + pct(gg.target, 0) + ' approval</button>';
     }).join(' ');
-    var pre = F.goal_seek[S.goal];
-    return panel('Goal-seek: reach a target approval rate', chips,
-      '<p class="note">Two targets worked out in advance. With the engine running you type your own target and ceiling.</p>' +
-      goalVerdict(pre) + goalOptions(pre) +
-      caveat('', 'LIMIT',
-        'This is a ranked shortlist for a human to take to a risk committee, not a proof of ' +
-        'optimality. Loosening a policy is a committee decision, not a calculation.', N('limit')), N('goal'));
+    return panel('How do we reach a target approval rate?', chips, goalResult(F.goal_seek[S.goal]), N('goal'));
   }
 
+  function modeNote() {
+    if (SIM.live === null) return '<p class="simmode"' + N('sim_mode') + '>Connecting to the engine…</p>';
+    if (SIM.live) return '';
+    return '<p class="simmode"' + N('sim_mode') + '>Worked out in advance: one change at a time. ' +
+      'Start the engine (<code>python -m ui.serve</code>) to stack changes and set your own target.</p>';
+  }
+
+  var VIEWS = [['target', 'Set a target'], ['try', 'Try a change'], ['rules', 'All rules']];
+
+  function pageSimulator() {
+    var tabs = '<div class="fseg simviews" role="tablist"' + N('sim_views') + '>' + VIEWS.map(function (v) {
+      return '<button role="tab" data-sim-view="' + v[0] + '" aria-pressed="' + (SIM.view === v[0]) + '" aria-selected="' +
+        (SIM.view === v[0]) + '">' + v[1] + '</button>';
+    }).join('') + '</div>';
+    var body = SIM.view === 'target' ? viewTarget() : SIM.view === 'try' ? viewTry() : viewRules();
+    var scenario = SIM.view === 'target' ? '' :
+      '<div class="simsticky"' + N('sim_outcome') + '>' + outcomeBar() +
+        (SIM.error ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') + outcomeDetails() + '</div>';
+    return '<div class="pagehead simhead"><div><h2' + N('sim_head') + '>Simulator</h2>' +
+      '<p>Change today\'s rules and see who moves, or name a target and let the engine find the way.</p></div>' +
+      tabs + '</div>' + modeNote() +
+      (SIM.error && SIM.view === 'target' ? caveat('warn', 'REFUSED', esc(SIM.error)) : '') +
+      scenario + body;
+  }
+
+  /** The side column sticks just below the outcome bar and scrolls on its own if taller than the room left. */
+  function syncStick(root) {
+    var bar = root.querySelector('.simsticky'), canvas = document.getElementById('canvas');
+    if (!bar || !canvas) return;
+    var top = bar.offsetHeight + 8;
+    // A sticky box cannot pass the bottom of its grid, which ends above the page's bottom padding.
+    // Taller than the room left, it would be pushed up under the outcome bar at the end of a scroll.
+    var below = parseFloat(getComputedStyle(root).paddingBottom) || 0;
+    root.style.setProperty('--simstick', top + 'px');
+    root.style.setProperty('--simside-max', Math.max(240, canvas.clientHeight - top - below - 4) + 'px');
+  }
+  window.addEventListener('resize', function () {
+    if (S.page === 'simulator') syncStick(document.getElementById('canvaswrap'));
+  });
+
   function wireSimulator(root) {
+    root.querySelectorAll('[data-sim-view]').forEach(function (b) {
+      b.addEventListener('click', function () { SIM.view = b.getAttribute('data-sim-view'); go('simulator', true); });
+    });
+    root.querySelectorAll('details[data-sim-open]').forEach(function (d) {
+      d.addEventListener('toggle', function () { SIM.open[d.getAttribute('data-sim-open')] = d.open; });
+    });
+    root.querySelectorAll('[data-sim-preset]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = presets().filter(function (x) { return x.id === b.getAttribute('data-sim-preset'); })[0];
+        if (p) propose(p.steps.slice());
+      });
+    });
+    root.querySelectorAll('[data-sim-cutoff]').forEach(function (inp) {
+      var field = inp.getAttribute('data-sim-cutoff'), from = +inp.getAttribute('data-from');
+      var vals = inp.getAttribute('data-values').split(',').map(Number);
+      var show = root.querySelector('[data-sim-val="' + field + '"]');
+      inp.addEventListener('input', function () {
+        var v = vals[+inp.value];
+        show.innerHTML = num(v) + (v === from ? ' <small>today</small>' : ' <small>today ' + num(from) + '</small>');
+      });
+      inp.addEventListener('change', function () {
+        SIM.refocus = '[data-sim-cutoff="' + field + '"]';
+        setCutoff(field, from, vals[+inp.value]);
+      });
+    });
     var search = root.querySelector('#simsearch');
     if (search) {
       search.addEventListener('input', function () {
@@ -961,7 +1371,10 @@
       b.addEventListener('click', function () { SIM.showAll = true; go('simulator', true); });
     });
     root.querySelectorAll('[data-sim-rule]').forEach(function (b) {
-      b.addEventListener('change', function () { switchRule(b.getAttribute('data-sim-rule'), b.checked); });
+      b.addEventListener('change', function () {
+        SIM.refocus = '[data-sim-rule="' + b.getAttribute('data-sim-rule') + '"]';
+        switchRule(b.getAttribute('data-sim-rule'), b.checked);
+      });
     });
     root.querySelectorAll('[data-sim-edit]').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -974,7 +1387,7 @@
       b.addEventListener('click', function () {
         var rid = b.getAttribute('data-sim-apply');
         var row = b.closest('.simedrow');
-        var rule = SIM.rules.filter(function (r) { return r.rule_id === rid; })[0];
+        var rule = ruleById(rid);
         var t = rule.thresholds[+row.getAttribute('data-i')];
         var lo = row.querySelector('[data-bound="lo"]'), hi = row.querySelector('[data-bound="hi"]');
         if (lo.value === '' || (hi && hi.value === '')) { SIM.error = 'Enter a number for the threshold.'; go('simulator', true); return; }
@@ -993,6 +1406,9 @@
     var tgt = root.querySelector('#goaltarget'), cl = root.querySelector('#goalceiling');
     if (tgt) tgt.addEventListener('input', function () { SIM.goal.target = tgt.value === '' ? null : Number(tgt.value); });
     if (cl) cl.addEventListener('input', function () { SIM.goal.ceiling = cl.value === '' ? null : Number(cl.value); });
+    [tgt, cl].forEach(function (inp) {
+      if (inp) inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') root.querySelector('[data-goal-run]').click(); });
+    });
     root.querySelectorAll('[data-goal-freeze]').forEach(function (b) {
       b.addEventListener('click', function () {
         var rid = b.getAttribute('data-goal-freeze'), f = SIM.goal.frozen, at = f.indexOf(rid);
@@ -1007,6 +1423,23 @@
         runGoal();
       });
     });
+    root.querySelectorAll('[data-goal-apply]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var o = SIM.goal.out && SIM.goal.out.options[+b.getAttribute('data-goal-apply')];
+        if (!o || !o.changes) return;
+        SIM.view = 'try';
+        propose(o.changes.slice());
+      });
+    });
+    syncStick(root);
+    root.querySelectorAll('details[data-sim-open]').forEach(function (d) {
+      d.addEventListener('toggle', function () { syncStick(root); });
+    });
+    if (SIM.refocus && !SIM.pending) {
+      var el = root.querySelector(SIM.refocus);
+      SIM.refocus = null;
+      if (el) el.focus({ preventScroll: true });
+    }
   }
 
   /* ------------------------------------------------------------------- nav */

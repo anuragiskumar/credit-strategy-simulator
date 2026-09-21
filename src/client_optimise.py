@@ -47,7 +47,8 @@ class Option:
                 "swap_in": self.swap_in, "swap_out": self.swap_out,
                 "expected_bad_rate": self.expected_bad_rate,
                 "risk_known": self.risk_known, "risk_cost_pp": self.risk_cost_pp,
-                "breaches_ceiling": self.breaches_ceiling}
+                "breaches_ceiling": self.breaches_ceiling,
+                "changes": list(getattr(self.lever, "changes", []))}
 
 
 def candidate_levers(base: S.Baseline, inv, cfg: dict,
@@ -69,14 +70,19 @@ def candidate_levers(base: S.Baseline, inv, cfg: dict,
                        & (drivers["declines_alone"] >= opt["min_declines_alone"])]
     for r in eligible.nlargest(opt["max_rule_candidates"], "declines_alone").itertuples():
         text = (r.description or r.rule_id)[:60]
-        levers.append(S.rule_lever(r.rule_id, enabled=False,
-                                   label=f"switch off {r.rule_id} ({text})"))
+        lever = S.rule_lever(r.rule_id, enabled=False, label=f"switch off {r.rule_id} ({text})")
+        # The same change in the form the screen sends, so an option can be tried as a scenario.
+        object.__setattr__(lever, "changes", [{"type": "off", "rule_id": r.rule_id}])
+        levers.append(lever)
 
     for move in opt["field_moves"]:
         try:
-            levers.append(S.field_lever(inv, move["field"], move["from"], move["to"],
-                                        product=cfg["product"], locked=locked_rules(cfg) | frozen,
-                                        label=f"{move['label']} ({move['from']:g} to {move['to']:g})"))
+            lever = S.field_lever(inv, move["field"], move["from"], move["to"],
+                                  product=cfg["product"], locked=locked_rules(cfg) | frozen,
+                                  label=f"{move['label']} ({move['from']:g} to {move['to']:g})")
+            object.__setattr__(lever, "changes", [{"type": "cutoff", "field": move["field"],
+                                                   "from": move["from"], "to": move["to"]}])
+            levers.append(lever)
         except ValueError:
             continue                  # threshold not present for this product; skip quietly
     return levers
@@ -153,6 +159,8 @@ def goal_seek(base: S.Baseline, inv, target_approval_rate: float, cfg: dict,
                 if set(cand.overrides) & used:
                     continue
                 combined = S.combine(partial.lever, cand)
+                object.__setattr__(combined, "changes", getattr(partial.lever, "changes", [])
+                                   + getattr(cand, "changes", []))
                 nxt.append(_evaluate(base, inv, combined, cfg, ceiling))
         if not nxt:
             break

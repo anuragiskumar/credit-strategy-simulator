@@ -71,6 +71,15 @@ def test_the_page_never_derives_a_rate_from_two_fixture_fields():
         assert not derived, f"{name} is deriving a figure: {derived}"
 
 
+def test_no_two_functions_in_the_page_script_share_a_name():
+    """Regression: one IIFE holds every screen, so a second `function pts` silently replaced the
+    funnel's polygon helper and the Portfolio funnel drew nothing."""
+    js = (UI / "client.js").read_text(encoding="utf-8")
+    names = re.findall(r"^\s*function (\w+)\(", js, re.M)
+    dups = sorted({n for n in names if names.count(n) > 1})
+    assert not dups, f"functions declared twice in client.js: {dups}"
+
+
 def test_the_funnel_model_loads_before_the_page_script():
     html = (UI / "client.html").read_text(encoding="utf-8")
     assert html.index('src="client_funnel_model.js"') < html.index('src="client.js"')
